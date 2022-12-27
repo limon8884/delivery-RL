@@ -4,16 +4,46 @@ import heapq
 import random
 
 class BaseSimulator:
-    def __init__(self, dispatch, num_couriers=10, num_orders_every_gamble=2, corner_bounds: Tuple[Point] = None) -> None:
+    def __init__(self,
+        dispatch, 
+        num_couriers=10, 
+        num_orders_every_gamble=2, 
+        corner_bounds: Tuple[Point] = (Point(0, 0), Point(1, 1))
+    ) -> None:
         self.num_couriers = num_couriers
         self.num_orders_every_gamble = num_orders_every_gamble
-        self.corner_bounds = corner_bounds or (Point(0, 0), Point(1, 1))
+        self.corner_bounds = corner_bounds
         self.dispatch = dispatch
 
         self.gamble_iteration = 0
-        self.busy_couriers_with_time_of_complite = heapq.heapify([])
-        self.free_couriers = [get_random_courier(self.corner_bounds) for _ in range(self.num_couriers)]
-        self.unassigned_orders = []
+
+        self.free_orders = []
+        self.free_couriers = []
+        self.active_routes = []
+
+        self.finished_couriers = []
+        self.finished_orders = []
+
+    def Update(self):
+        self.UpdateOrders()
+        self.UpdateCouriers()
+        self.UpdateActiveRoutes()
+
+    def Assign(self):
+        assignments = self.dispatch()
+
+    def UpdateOrders(self):
+        pass
+
+    def UpdateCouriers(self):
+        pass
+
+    def UpdateActiveRoutes(self):
+        pass
+
+    def Free():
+        pass
+        
 
     def gamble_iteration_to_time(self):
         return float(self.gamble_iteration)
