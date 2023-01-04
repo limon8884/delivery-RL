@@ -32,11 +32,15 @@ class Point:
         return fig
         
 class Courier:
-    def __init__(self, position: Point) -> None:
+    def __init__(self, position: Point, creation_time=0, off_time=100) -> None:
         self.id = random.randint(0, int(1e9))
         self.position = position
-        self.busy_untill = 0
-    
+        self.creation_time = creation_time
+        self.off_time = off_time
+
+    def next(self) -> None:
+        pass
+
     def __repr__(self) -> str:
         return 'Courier;  id: ' + str(self.id) + '; pos: ' + self.position.__repr__()
 
@@ -44,10 +48,15 @@ class Courier:
         return self.position.plot(fig, 'red', 10, '.')
 
 class Order:
-    def __init__(self, point_from: Point, point_to: Point) -> None:
+    def __init__(self, point_from: Point, point_to: Point, creation_time=0, off_time=100) -> None:
         self.id = random.randint(0, int(1e9))
         self.point_from = point_from
         self.point_to = point_to
+        self.creation_time = creation_time
+        self.off_time = off_time
+
+    def next(self) -> None:
+        pass
     
     def __repr__(self) -> str:
         return 'Order; id: ' + str(self.id) + '; from: ' + self.point_from.__repr__() + '; to: ' + self.point_to.__repr__()
@@ -56,26 +65,7 @@ class Order:
         self.point_from.plot(fig, 'green', 5, '^')
         self.point_to.plot(fig, 'blue', 5, 'v')
         return fig
-
-# class Route:
-#     def __init__(self, points: List[Point]) -> None:
-#         self.id = random.randint(0, int(1e9))
-#         self.points = points
-#         self.get_distace()
-
-#     def get_distace(self):
-#         self.distance = 0
-#         p_from = self.points[0]
-#         for p in self.points[1:]:
-#             self.distance += distance(p, p_from)
-#             p_from = p
-
-#     def start(self):
-#         return self.points[0]
-
-#     def end(self):
-#         return self.points[-1]
-        
+       
 class ActiveRoute:
     def __init__(self, courier: Courier, order: Order) -> None:
         self.courier = courier
@@ -85,6 +75,8 @@ class ActiveRoute:
         self.is_active = True
 
     def next(self, step):
+        self.courier.next()
+        self.order.next()
         if not self.is_active:
             return
         if distance(self.courier.position, self.target_point) < step:
