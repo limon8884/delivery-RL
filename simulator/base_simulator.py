@@ -1,18 +1,20 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from utils import *
 import heapq
 import random
+import json
 
 class BaseSimulator:
     def __init__(self,
         dispatch, 
-        num_couriers=10, 
-        num_orders_every_gamble=2, 
-        corner_bounds: Tuple[Point] = (Point(0, 0), Point(1, 1))
+        # num_couriers=10, 
+        # num_orders_every_gamble=2, 
+        # corner_bounds: Tuple[Point] = (Point(0, 0), Point(1, 1))
     ) -> None:
-        self.num_couriers = num_couriers
-        self.num_orders_every_gamble = num_orders_every_gamble
-        self.corner_bounds = corner_bounds
+        self.env_config = None
+        # self.num_couriers = num_couriers
+        # self.num_orders_every_gamble = num_orders_every_gamble
+        # self.corner_bounds = corner_bounds
         self.dispatch = dispatch
 
         self.gamble_iteration = 0
@@ -23,6 +25,10 @@ class BaseSimulator:
 
         self.finished_couriers = []
         self.finished_orders = []
+
+    def SetParams(self):
+        with open('environment_config.json') as f:
+            self.env_config = json.load(f)
 
     def Update(self):
         self.UpdateOrders()
@@ -97,8 +103,11 @@ class BaseSimulator:
     #         _, courier = heapq.heappop(self.busy_couriers_with_time_of_complite)
     #         self.free_couriers.append(courier)        
 
-    def next(self):
+    def Next(self):
         self.gamble_iteration += 1
         self.Update()
         self.Assign()
+
+    def GetMetrics(self) -> Dict:
+        return {}
 
