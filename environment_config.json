@@ -4,5 +4,8 @@
         "right": 10.0,
         "upper": 10.0,
         "lower": 0.0
-    }
+    },
+    "num_couriers": 10,
+    "num_orders_every_gamble": 2,
+    "order_live_time_gambles": 10 
 }

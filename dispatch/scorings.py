@@ -1,5 +1,5 @@
 from typing import List
-from dispatch import Edge
+from dispatch.dispatch import Edge
 import numpy as np
 
 from utils import *

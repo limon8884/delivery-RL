@@ -4,9 +4,9 @@ import numpy as np
 
 from utils import *
 from dispatch.utils import *
-from generators import FullGenerator
-from scorings import ETAScoring
-from solvers import HungarianSolver
+from dispatch.generators import FullGenerator
+from dispatch.scorings import ETAScoring
+from dispatch.solvers import HungarianSolver
 
 class Dispatch:
     '''
@@ -17,10 +17,14 @@ class Dispatch:
     returns pairs of indexes (order, courier) of first 2 lists - assigments
     '''
     def __init__(self) -> None:
-        self.generator = FullGenerator
         self.scoring = ETAScoring
         self.solver = HungarianSolver
         self.max_distance_to_point_A = 2.5
+
+        self.statistics = {
+            "avg_score": [],
+            "num_assignments": []
+        }
 
     def __call__(self, 
         free_orders: List[Order], 
@@ -33,5 +37,8 @@ class Dispatch:
         for o_idx, c_idx in zip(assigned_order_idxs, assigned_courier_idxs):
             if scores[o_idx][c_idx] != -np.Inf:
                 assignments.append((o_idx, c_idx))
+
+        self.statistics['avg_scores'].append(np.mean([scores[ass[0], ass[1]] for ass in assignments]))
+        self.statistics['num_assignments'].append(len(assignments))
 
         return assignments

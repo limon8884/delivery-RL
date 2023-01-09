@@ -54,6 +54,7 @@ class Order:
         self.point_to = point_to
         self.creation_time = creation_time
         self.off_time = off_time
+        self.is_completed = False
 
     def next(self) -> None:
         pass
