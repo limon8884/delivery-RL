@@ -16,10 +16,9 @@ class Dispatch:
     -active routes
     returns pairs of indexes (order, courier) of first 2 lists - assigments
     '''
-    def __init__(self) -> None:
-        self.scoring = ETAScoring
-        self.solver = HungarianSolver
-        self.max_distance_to_point_A = 2.5
+    def __init__(self, max_distance_to_point_A=2.5) -> None:
+        self.scoring = ETAScoring(max_distance_to_point_A)
+        self.solver = HungarianSolver()
 
         self.statistics = {
             "avg_score": [],

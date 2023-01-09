@@ -5,8 +5,8 @@ import numpy as np
 from utils import *
 
 class ETAScoring:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, max_distance_to_point_A) -> None:
+        self.max_distance_to_point_A = max_distance_to_point_A
 
     def __call__(self, orders: Order, couriers: Courier) -> np.ndarray:
         edges = []
