@@ -21,7 +21,7 @@ class Dispatch:
         self.solver = HungarianSolver()
 
         self.statistics = {
-            "avg_score": [],
+            "avg_scores": [],
             "num_assignments": []
         }
 
@@ -34,7 +34,7 @@ class Dispatch:
         assigned_order_idxs, assigned_courier_idxs = self.solver(scores)
         assignments = []
         for o_idx, c_idx in zip(assigned_order_idxs, assigned_courier_idxs):
-            if scores[o_idx][c_idx] != -np.Inf:
+            if scores[o_idx][c_idx] > -1000:
                 assignments.append((o_idx, c_idx))
 
         self.statistics['avg_scores'].append(np.mean([scores[ass[0], ass[1]] for ass in assignments]))

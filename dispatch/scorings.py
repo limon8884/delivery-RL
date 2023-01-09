@@ -15,7 +15,7 @@ class ETAScoring:
             for courier in couriers:
                 dist = distance(courier.position, order.point_from)
                 if dist > self.max_distance_to_point_A:
-                    dist = np.Inf
+                    dist = 1000
                 edges[-1].append(dist)
 
         return -np.array(edges)
