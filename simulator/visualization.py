@@ -2,21 +2,23 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-class Trajectory:
-    def __init__(self, type, id=0) -> None:
-        self.points = []
-        assert type in ['courier', 'route']
-        self.type = type
-        self.id = id
-
-    def show(self):
-        plt.scatter([(p.x, p.y) for p in self.points])
-
+class Visualizer:
+    def __init__(self, simulator) -> None:
+        self.simulator = simulator
+        self.fig, self.ax = plt.subplots()
+        self.fig.set_figheight(8)
+        self.fig.set_figwidth(8)
     
+    def DrawFrame(self):
+        self.simulator.corner_bounds[0].plot(self.ax, color='black')
+        self.simulator.corner_bounds[1].plot(self.ax, color='black')
 
-class TrajectoryMap:
-    def __init__(self) -> None:
-        pass
+    def Update(self):
+        for ar in self.simulator.active_routes:
+            ar.plot(self.ax)
 
-    def show(self):
-        pass
+        return self.ax
+
+    def Show(self):
+        return self.fig.show()
+

@@ -6,9 +6,10 @@ import random
 import json
 
 class BaseSimulator:
-    def __init__(self, dispatch) -> None:
+    def __init__(self, dispatch, step=0.5) -> None:
         self.env_config = None
         self.dispatch = dispatch
+        self.step = step
         self.SetParams()
 
         self.gamble_iteration = 0
@@ -27,7 +28,7 @@ class BaseSimulator:
             courier = Courier(
                 get_random_point(self.corner_bounds),
                 self.gamble_iteration,
-                10000
+                self.gamble_iteration + self.env_config['courier_live_time_gambles']
             )
             self.free_couriers.append(courier)
 
@@ -47,28 +48,36 @@ class BaseSimulator:
 
     def Assign(self):
         assignments = self.dispatch(self.free_orders, self.free_couriers, self.active_routes)
+
         for o_idx, c_idx in assignments:
+            o = self.free_orders[o_idx]
+            c = self.free_couriers[c_idx]
+            self.active_routes.append(ActiveRoute(c, o, self.gamble_iteration))
+
+        for o_idx, _ in sorted(assignments, key=lambda x: x[0], reverse=True):
             o = self.free_orders.pop(o_idx)
+        
+        for _, c_idx in sorted(assignments, key=lambda x: x[1], reverse=True):
             c = self.free_couriers.pop(c_idx)
-            self.active_routes.append(ActiveRoute(c, o))
+        
 
     def UpdateOrders(self):
         for order in self.free_orders:
-            order.next()
-            if self.gamble_iteration > order.off_time:
+            order.next(self.gamble_iteration)
+            if self.gamble_iteration > order.expire_time:
                 self.FreeOrder(order)
         self.GetNewOrders()
 
     def UpdateCouriers(self):
         for courier in self.free_couriers:
-            courier.next()
+            courier.next(self.gamble_iteration)
             if self.gamble_iteration > courier.off_time:
                 self.FreeCourier(courier)
         self.GetNewCouriers()
 
     def UpdateActiveRoutes(self):
         for active_route in self.active_routes:
-            active_route.next()
+            active_route.next(self.step, self.gamble_iteration)
             if not active_route.is_active:
                 self.FreeActiveRoute(active_route)
         
@@ -83,7 +92,6 @@ class BaseSimulator:
         self.free_couriers.pop(courier_idx)
 
     def FreeActiveRoute(self, active_route):
-        active_route.order.is_completed = True
         self.finished_orders.append(active_route.order)
         if self.gamble_iteration > active_route.courier.off_time:
             self.finished_couriers.append(active_route.courier)
@@ -114,6 +122,9 @@ class BaseSimulator:
         return {
             'iter': self.gamble_iteration,
             'completed_orders': sum([int(order.is_completed) for order in self.finished_orders]),
-            'total_orders': len(self.finished_orders)
+            'finished_orders': len(self.finished_orders),
+            'current_free_couriers': len(self.free_couriers),
+            'current_free_orders': len(self.free_orders),
+            'current_active_routes': len(self.active_routes)
         }
 
