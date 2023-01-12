@@ -13,6 +13,7 @@ class BaseSimulator:
         self.SetParams()
 
         self.gamble_iteration = 0
+        self.total_gamble_eta = 0
 
         self.free_orders = []
         self.free_couriers = []
@@ -49,10 +50,12 @@ class BaseSimulator:
     def Assign(self):
         assignments = self.dispatch(self.free_orders, self.free_couriers, self.active_routes)
 
+        self.total_gamble_eta = 0
         for o_idx, c_idx in assignments:
             o = self.free_orders[o_idx]
             c = self.free_couriers[c_idx]
             self.active_routes.append(ActiveRoute(c, o, self.gamble_iteration))
+            self.total_gamble_eta += distance(c.position, o.point_from)
 
         for o_idx, _ in sorted(assignments, key=lambda x: x[0], reverse=True):
             o = self.free_orders.pop(o_idx)
@@ -125,6 +128,8 @@ class BaseSimulator:
             'finished_orders': len(self.finished_orders),
             'current_free_couriers': len(self.free_couriers),
             'current_free_orders': len(self.free_orders),
-            'current_active_routes': len(self.active_routes)
+            'current_active_routes': len(self.active_routes),
+            'total_eta': self.total_gamble_eta
         }
+
 

@@ -18,6 +18,7 @@ class Dispatch:
     '''
     def __init__(self, max_distance_to_point_A=2.5) -> None:
         self.scoring = ETAScoring(max_distance_to_point_A)
+        self.max_distance_to_point_A = max_distance_to_point_A
         self.solver = HungarianSolver()
 
         self.statistics = {
@@ -30,11 +31,11 @@ class Dispatch:
         free_couriers: List[Courier], 
         active_routes: List[ActiveRoute]
     ) -> List[Tuple[int, int]]:
-        scores = self.scoring(free_orders, free_couriers)        
+        scores = self.scoring(free_orders, free_couriers)
         assigned_order_idxs, assigned_courier_idxs = self.solver(scores)
         assignments = []
         for o_idx, c_idx in zip(assigned_order_idxs, assigned_courier_idxs):
-            if scores[o_idx][c_idx] > -1000:
+            if scores[o_idx][c_idx] > -self.max_distance_to_point_A:
                 assignments.append((o_idx, c_idx))
 
         self.statistics['avg_scores'].append(np.mean([scores[ass[0], ass[1]] for ass in assignments]))
