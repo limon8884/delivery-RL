@@ -1,6 +1,4 @@
 import matplotlib.pyplot as plt
-import seaborn as sns
-
 
 class Visualizer:
     def __init__(self, simulator) -> None:
