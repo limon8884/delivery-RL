@@ -97,6 +97,7 @@ class ScoringNet(nn.Module):
         ]
     
     def forward(self, batch: List[GambleTriple], current_time: int):
+        self.masks = None
         tensors = self.make_tensors_and_create_masks(batch, current_time)
 
         ord, crr = self.encoder_AR(tensors)
@@ -170,6 +171,13 @@ class ScoringNet(nn.Module):
         crr_t = torch.transpose(crr, 1, 2)
         return torch.matmul(ord, crr_t)
 
+    def get_mask(self):
+        with torch.no_grad():
+            om_ones = torch.where(self.masks['o'], 0, 1).unsqueeze(-1)
+            cm_ones = torch.where(self.masks['c'], 0, 1).unsqueeze(-2)
+            return torch.matmul(om_ones, cm_ones).float()
+
 def create_mask(lenghts):
     max_len = max(lenghts)
-    return torch.arange(max_len).expand(len(lenghts), max_len) >= torch.tensor(lenghts).unsqueeze(1)
+    with torch.no_grad():
+        return torch.arange(max_len).expand(len(lenghts), max_len) >= torch.tensor(lenghts).unsqueeze(1)

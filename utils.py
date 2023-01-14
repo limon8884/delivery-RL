@@ -129,3 +129,12 @@ def get_random_point(corner_bounds: Tuple[Point]):
     y = random.random() * (right_upper_bound.y - left_lower_bound.y) + left_lower_bound.y
 
     return Point(x, y)
+
+def random_order(corner_bounds: Tuple[Point]):
+    return Order(get_random_point(corner_bounds), get_random_point(corner_bounds), 0, 1000)
+
+def random_courier(corner_bounds: Tuple[Point]):
+    return Courier(get_random_point(corner_bounds), 0, 1000)
+
+def random_ar(corner_bounds: Tuple[Point]):
+    return ActiveRoute(random_courier(corner_bounds), random_order(corner_bounds), 0)

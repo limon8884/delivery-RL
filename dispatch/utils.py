@@ -12,3 +12,10 @@ class GambleTriple:
         self.orders = orders
         self.couriers = couriers
         self.active_routes = active_routes
+
+def random_triple(corner_bounds: Tuple[Point], max_items=10):
+    os = [random_order(corner_bounds) for _ in range(int(random.random() * max_items) + 1)]
+    cs = [random_courier(corner_bounds) for _ in range(int(random.random() * max_items) + 1)]
+    ars = [random_ar(corner_bounds) for _ in range(int(random.random() * max_items) + 1)]
+    
+    return GambleTriple(os, cs, ars)
