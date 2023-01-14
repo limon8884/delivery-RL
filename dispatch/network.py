@@ -7,11 +7,25 @@ from torch.nn.utils.rnn import pad_sequence
 from utils import *
 from dispatch.utils import *
 
+class PositionalEncoder(nn.Module):
+    def __init__(self, out_dim, trainable=True):
+        super().__init__()
+        assert out_dim % 2 == 0
+        self.sin_layer = nn.Linear(1, out_dim // 2)
+        self.cos_layer = nn.Linear(1, out_dim // 2)
+        self.trainable = trainable
+        self.freqs = torch.tensor([1 / 2**i for i in range(out_dim // 2)])
+
+    def forward(self, x):
+
+        if self.trainable:
+            return torch.cat([torch.sin(self.sin_layer(x)), torch.cos(self.sin_layer(x))], dim=-1)
+        return torch.cat([torch.sin(x * self.freqs), torch.cos(x * self.freqs)], dim=-1)
 
 class OrderEncoder(nn.Module):
-    def __init__(self, out_dim=256, pos_enc_dim=64):
+    def __init__(self, trainable=True, out_dim=256, pos_enc_dim=64):
         super().__init__()
-        self.pos_enc = nn.Linear(1, pos_enc_dim)
+        self.pos_enc = PositionalEncoder(pos_enc_dim, trainable)
         self.mlp = nn.Sequential(
             nn.LeakyReLU(),
             nn.Linear(5 * pos_enc_dim, out_dim),
@@ -32,9 +46,9 @@ class OrderEncoder(nn.Module):
         return self.mlp(cat_vec)
 
 class CourierEncoder(nn.Module):
-    def __init__(self, out_dim=256, pos_enc_dim=64):
+    def __init__(self, trainable=True, out_dim=256, pos_enc_dim=64):
         super().__init__()
-        self.pos_enc = nn.Linear(1, pos_enc_dim)
+        self.pos_enc = PositionalEncoder(pos_enc_dim, trainable)
         self.mlp = nn.Sequential(
             nn.LeakyReLU(),
             nn.Linear(2 * pos_enc_dim, out_dim),
@@ -52,9 +66,9 @@ class CourierEncoder(nn.Module):
         return self.mlp(cat_vec)
 
 class ActiveRouteEncoder(nn.Module):
-    def __init__(self, out_dim=256, pos_enc_dim=64):
+    def __init__(self, trainable=True, out_dim=256, pos_enc_dim=64):
         super().__init__()
-        self.pos_enc = nn.Linear(1, pos_enc_dim)
+        self.pos_enc = PositionalEncoder(pos_enc_dim, trainable)
         self.mlp = nn.Sequential(
             nn.LeakyReLU(),
             nn.Linear(3 * pos_enc_dim, out_dim),
@@ -78,11 +92,12 @@ class ActiveRouteEncoder(nn.Module):
         return self.mlp(cat_vec)
 
 class ScoringNet(nn.Module):
-    def __init__(self, n_layers=2, d_model=256, n_head=2, dim_ff=256, pos_enc_dim=64):
+    def __init__(self, mode='default', n_layers=2, d_model=256, n_head=2, dim_ff=256, pos_enc_dim=64):
         super().__init__()
-        self.order_enc = OrderEncoder(out_dim=d_model, pos_enc_dim=pos_enc_dim)
-        self.courier_enc = CourierEncoder(out_dim=d_model, pos_enc_dim=pos_enc_dim)
-        self.active_routes_enc = ActiveRouteEncoder(out_dim=d_model, pos_enc_dim=pos_enc_dim)
+        self.order_enc = OrderEncoder(trainable=mode!='const_enc', out_dim=d_model, pos_enc_dim=pos_enc_dim)
+        self.courier_enc = CourierEncoder(trainable=mode!='const_enc', out_dim=d_model, pos_enc_dim=pos_enc_dim)
+        self.active_routes_enc = ActiveRouteEncoder(trainable=mode!='const_enc', out_dim=d_model, pos_enc_dim=pos_enc_dim)
+        self.mode = mode
 
         self.encoders_AR = {
             'o': nn.TransformerDecoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=dim_ff, batch_first=True),
@@ -104,6 +119,8 @@ class ScoringNet(nn.Module):
         ord, crr = self.encoder_OC(ord, crr)
         scores = self.bipartite_scores(ord, crr)
 
+        if self.mode == 'square':
+            return -torch.square(scores)
         return scores
 
     def make_tensors_and_create_masks(self, batch: List[GambleTriple], current_time):
