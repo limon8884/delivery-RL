@@ -7,106 +7,112 @@ from torch.nn.utils.rnn import pad_sequence
 from utils import *
 from dispatch.utils import *
 
-class PositionalEncoder(nn.Module):
-    def __init__(self, out_dim, trainable=True):
-        super().__init__()
-        assert out_dim % 2 == 0
-        self.sin_layer = nn.Linear(1, out_dim // 2)
-        self.cos_layer = nn.Linear(1, out_dim // 2)
-        self.trainable = trainable
-        self.freqs = torch.tensor([1 / 2**i for i in range(out_dim // 2)])
-
-    def forward(self, x):
-
-        if self.trainable:
-            return torch.cat([torch.sin(self.sin_layer(x)), torch.cos(self.sin_layer(x))], dim=-1)
-        return torch.cat([torch.sin(x * self.freqs), torch.cos(x * self.freqs)], dim=-1)
-
-class OrderEncoder(nn.Module):
-    def __init__(self, trainable=True, out_dim=256, pos_enc_dim=64):
-        super().__init__()
-        self.pos_enc = PositionalEncoder(pos_enc_dim, trainable)
-        self.mlp = nn.Sequential(
-            nn.LeakyReLU(),
-            nn.Linear(5 * pos_enc_dim, out_dim),
-            nn.LeakyReLU(),
-            nn.Linear(out_dim, out_dim)
-        )
-
-    def forward(self, order: Order, current_time: int):
-        features = [
+def ExtractOrderFeatures(order: Order, current_time: int) -> List[float]:
+    return [
             order.point_from.x, 
             order.point_from.y, 
             order.point_to.x, 
             order.point_to.y, 
             order.expire_time - current_time
-        ]
-        cat_vec = torch.flatten(self.pos_enc(torch.tensor(features, dtype=torch.float32).unsqueeze(-1)))
+    ]
 
-        return self.mlp(cat_vec)
-
-class CourierEncoder(nn.Module):
-    def __init__(self, trainable=True, out_dim=256, pos_enc_dim=64):
-        super().__init__()
-        self.pos_enc = PositionalEncoder(pos_enc_dim, trainable)
-        self.mlp = nn.Sequential(
-            nn.LeakyReLU(),
-            nn.Linear(2 * pos_enc_dim, out_dim),
-            nn.LeakyReLU(),
-            nn.Linear(out_dim, out_dim)
-        )
-
-    def forward(self, courier: Courier):
-        features = [
+def ExtractCourierFeatures(courier: Courier, current_time: int=0) -> List[float]:
+    return [
             courier.position.x, 
             courier.position.y
-        ]
-        cat_vec = torch.flatten(self.pos_enc(torch.tensor(features, dtype=torch.float32).unsqueeze(-1)))
+    ]
 
-        return self.mlp(cat_vec)
+def ExtractActiveRoutesFeatures(active_route: ActiveRoute, current_time: int=0) -> List[float]:
+    if active_route.eta_period:
+        dist = distance(active_route.courier.position, active_route.order.point_from)\
+            + distance(active_route.order.point_from, active_route.order.point_to)
+    else:
+        dist = dist(active_route.courier.position, active_route.order.point_to)
+    return [
+        active_route.order.point_to.x, 
+        active_route.order.point_to.y,
+        dist
+    ]
 
-class ActiveRouteEncoder(nn.Module):
-    def __init__(self, trainable=True, out_dim=256, pos_enc_dim=64):
+class PositionalEncoder(nn.Module):
+    def __init__(self, type, pos_enc_dim, out_dim):
         super().__init__()
-        self.pos_enc = PositionalEncoder(pos_enc_dim, trainable)
+        assert pos_enc_dim % 2 == 0
+        self.sin_layer = nn.Linear(1, pos_enc_dim // 2)
+        self.cos_layer = nn.Linear(1, pos_enc_dim // 2)
+        # self.trainable = trainable
+        # self.freqs = torch.tensor([1 / 2**i for i in range(pos_enc_dim // 2)])
+        if type == 'o':
+            self.feature_extractor = ExtractOrderFeatures
+            num_features = 5
+        elif type == 'c':
+            self.feature_extractor = ExtractCourierFeatures
+            num_features = 2
+        elif type == 'ar':
+            self.feature_extractor = ExtractActiveRoutesFeatures
+            num_features = 3
+        else:
+            raise Exception('not found type!')
+
         self.mlp = nn.Sequential(
+            nn.LayerNorm(num_features * pos_enc_dim),
             nn.LeakyReLU(),
-            nn.Linear(3 * pos_enc_dim, out_dim),
+            nn.Linear(num_features * pos_enc_dim, out_dim),
             nn.LeakyReLU(),
             nn.Linear(out_dim, out_dim)
         )
 
-    def forward(self, active_route: ActiveRoute):
-        if active_route.eta_period:
-            dist = distance(active_route.courier.position, active_route.order.point_from)\
-                + distance(active_route.order.point_from, active_route.order.point_to)
-        else:
-            dist = dist(active_route.courier.position, active_route.order.point_to)
-        features = [
-            active_route.order.point_to.x, 
-            active_route.order.point_to.y,
-            dist
-        ]
-        cat_vec = torch.flatten(self.pos_enc(torch.tensor(features, dtype=torch.float32).unsqueeze(-1)))
-
-        return self.mlp(cat_vec)
+    def forward(self, item, current_time):
+        x = self.feature_extractor(item, current_time)
+        x = torch.tensor(x, dtype=torch.float32).unsqueeze(-1)
+        # pos_enc = torch.cat([torch.sin(f * self.freqs), torch.cos(f * self.freqs)], dim=-1)
+        # if self.trainable:
+        pos_enc = torch.cat([torch.sin(self.sin_layer(x)), torch.cos(self.sin_layer(x))], dim=-1)
+    
+        return self.mlp(torch.flatten(pos_enc))
+    
 
 class ScoringNet(nn.Module):
-    def __init__(self, mode='default', n_layers=2, d_model=256, n_head=2, dim_ff=256, pos_enc_dim=64):
+    def __init__(self, mode='default', n_layers=2, d_model=256, n_head=2, dim_ff=256, pos_enc_dim=64, device=None):
         super().__init__()
-        self.order_enc = OrderEncoder(trainable=mode!='const_enc', out_dim=d_model, pos_enc_dim=pos_enc_dim)
-        self.courier_enc = CourierEncoder(trainable=mode!='const_enc', out_dim=d_model, pos_enc_dim=pos_enc_dim)
-        self.active_routes_enc = ActiveRouteEncoder(trainable=mode!='const_enc', out_dim=d_model, pos_enc_dim=pos_enc_dim)
+        self.order_enc = PositionalEncoder(type='o', out_dim=d_model, pos_enc_dim=pos_enc_dim).to(device)
+        self.courier_enc = PositionalEncoder(type='c', out_dim=d_model, pos_enc_dim=pos_enc_dim).to(device)
+        self.active_routes_enc = PositionalEncoder(type='ar', out_dim=d_model, pos_enc_dim=pos_enc_dim).to(device)
         self.mode = mode
+        self.device = device
 
         self.encoders_AR = {
-            'o': nn.TransformerDecoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=dim_ff, batch_first=True),
-            'c': nn.TransformerDecoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=dim_ff, batch_first=True)
+            'o': nn.TransformerDecoderLayer(
+                d_model=d_model, 
+                nhead=n_head, 
+                dim_feedforward=dim_ff, 
+                batch_first=True,
+                device=self.device
+            ),
+            'c': nn.TransformerDecoderLayer(
+                d_model=d_model, 
+                nhead=n_head, 
+                dim_feedforward=dim_ff, 
+                batch_first=True,
+                device=self.device
+            )
         }
         self.encoders_OC = [
             {
-                'o': nn.TransformerDecoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=dim_ff, batch_first=True),
-                'c': nn.TransformerDecoderLayer(d_model=d_model, nhead=n_head, dim_feedforward=dim_ff, batch_first=True)
+                'o': nn.TransformerDecoderLayer(
+                    d_model=d_model, 
+                    nhead=n_head, 
+                    dim_feedforward=dim_ff, 
+                    batch_first=True,
+                    device=self.device
+                ),
+                'c': nn.TransformerDecoderLayer(
+                    d_model=d_model, 
+                    nhead=n_head, 
+                    dim_feedforward=dim_ff, 
+                    batch_first=True,
+                    device=self.device
+                ),
             } 
             for _ in range(n_layers)
         ]
@@ -121,7 +127,7 @@ class ScoringNet(nn.Module):
 
         if self.mode == 'square':
             return -torch.square(scores)
-        return scores
+        return -scores
 
     def make_tensors_and_create_masks(self, batch: List[GambleTriple], current_time):
         batch_c = []
@@ -160,14 +166,14 @@ class ScoringNet(nn.Module):
             if type == 'o':
                 sample = torch.stack([self.order_enc(item, current_time) for item in sequence])
             elif type == 'c':
-                sample = torch.stack([self.courier_enc(item) for item in sequence])
+                sample = torch.stack([self.courier_enc(item, current_time) for item in sequence])
             elif type == 'ar':
-                sample = torch.stack([self.active_routes_enc(item) for item in sequence])
+                sample = torch.stack([self.active_routes_enc(item, current_time) for item in sequence])
             samples.append(sample)
             lenghts.append(len(sequence))
         
         tens = pad_sequence(samples, batch_first=True)
-        return tens, create_mask(lenghts)
+        return tens, create_mask(lenghts, self.device)
 
     def encoder_AR(self, tensors):
         ord, crr, ar = tensors
@@ -194,7 +200,9 @@ class ScoringNet(nn.Module):
             cm_ones = torch.where(self.masks['c'], 0, 1).unsqueeze(-2)
             return torch.matmul(om_ones, cm_ones).float()
 
-def create_mask(lenghts):
+def create_mask(lenghts, device):
     max_len = max(lenghts)
     with torch.no_grad():
-        return torch.arange(max_len).expand(len(lenghts), max_len) >= torch.tensor(lenghts).unsqueeze(1)
+        result = torch.arange(max_len).expand(len(lenghts), max_len) >= torch.tensor(lenghts).unsqueeze(1)
+        result.to(device)
+        return result
