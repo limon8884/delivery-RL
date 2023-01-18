@@ -40,6 +40,8 @@ class PositionalEncoder(nn.Module):
         assert pos_enc_dim % 2 == 0
         self.sin_layer = nn.Linear(1, pos_enc_dim // 2, device=device)
         self.cos_layer = nn.Linear(1, pos_enc_dim // 2, device=device)
+        # nn.init.uniform_(self.sin_layer.weight, 0, 100)
+        # nn.init.uniform_(self.cos_layer.weight, 0, 100)
         # self.trainable = trainable
         # self.freqs = torch.tensor([1 / 2**i for i in range(pos_enc_dim // 2)])
         if type == 'o':
@@ -198,13 +200,12 @@ class ScoringNet(nn.Module):
 
     def get_mask(self):
         with torch.no_grad():
-            om_ones = torch.where(self.masks['o'], 0, 1).unsqueeze(-1)
-            cm_ones = torch.where(self.masks['c'], 0, 1).unsqueeze(-2)
+            om_ones = torch.where(self.masks['o'], 0, 1).unsqueeze(-1).float()
+            cm_ones = torch.where(self.masks['c'], 0, 1).unsqueeze(-2).float()
             return torch.matmul(om_ones, cm_ones).float()
 
 def create_mask(lenghts, device):
     max_len = max(lenghts)
     with torch.no_grad():
-        result = torch.arange(max_len).expand(len(lenghts), max_len) >= torch.tensor(lenghts).unsqueeze(1)
-        result.to(device)
+        result = torch.arange(max_len, device=device).expand(len(lenghts), max_len) >= torch.tensor(lenghts, device=device).unsqueeze(1)
         return result
