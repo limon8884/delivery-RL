@@ -35,11 +35,11 @@ def ExtractActiveRoutesFeatures(active_route: ActiveRoute, current_time: int=0) 
     ]
 
 class PositionalEncoder(nn.Module):
-    def __init__(self, type, pos_enc_dim, out_dim):
+    def __init__(self, type, pos_enc_dim, out_dim, device=None):
         super().__init__()
         assert pos_enc_dim % 2 == 0
-        self.sin_layer = nn.Linear(1, pos_enc_dim // 2)
-        self.cos_layer = nn.Linear(1, pos_enc_dim // 2)
+        self.sin_layer = nn.Linear(1, pos_enc_dim // 2, device=device)
+        self.cos_layer = nn.Linear(1, pos_enc_dim // 2, device=device)
         # self.trainable = trainable
         # self.freqs = torch.tensor([1 / 2**i for i in range(pos_enc_dim // 2)])
         if type == 'o':
@@ -61,10 +61,12 @@ class PositionalEncoder(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(out_dim, out_dim)
         )
+        self.mlp.to(device=device)
+        self.device = device
 
     def forward(self, item, current_time):
         x = self.feature_extractor(item, current_time)
-        x = torch.tensor(x, dtype=torch.float32).unsqueeze(-1)
+        x = torch.tensor(x, dtype=torch.float32, device=self.device).unsqueeze(-1)
         # pos_enc = torch.cat([torch.sin(f * self.freqs), torch.cos(f * self.freqs)], dim=-1)
         # if self.trainable:
         pos_enc = torch.cat([torch.sin(self.sin_layer(x)), torch.cos(self.sin_layer(x))], dim=-1)
@@ -75,9 +77,9 @@ class PositionalEncoder(nn.Module):
 class ScoringNet(nn.Module):
     def __init__(self, mode='default', n_layers=2, d_model=256, n_head=2, dim_ff=256, pos_enc_dim=64, device=None):
         super().__init__()
-        self.order_enc = PositionalEncoder(type='o', out_dim=d_model, pos_enc_dim=pos_enc_dim).to(device)
-        self.courier_enc = PositionalEncoder(type='c', out_dim=d_model, pos_enc_dim=pos_enc_dim).to(device)
-        self.active_routes_enc = PositionalEncoder(type='ar', out_dim=d_model, pos_enc_dim=pos_enc_dim).to(device)
+        self.order_enc = PositionalEncoder(type='o', out_dim=d_model, pos_enc_dim=pos_enc_dim, device=device)
+        self.courier_enc = PositionalEncoder(type='c', out_dim=d_model, pos_enc_dim=pos_enc_dim, device=device)
+        self.active_routes_enc = PositionalEncoder(type='ar', out_dim=d_model, pos_enc_dim=pos_enc_dim, device=device)
         self.mode = mode
         self.device = device
 
