@@ -62,8 +62,10 @@ class PointEncoder(nn.Module):
         super().__init__()
         assert point_enc_dim % 4 == 0
         self.point_enc_dim = point_enc_dim
-        self.sin_layer = nn.Linear(1, point_enc_dim // 4, device=device)
-        self.cos_layer = nn.Linear(1, point_enc_dim // 4, device=device)
+        self.sin_layer_x = nn.Linear(1, point_enc_dim // 4, device=device)
+        self.cos_layer_x = nn.Linear(1, point_enc_dim // 4, device=device)
+        self.sin_layer_y = nn.Linear(1, point_enc_dim // 4, device=device)
+        self.cos_layer_y = nn.Linear(1, point_enc_dim // 4, device=device)
         self.device = device
 
         # nn.init.uniform_(self.sin_layer.weight, 0, 100)
@@ -72,23 +74,17 @@ class PointEncoder(nn.Module):
         # self.freqs = torch.tensor([1 / 2**i for i in range(pos_enc_dim // 2)])
 
     def forward(self, p: Point):
-        x = torch.tensor([p.x, p.y], dtype=torch.float32, device=self.device).unsqueeze(-1)
-        return torch.cat([torch.sin(self.sin_layer(x)), torch.cos(self.cos_layer(x))], dim=-1).flatten()
+        x = torch.tensor([p.x], dtype=torch.float32, device=self.device)
+        y = torch.tensor([p.y], dtype=torch.float32, device=self.device)
+        return torch.cat([
+            torch.sin(self.sin_layer_x(x)), 
+            torch.cos(self.cos_layer_x(x)),
+            torch.sin(self.sin_layer_y(y)), 
+            torch.cos(self.cos_layer_y(y)),
+        ], dim=-1).flatten()
     
         # pos_enc = torch.cat([torch.sin(f * self.freqs), torch.cos(f * self.freqs)], dim=-1)
         # if self.trainable:
-
-# class NumericEncoder(nn.Module):
-#     def __init__(self, point_enc_dim, device):
-#         super().__init__()
-#         assert point_enc_dim % 2 == 0
-#         self.sin_layer = nn.Linear(1, point_enc_dim // 2, device=device)
-#         self.cos_layer = nn.Linear(1, point_enc_dim // 2, device=device)
-#         self.device = device
-
-#     def forward(self, x: float):
-#         x = torch.tensor(x, dtype=torch.float32, device=self.device).unsqueeze(-1)
-#         return torch.cat([torch.sin(self.sin_layer(x)), torch.cos(self.cos_layer(x))], dim=-1).flatten()
 
 class PositionalEncoder(nn.Module):
     def __init__(self, item_type: str, point_encoder: PointEncoder, num_enc_dim, out_dim, device=None):
