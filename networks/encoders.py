@@ -116,12 +116,13 @@ class PositionalEncoder(nn.Module):
         return self.mlp(torch.cat(encoded_points + encoded_numbers))
     
 class PositionalEncoderDemo(nn.Module):
-    def __init__(self, item_type: str, point_encoder: PointEncoder, num_enc_dim, out_dim, device=None):
+    def __init__(self, item_type: str, point_encoder: PointEncoder, num_enc_dim, out_dim, use_grad=False, device=None):
         super().__init__()
         self.feature_extractor = FeatureExtractor()
         self.point_encoder = point_encoder
         self.number_encoder = nn.Linear(1, num_enc_dim, device=device)
         self.item_type = item_type
+        self.use_grad = use_grad
 
         pt_enc_dim = self.point_encoder.point_enc_dim
         input_dim = pt_enc_dim
@@ -136,6 +137,8 @@ class PositionalEncoderDemo(nn.Module):
     def forward(self, item, current_time):
         features = self.feature_extractor(item, current_time, self.item_type)
         encoded_point = self.point_encoder(features['points'][0])
+        if not self.use_grad:
+            encoded_point = encoded_point.detach()
 
         return self.mlp(encoded_point)
         

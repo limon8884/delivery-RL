@@ -12,6 +12,7 @@ from networks.utils import *
 class ScoringNetDemo(nn.Module):
     def __init__(self, 
             mode='default', 
+            point_encoder=None,
             n_layers=2, 
             d_model=256, 
             n_head=2, 
@@ -20,9 +21,26 @@ class ScoringNetDemo(nn.Module):
             number_enc_dim=8,
             device=None):
         super().__init__()
-        self.point_encoder = PointEncoder(point_enc_dim=point_enc_dim, device=device)
-        self.order_enc = PositionalEncoderDemo('o', self.point_encoder, num_enc_dim=number_enc_dim, out_dim=d_model, device=device)
-        self.courier_enc = PositionalEncoderDemo('c', self.point_encoder, num_enc_dim=number_enc_dim, out_dim=d_model, device=device)        
+        if point_encoder is None:
+            use_pe_grad = True
+            self.point_encoder = PointEncoder(point_enc_dim=point_enc_dim, device=device)
+        else:
+            use_pe_grad = False
+            self.point_encoder = point_encoder
+        self.order_enc = PositionalEncoderDemo('o', 
+                                               self.point_encoder, 
+                                               num_enc_dim=number_enc_dim, 
+                                               out_dim=d_model, 
+                                               use_grad=use_pe_grad, 
+                                               device=device
+                                               )
+        self.courier_enc = PositionalEncoderDemo('c', 
+                                                 self.point_encoder, 
+                                                 num_enc_dim=number_enc_dim, 
+                                                 out_dim=d_model, 
+                                                 use_grad=use_pe_grad, 
+                                                 device=device
+                                                 )        
         self.mode = mode
         self.device = device
 
