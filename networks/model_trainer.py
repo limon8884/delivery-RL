@@ -1,9 +1,15 @@
-
+from utils import *
+from dispatch.utils import *
+from IPython.display import clear_output
+import matplotlib.pyplot as plt
+import numpy as np
+import time
 
 class ModelTrainer:
-    def __init__(self, models_info, n_epochs, n_iters) -> None:
+    def __init__(self, models_info, n_epochs, n_iters, bounds) -> None:
         self.n_epochs = n_epochs
         self.n_iters = n_iters
+        self.bounds = bounds
         
         self.names = []
         self.models = []
@@ -33,7 +39,7 @@ class ModelTrainer:
                 rolling_loss = []
                 # rolling_metrics = {k: [] for k in metrics.keys()}
                 for iter in range(self.n_iters):
-                    triples = [random_triple(bounds) for _ in range(batch_size)]
+                    triples = [random_triple(self.bounds) for _ in range(batch_size)]
 
                     optimizer.zero_grad()
                     loss = get_loss_solve(model, triples)
