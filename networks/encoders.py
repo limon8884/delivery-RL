@@ -68,20 +68,24 @@ class PointEncoder(nn.Module):
         self.cos_layer_y = nn.Linear(1, point_enc_dim // 4, device=device)
         self.device = device
 
+        for param in self.parameters():
+            param.requires_grad = False
+
         # nn.init.uniform_(self.sin_layer.weight, 0, 100)
         # nn.init.uniform_(self.cos_layer.weight, 0, 100)
         # self.trainable = trainable
         # self.freqs = torch.tensor([1 / 2**i for i in range(pos_enc_dim // 2)])
 
     def forward(self, p: Point):
-        x = torch.tensor([p.x], dtype=torch.float32, device=self.device)
-        y = torch.tensor([p.y], dtype=torch.float32, device=self.device)
-        return torch.cat([
-            torch.sin(self.sin_layer_x(x)), 
-            torch.cos(self.cos_layer_x(x)),
-            torch.sin(self.sin_layer_y(y)), 
-            torch.cos(self.cos_layer_y(y)),
-        ], dim=-1).flatten()
+        with torch.no_grad():
+            x = torch.tensor([p.x], dtype=torch.float32, device=self.device)
+            y = torch.tensor([p.y], dtype=torch.float32, device=self.device)
+            return torch.cat([
+                torch.sin(self.sin_layer_x(x)), 
+                torch.cos(self.cos_layer_x(x)),
+                torch.sin(self.sin_layer_y(y)), 
+                torch.cos(self.cos_layer_y(y)),
+            ], dim=-1).flatten()
     
         # pos_enc = torch.cat([torch.sin(f * self.freqs), torch.cos(f * self.freqs)], dim=-1)
         # if self.trainable:

@@ -44,8 +44,8 @@ class ScoringNetDemo(nn.Module):
         self.mode = mode
         self.device = device
 
-        self.encoders_OC = [
-            {
+        self.encoders_OC = nn.ModuleList([
+            nn.ModuleDict({
                 'o': nn.TransformerDecoderLayer(
                     d_model=d_model, 
                     nhead=n_head, 
@@ -60,9 +60,9 @@ class ScoringNetDemo(nn.Module):
                     batch_first=True,
                     device=self.device
                 ),
-            } 
-            for _ in range(n_layers)
-        ]
+            })
+            for i in range(n_layers)
+        ])
     
     def forward(self, batch: List[GambleTriple], current_time: int):
         self.masks = None
@@ -113,7 +113,7 @@ class ScoringNetDemo(nn.Module):
         return tens, create_mask(lenghts, self.device)
 
     def encoder_OC(self, ord, crr):
-        for encoders in self.encoders_OC:
+        for i, encoders in enumerate(self.encoders_OC):
             new_ord = encoders['o'](ord, crr, tgt_key_padding_mask=self.masks['o'], memory_key_padding_mask=self.masks['c'])
             new_crr = encoders['c'](crr, ord, tgt_key_padding_mask=self.masks['c'], memory_key_padding_mask=self.masks['o'])
             ord = new_ord
