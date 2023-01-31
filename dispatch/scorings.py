@@ -2,7 +2,8 @@ from typing import List
 import numpy as np
 
 from dispatch.dispatch import Edge
-from utils import *
+from dispatch.utils import *
+from objects.utils import distance
 
 class ETAScoring:
     def __init__(self) -> None:

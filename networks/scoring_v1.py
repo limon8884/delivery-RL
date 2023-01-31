@@ -8,6 +8,7 @@ from utils import *
 from dispatch.utils import *
 from networks.encoders import PositionalEncoder, PointEncoder
 from networks.utils import *
+from objects.gamble_triple import GambleTriple
 
 class ScoringNet(nn.Module):
     def __init__(self, 

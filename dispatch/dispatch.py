@@ -7,6 +7,9 @@ from dispatch.utils import *
 from dispatch.generators import FullGenerator
 from dispatch.scorings import ETAScoring
 from dispatch.solvers import HungarianSolver
+from objects.active_route import ActiveRoute
+from objects.order import Order
+from objects.courier import Courier
 
 class Dispatch:
     '''

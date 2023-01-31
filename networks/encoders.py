@@ -4,8 +4,9 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence
 
-from utils import *
-from dispatch.utils import *
+from objects.utils import distance
+from objects.point import Point
+
 
 class FeatureExtractor:
     def __init__(self) -> None:

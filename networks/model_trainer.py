@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 
+from objects.gamble_triple import GambleTriple, random_triple
+
 class ModelTrainer:
     def __init__(self, models_info, n_epochs, n_iters, bounds) -> None:
         self.n_epochs = n_epochs
