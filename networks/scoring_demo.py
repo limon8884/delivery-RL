@@ -19,8 +19,11 @@ class ScoringNetDemo(nn.Module):
             dim_ff=128, 
             point_enc_dim=32, 
             number_enc_dim=8,
-            device=None):
+            device=None,
+            dropout=0.1):
         super().__init__()
+        self.mode = mode
+        self.device = device
         if point_encoder is None:
             use_pe_grad = True
             self.point_encoder = PointEncoder(point_enc_dim=point_enc_dim, device=device)
@@ -41,9 +44,6 @@ class ScoringNetDemo(nn.Module):
                                                  use_grad=use_pe_grad, 
                                                  device=device
                                                  )        
-        self.mode = mode
-        self.device = device
-
         self.encoders_OC = nn.ModuleList([
             nn.ModuleDict({
                 'o': nn.TransformerDecoderLayer(
@@ -51,18 +51,27 @@ class ScoringNetDemo(nn.Module):
                     nhead=n_head, 
                     dim_feedforward=dim_ff, 
                     batch_first=True,
-                    device=self.device
+                    device=self.device,
+                    dropout=dropout
                 ),
                 'c': nn.TransformerDecoderLayer(
                     d_model=d_model, 
                     nhead=n_head, 
                     dim_feedforward=dim_ff, 
                     batch_first=True,
-                    device=self.device
+                    device=self.device,
+                    dropout=dropout
                 ),
             })
-            for i in range(n_layers)
+            for _ in range(n_layers)
         ])
+        self.ord_fake_courier_head = nn.Sequential(
+            nn.Linear(dim_ff, dim_ff),
+            nn.Dropout(dropout),
+            nn.ReLU(),
+            nn.Linear(dim_ff, 1)
+        ).to(device=device)
+        self.ord_score_head = nn.Linear(dim_ff, dim_ff, device=device)
     
     def forward(self, batch: List[GambleTriple], current_time: int):
         self.masks = None
@@ -70,11 +79,12 @@ class ScoringNetDemo(nn.Module):
 
         ord, crr = tensors
         ord, crr = self.encoder_OC(ord, crr)
-        scores = self.bipartite_scores(ord, crr)
+        ord, ord_fake_crr = self.score_and_fake_heads(ord)
 
-        if self.mode == 'square':
-            return -torch.square(scores)
-        return -scores
+        scores = self.bipartite_scores(ord, crr)
+        final_scores = torch.cat([scores, ord_fake_crr], dim=-1)
+
+        return -final_scores
 
     def make_tensors_and_create_masks(self, batch: List[GambleTriple], current_time):
         batch_c = []
@@ -113,7 +123,7 @@ class ScoringNetDemo(nn.Module):
         return tens, create_mask(lenghts, self.device)
 
     def encoder_OC(self, ord, crr):
-        for i, encoders in enumerate(self.encoders_OC):
+        for encoders in self.encoders_OC:
             new_ord = encoders['o'](ord, crr, tgt_key_padding_mask=self.masks['o'], memory_key_padding_mask=self.masks['c'])
             new_crr = encoders['c'](crr, ord, tgt_key_padding_mask=self.masks['c'], memory_key_padding_mask=self.masks['o'])
             ord = new_ord
@@ -123,6 +133,12 @@ class ScoringNetDemo(nn.Module):
     def bipartite_scores(self, ord, crr):
         crr_t = torch.transpose(crr, 1, 2)
         return torch.matmul(ord, crr_t)
+
+    def score_and_fake_heads(self, ord):
+        fake_head = self.ord_fake_courier_head(ord) # [bs, o, 1]
+        ord_scores = self.ord_score_head(ord)
+
+        return ord_scores, fake_head
 
     def get_mask(self):
         with torch.no_grad():
