@@ -13,68 +13,97 @@ from objects.gamble_triple import GambleTriple
 class ScoringNet(nn.Module):
     def __init__(self, 
             mode='default', 
-            n_layers=2, 
-            d_model=256, 
-            n_head=2, 
-            dim_ff=256, 
+            point_encoder=None,
+            n_layers=4, 
+            d_model=128, 
+            n_head=4, 
+            dim_ff=128, 
             point_enc_dim=32, 
             number_enc_dim=8,
-            device=None):
+            device=None,
+            dropout=0.1):
         super().__init__()
-        self.point_encoder = PointEncoder(point_enc_dim=point_enc_dim, device=device)
-        self.order_enc = PositionalEncoder('o', self.point_encoder, num_enc_dim=number_enc_dim, out_dim=d_model, device=device)
-        self.courier_enc = PositionalEncoder('c', self.point_encoder, num_enc_dim=number_enc_dim, out_dim=d_model, device=device)
-        self.active_routes_enc = PositionalEncoder('ar', self.point_encoder, num_enc_dim=number_enc_dim, out_dim=d_model, device=device)
         self.mode = mode
         self.device = device
+        self.point_encoder = point_encoder
 
-        self.encoders_AR = {
+        self.order_enc = PositionalEncoder('o', 
+                                               self.point_encoder, 
+                                               num_enc_dim=number_enc_dim, 
+                                               out_dim=d_model,  
+                                               device=device
+                                               )
+        self.courier_enc = PositionalEncoder('c', 
+                                                 self.point_encoder, 
+                                                 num_enc_dim=number_enc_dim, 
+                                                 out_dim=d_model, 
+                                                 device=device
+                                                 )
+        self.ar_enc = PositionalEncoder('ar', 
+                                            self.point_encoder, 
+                                            num_enc_dim=number_enc_dim, 
+                                            out_dim=d_model, 
+                                            device=device
+                                        )     
+        self.encoders_AR = nn.ModuleDict({
             'o': nn.TransformerDecoderLayer(
                 d_model=d_model, 
                 nhead=n_head, 
                 dim_feedforward=dim_ff, 
                 batch_first=True,
-                device=self.device
+                device=self.device,
+                dropout=dropout
             ),
             'c': nn.TransformerDecoderLayer(
                 d_model=d_model, 
                 nhead=n_head, 
                 dim_feedforward=dim_ff, 
                 batch_first=True,
-                device=self.device
+                device=self.device,
+                dropout=dropout
             )
-        }
-        self.encoders_OC = [
-            {
+        })
+        self.encoders_OC = nn.ModuleList([
+            nn.ModuleDict({
                 'o': nn.TransformerDecoderLayer(
                     d_model=d_model, 
                     nhead=n_head, 
                     dim_feedforward=dim_ff, 
                     batch_first=True,
-                    device=self.device
+                    device=self.device,
+                    dropout=dropout
                 ),
                 'c': nn.TransformerDecoderLayer(
                     d_model=d_model, 
                     nhead=n_head, 
                     dim_feedforward=dim_ff, 
                     batch_first=True,
-                    device=self.device
+                    device=self.device,
+                    dropout=dropout
                 ),
-            } 
+            })
             for _ in range(n_layers)
-        ]
+        ])
+        self.ord_fake_courier_head = nn.Sequential(
+            nn.Linear(dim_ff, dim_ff),
+            nn.Dropout(dropout),
+            nn.ReLU(),
+            nn.Linear(dim_ff, 1)
+        ).to(device=device)
+        self.ord_score_head = nn.Linear(dim_ff, dim_ff, device=device)
     
     def forward(self, batch: List[GambleTriple], current_time: int):
         self.masks = None
-        tensors = self.make_tensors_and_create_masks(batch, current_time)
+        ord, crr, ar = self.make_tensors_and_create_masks(batch, current_time)
 
-        ord, crr = self.encoder_AR(tensors)
+        ord, crr, self.encoder_AR(ord, crr, ar)
         ord, crr = self.encoder_OC(ord, crr)
-        scores = self.bipartite_scores(ord, crr)
+        ord, ord_fake_crr = self.score_and_fake_heads(ord)
 
-        if self.mode == 'square':
-            return -torch.square(scores)
-        return -scores
+        scores = self.bipartite_scores(ord, crr)
+        final_scores = torch.cat([scores, ord_fake_crr], dim=-1)
+
+        return final_scores
 
     def make_tensors_and_create_masks(self, batch: List[GambleTriple], current_time):
         batch_c = []
@@ -96,16 +125,6 @@ class ScoringNet(nn.Module):
 
         return o_tensor, c_tensor, ar_tensor
 
-    # def make_order_tensor(self, orders: List[List[Order]], current_time: int):
-    #     samples = []
-    #     lenghts = []
-    #     for order_list in orders:
-    #         samples.append(torch.stack([self.order_enc(order, current_time) for order in order_list]))
-    #         lenghts.append(len(order_list))
-        
-    #     tens = pad_sequence(samples, batch_first=True)
-    #     return tens, create_mask(lenghts)
-
     def make_tensor(self, batch_sequences, item_type, current_time):
         samples = []
         lenghts = []
@@ -115,20 +134,19 @@ class ScoringNet(nn.Module):
             elif item_type == 'c':
                 sample = torch.stack([self.courier_enc(item, current_time) for item in sequence])
             elif item_type == 'ar':
-                sample = torch.stack([self.active_routes_enc(item, current_time) for item in sequence])
+                sample = torch.stack([self.ar_enc(item, current_time) for item in sequence])
             samples.append(sample)
             lenghts.append(len(sequence))
         
         tens = pad_sequence(samples, batch_first=True)
         return tens, create_mask(lenghts, self.device)
 
-    def encoder_AR(self, tensors):
-        ord, crr, ar = tensors
+    def encoder_AR(self, ord, crr, ar):
         new_ord = self.encoders_AR['o'](ord, ar, tgt_key_padding_mask=self.masks['o'], memory_key_padding_mask=self.masks['ar'])
         new_crr = self.encoders_AR['c'](crr, ar, tgt_key_padding_mask=self.masks['c'], memory_key_padding_mask=self.masks['ar'])
 
         return new_ord, new_crr
-
+    
     def encoder_OC(self, ord, crr):
         for encoders in self.encoders_OC:
             new_ord = encoders['o'](ord, crr, tgt_key_padding_mask=self.masks['o'], memory_key_padding_mask=self.masks['c'])
@@ -140,6 +158,12 @@ class ScoringNet(nn.Module):
     def bipartite_scores(self, ord, crr):
         crr_t = torch.transpose(crr, 1, 2)
         return torch.matmul(ord, crr_t)
+
+    def score_and_fake_heads(self, ord):
+        fake_head = self.ord_fake_courier_head(ord) # [bs, o, 1]
+        ord_scores = self.ord_score_head(ord)
+
+        return ord_scores, fake_head
 
     def get_mask(self):
         with torch.no_grad():

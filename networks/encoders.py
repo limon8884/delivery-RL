@@ -118,7 +118,7 @@ class PositionalEncoder(nn.Module):
                 for n in features['numbers']
         ]
 
-        return self.mlp(torch.cat(encoded_points + encoded_numbers))
+        return self.mlp(torch.cat(encoded_points + encoded_numbers).detach())
     
 class PositionalEncoderDemo(nn.Module):
     def __init__(self, item_type: str, point_encoder: PointEncoder, num_enc_dim, out_dim, use_grad=False, device=None):
