@@ -1,0 +1,7 @@
+PointEncoder model from ./networks/encoders
+Trained on a problem of distance between 2 points: 
+* 2 random points are sampled
+* both encoded by this encoder into vectors
+* concetenated
+* small mlp
+* mse loss
