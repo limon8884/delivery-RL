@@ -11,5 +11,7 @@
 -point encoder надо разделить линейные слои для х и у. Учить 700 эпох   done
 -balanced BCE loss
 -экспы с bs, lr, optim, scheduler, model size
--визуализация того, что происходит
+-визуализация того, что происходит                          done
+-обучение v1 версии до сходимости на solve задачу
+-создание среды reinforcement - тесты на cartpol
 
