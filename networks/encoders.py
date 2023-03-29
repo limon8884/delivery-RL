@@ -45,7 +45,7 @@ class FeatureExtractor:
                 dist = distance(item.courier.position, item.order.point_from)\
                     + distance(item.order.point_from, item.order.point_to)
             else:
-                dist = dist(item.courier.position, item.order.point_to)
+                dist = distance(item.courier.position, item.order.point_to)
 
             result = {
                 'points': [item.order.point_to], 

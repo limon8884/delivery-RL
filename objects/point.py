@@ -31,7 +31,7 @@ class Point:
         fig.scatter(self.x, self.y, color=color, s=size, marker=marker)
         return fig
 
-def get_random_point(corner_bounds: Tuple[Point]):
+def get_random_point(corner_bounds: Tuple[Point] = (Point(0, 0), Point(10, 10))):
     left_lower_bound, right_upper_bound = corner_bounds
     x = random.random() * (right_upper_bound.x - left_lower_bound.x) + left_lower_bound.x
     y = random.random() * (right_upper_bound.y - left_lower_bound.y) + left_lower_bound.y
