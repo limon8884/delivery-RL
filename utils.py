@@ -3,6 +3,9 @@ import torch.nn as nn
 from dispatch.solvers import HungarianSolver
 from dispatch.scorings import ETAScoring
 from collections import defaultdict
+import numpy as np
+import matplotlib.pyplot as plt
+from IPython.display import clear_output
 
 def make_target_score_tensor(np_scores, mask):
     with torch.no_grad():
@@ -81,3 +84,28 @@ def update_accuracy_metric(metrics, preds, tgt_ass):
     metrics['accuracy'].append(accuracy.item())
     # eta_net = torch.max(preds, dim=-1).sum() / pred_ass.sum()
     # eta_solver = torch.max
+
+def add_avg_grad_norm_metric(metrics, net):
+    grad_norms = []
+    for name, param in net.named_parameters():
+        if not param.requires_grad or param.grad is None:
+            continue
+        grad_norms.append(torch.square(param.grad).mean().item())
+    metrics['grad_norm'].append(np.log(np.mean(grad_norms)))
+
+def print_info(epoch, metrics, losses):
+    clear_output()
+    print('EPOCH: ', epoch)
+    print(losses[-50:])
+    # plt.plot(np.log(losses))
+    plt.figure(figsize=(20, 5))
+    plt.subplot(1, 3, 1)
+    plt.title('loss')
+    plt.plot(losses)
+    plt.subplot(1, 3, 2)
+    plt.title('accuracy')
+    plt.plot(metrics['accuracy'])
+    plt.subplot(1, 3, 3)
+    plt.title('grad_norm')
+    plt.plot(metrics['grad_norm'])
+    plt.show()
