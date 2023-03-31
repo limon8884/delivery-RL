@@ -6,6 +6,10 @@ from collections import defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
+from collections import Counter
+from objects.gamble_triple import random_triple
+from objects.point import Point
+from tqdm import tqdm
 
 def make_target_score_tensor(np_scores, mask):
     with torch.no_grad():
@@ -109,3 +113,75 @@ def print_info(epoch, metrics, losses):
     plt.title('grad_norm')
     plt.plot(metrics['grad_norm'])
     plt.show()
+
+
+
+def target_assigments(triple):
+    scoring = ETAScoring()
+    solver = HungarianSolver()
+
+    scores = scoring(triple.orders, triple.couriers)
+    ords, crrs = solver(scores)
+    answer = -np.ones(len(triple.orders))
+    for o, c in zip(ords, crrs):
+        answer[o] = c
+    return answer
+
+def pred_assigments(net, triple):
+    preds = net([triple], 0)
+    fake_courier_idx = preds[0].shape[1] - 1
+    argmaxes = torch.argmax(preds[0], dim=-1)
+    return torch.where(argmaxes == fake_courier_idx, -1, argmaxes).numpy()
+
+def target_assigments_batch(triples):
+    assignments_batch = []
+    for triple in triples:
+        assignments_batch.append(target_assigments(triple))
+    
+    return assignments_batch
+
+def pred_assigments_batch(net, triples):
+    preds = net(triples, 0)
+    fake_courier_idx = preds.shape[2] - 1
+    argmaxes = torch.argmax(preds, dim=-1)
+    assignments_batch_tens = torch.where(argmaxes == fake_courier_idx, -1, argmaxes).numpy()
+
+    assignments_batch = []
+    for i, assignments_tens in enumerate(assignments_batch_tens):
+        num_orders = len(triples[i].orders)
+        assignments_batch.append(assignments_tens[:num_orders])
+
+    return assignments_batch
+
+def get_dict_metrics(a, b, n_couriers = 1000):
+    return {
+        'fake_mistake_not_assigns': ((a != b) & (a == -1) & (b < n_couriers)).sum(),
+        'fake_mistake_assigns': ((a != b) & (b == -1)).sum(),
+        'real_mistakes': ((a != b) & (a != -1) & (b != -1) & (b < n_couriers)).sum(),
+        'masked_assigns': ((b >= n_couriers)).sum(),
+        'correct': (a == b).sum(),
+    }
+
+def get_metrics(net, n_samples, max_items=3, bounds=(Point(0, 0), Point(10, 10))):
+    c = Counter()
+    for _ in tqdm(range(n_samples)):
+        triple = random_triple(bounds, max_items=max_items)
+        pred_ass = pred_assigments(net, triple)
+        tgt_ass = target_assigments(triple)
+        assert pred_ass.shape == tgt_ass.shape
+        c.update(get_dict_metrics(tgt_ass, pred_ass))
+    
+    return c
+
+def get_metrics_batch(net, batch_size, n_samples, max_items=3, bounds=(Point(0, 0), Point(10, 10))):
+    c = Counter()
+    for _ in tqdm(range(n_samples)):
+        triples = [random_triple(bounds, max_items=max_items) for _ in range(batch_size)]
+        pred_ass_batch = pred_assigments_batch(net, triples)
+        tgt_ass_batch = target_assigments_batch(triples)
+        assert len(pred_ass_batch) == len(tgt_ass_batch)
+        for i, (pred_ass, tgt_ass) in enumerate(zip(pred_ass_batch, tgt_ass_batch)):
+            assert pred_ass.shape == tgt_ass.shape
+            c.update(get_dict_metrics(tgt_ass, pred_ass, n_couriers=len(triples[i].couriers)))
+    
+    return c

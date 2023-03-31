@@ -7,6 +7,7 @@ def plot_CR(metrics):
     print('macro average CR: ', 
           np.sum([m['completed_orders'] for m in metrics]) / np.sum([m['finished_orders'] for m in metrics]))
     plt.title('CR')
+    plt.ylim(0)
     plt.plot([m['completed_orders'] / m['finished_orders'] for m in metrics if m['finished_orders'] != 0])
     plt.show()
 
