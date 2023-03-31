@@ -131,6 +131,9 @@ class BaseSimulator:
         self.Update()
         self.Assign()
 
+    def GetState(self):
+        return GambleTriple(self.free_orders, self.free_couriers, self.active_routes)
+
     def GetMetrics(self) -> Dict:
         return {
             'iter': self.gamble_iteration,

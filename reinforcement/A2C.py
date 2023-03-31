@@ -1,8 +1,80 @@
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
 from collections import defaultdict
+import torch
+import torch.nn as nn
+
 
 class A2C:
+    def __init__(self, sim, net: nn.Module, opt: torch.optim.Optimizer, n_steps=5, n_sessions=2) -> None:
+        self.net = net
+        self.opt = opt
+        self.sim = sim
+        self.n_steps = n_steps
+        self.n_sessions = n_sessions
+
+        self.envs = [self.sim() for _ in range(self.n_sessions)]
+
+    def train_step(self):
+        batch_of_sessions = self.get_batch_of_sessions()
+        self.compute_statistics(batch_of_sessions)
+        batch_flatten_dict = self.reshape_batch(batch_of_sessions)
+        loss = self.compute_reinforce_loss(batch_flatten_dict)\
+              + self.compute_value_loss(batch_flatten_dict)\
+              + self.compute_regularization_loss(batch_flatten_dict)
+        
+        self.opt.zero_grad()
+        loss.backward()
+        self.opt.step()
+
+        return loss.item()
+
+    def get_batch_of_sessions(self):
+        batch = []
+        for env in self.envs:
+            session = []
+            for step in range(self.n_steps):
+                session.append(env.Getstate())
+                env.Next()
+            batch.append(session)
+        return batch
+
+    def compute_statistics(self, batch_of_sessions):
+        pass
+
+    def get_state_dict(self, state):
+        pass
+
+    def reshape_batch(batch):
+        pass
+
+    def get_value_scores(self):
+        pass
+
+    def compute_reinforce_loss(self, batch_dict):
+        log_probs = batch_dict['log_probs']
+        cum_rewards = batch_dict['cum_rewards']
+        values = batch_dict['values']
+
+    def compute_value_loss(self, batch_dict):
+        cum_rewards = batch_dict['cum_rewards'].detach()
+        values = batch_dict['values']
+
+    def compute_regularization_loss(self, batch_dict):
+        probs = batch_dict['probs']
+        log_probs = batch_dict['log_probs']
+
+
+
+
+
+
+
+
+
+
+
+class A2C_old:
     def __init__(self,
                 #  policy,
                  runner,
