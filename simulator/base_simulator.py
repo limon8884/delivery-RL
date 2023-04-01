@@ -30,6 +30,7 @@ class BaseSimulator:
         self.finished_orders = []
 
         self.InitCouriers()
+        self.current_reward = 0
 
     def InitCouriers(self):
         for _ in range(self.env_config['num_couriers']):
@@ -111,6 +112,7 @@ class BaseSimulator:
         else:
             self.free_couriers.append(active_route.courier)
         self.active_routes.pop(self.active_routes.index(active_route))
+        self.UpdateReward()
 
     def GetNewOrders(self):
         for _ in range(self.env_config['num_orders_every_gamble']):
@@ -125,11 +127,19 @@ class BaseSimulator:
     def GetNewCouriers(self):
         pass
 
+    def UpdateReward(self, reward=1):
+        self.current_reward += reward
+
     def Next(self):
         assert self.env_config is not None
         self.gamble_iteration += 1
         self.Update()
         self.Assign()
+    
+    def GetReward(self):
+        r = self.current_reward
+        self.current_reward = 0
+        return r
 
     def GetState(self):
         return GambleTriple(self.free_orders, self.free_couriers, self.active_routes)
