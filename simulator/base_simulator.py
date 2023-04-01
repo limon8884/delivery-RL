@@ -57,6 +57,7 @@ class BaseSimulator:
 
     def Assign(self):
         assignments = self.dispatch(GambleTriple(self.free_orders, self.free_couriers, self.active_routes))
+        self.UpdateAssignment(assignments)
 
         self.total_gamble_eta = 0
         for o_idx, c_idx in assignments:
@@ -130,6 +131,9 @@ class BaseSimulator:
     def UpdateReward(self, reward=1):
         self.current_reward += reward
 
+    def UpdateAssignment(self, assignment):
+        self.last_assignment = assignment
+
     def Next(self):
         assert self.env_config is not None
         self.gamble_iteration += 1
@@ -140,6 +144,9 @@ class BaseSimulator:
         r = self.current_reward
         self.current_reward = 0
         return r
+    
+    def GetAssignment(self):
+        return self.last_assignment
 
     def GetState(self):
         return GambleTriple(self.free_orders, self.free_couriers, self.active_routes)

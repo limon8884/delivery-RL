@@ -65,9 +65,11 @@ class A2C:
                 state = env.GetState()
                 env.Next()
                 reward = env.GetReward()
+                action = env.GetAction()
                 session.append({
                     'state': state,
                     'reward': reward,
+                    'action': action,
                     'step': step,
                 })
             batch_last_states.append(env.GetState())
@@ -84,29 +86,32 @@ class A2C:
     def flatten_batch(self, batch):
         env_states = []
         cum_rewards = []
+        actions = []
         for session in batch:
             for state in session:
                 env_states.append(state['state'])
                 cum_rewards.append(state['cum_reward'])
-        
-        batch_dict = self.run_network(torch.tensor(env_states, dtype=torch.float32))
+                actions.append(state['action'])
+        batch_dict = {}
         batch_dict['cum_rewards'] = torch.tensor(cum_rewards, dtype=torch.float32)
+        self.run_network(batch_dict, env_states, actions)
         self.logger.log('avg cum reward', np.mean(cum_rewards))
+        self.logger.log('prop actions', np.mean(actions))
 
         return batch_dict
     
-    def run_network(self, input):
-        logits, values = self.net(input)
-        bacth_dict = {}
-        bacth_dict['probs'] = F.softmax(logits, dim=-1)
-        bacth_dict['log_probs'] = F.log_softmax(logits, dim=-1)
-        bacth_dict['values'] = values.squeeze(-1)
-
-        return bacth_dict
+    def run_network(self, batch_dict, env_states, actions):
+        logits, values = self.net(torch.tensor(np.array(env_states), dtype=torch.float32))
+        actions = torch.tensor(np.array(actions), dtype=torch.int64).unsqueeze(-1)
+        probs = F.softmax(logits, dim=-1)
+        batch_dict['probs'] = torch.gather(probs, 1, actions).squeeze(-1)
+        log_probs = F.log_softmax(logits, dim=-1)
+        batch_dict['log_probs'] = torch.gather(log_probs, 1, actions).squeeze(-1)
+        batch_dict['values'] = values.squeeze(-1)
 
     def compute_values_last_state(self, batch_dict, batch_last_states):
         with torch.no_grad():
-            _, last_state_values = self.net(torch.tensor(batch_last_states, dtype=torch.float32))
+            _, last_state_values = self.net(torch.tensor(np.array(batch_last_states), dtype=torch.float32))
         pows = torch.arange(self.n_steps, 0, -1)
         last_values_discount = torch.pow(self.gamma, pows).unsqueeze(0) * last_state_values
         batch_dict['cum_rewards'] += last_values_discount.flatten()
@@ -115,7 +120,6 @@ class A2C:
         log_probs = batch_dict['log_probs']
         cum_rewards = batch_dict['cum_rewards']
         values = batch_dict['values']
-        print(log_probs.shape, cum_rewards.shape, values.shape)
         loss = -torch.mean(log_probs * (cum_rewards - values))
         self.logger.log('policy_loss', loss.item())
         return loss

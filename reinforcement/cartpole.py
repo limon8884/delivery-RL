@@ -26,7 +26,7 @@ class ActorCartPole:
     def __call__(self, state):
         state = torch.tensor(state, dtype=torch.float)
         logits, _ = self.net(state)
-        action_probs = nn.functional.softmax(logits).detach().numpy()
+        action_probs = nn.functional.softmax(logits, dim=-1).detach().numpy()
         action = np.random.choice([0, 1], size=None, p=action_probs)
         return action
 
@@ -36,10 +36,11 @@ class EnvCartPole:
         self.actor = actor
         self.state = self.env.reset()
         self.reward = 0
+        self.action = None
 
     def Next(self):
-        action = self.actor(self.state)
-        self.state, self.reward, done, info = self.env.step(action)
+        self.action = self.actor(self.state)
+        self.state, self.reward, done, info = self.env.step(self.action)
         if done:
             self.reward -= 10
             self.state = self.env.reset()
@@ -49,3 +50,6 @@ class EnvCartPole:
     
     def GetReward(self):
         return self.reward
+    
+    def GetAction(self):
+        return self.action
