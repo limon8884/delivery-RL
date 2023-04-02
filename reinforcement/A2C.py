@@ -11,54 +11,94 @@ import numpy as np
 class Logger:
     def __init__(self) -> None:
         self.logs = defaultdict(list)
+        self.logs_mute = defaultdict(list)
 
-    def log(self, key, value):
-        self.logs[key].append(value)
+    def log(self, key, value, mute=False):
+        if not mute:
+            self.logs[key].append(value)
+        else:
+            self.logs_mute[key].append(value)
 
-    def plot(self):
+    def plot(self, window_size=10, log_scale=False):
+
+        def moving_average(a, window_size) :
+            n = window_size
+            ret = np.cumsum(a, dtype=float)
+            ret[n:] = ret[n:] - ret[:-n]
+            ma = ret[n - 1:] / n
+            return np.append([ma[0]] * (n - 1), ma)
+        
         ncols = 3
         nrows = (len(self.logs) - 1) // ncols + 1
         figure, axis = plt.subplots(nrows, ncols, figsize=(20, nrows * 5))
         for i, (k, v) in enumerate(self.logs.items()):
             r = i // ncols
             c = i % ncols
+            v_plot = v
+            if log_scale:
+                v_plot = np.log(np.maximum(0.001, v))
             if nrows != 1:
-                axis[r, c].plot(v)
+                axis[r, c].plot(v_plot, c='b')
+                axis[r, c].plot(moving_average(v_plot, window_size), c='r')
                 axis[r, c].set_title(k)
             else:
-                axis[c].plot(v)
+                axis[c].plot(v, c='b')
+                axis[c].plot(moving_average(v_plot, window_size), c='r')
                 axis[c].set_title(k)
         plt.show()
 
 
 class A2C:
-    def __init__(self, sim, dsp, net: nn.Module, opt: torch.optim.Optimizer, n_steps=5, n_sessions=2) -> None:
+    def __init__(self, 
+                 sim, 
+                 dsp, 
+                 net: nn.Module, 
+                 opt: torch.optim.Optimizer, 
+                 n_steps=5, 
+                 n_sessions=2, 
+                 mode="CartPole-v1",
+                 value_loss_coef=1,
+                 regularization_loss_coef=1,
+        ) -> None:
         self.net = net
         self.opt = opt
         self.n_steps = n_steps
         self.n_sessions = n_sessions
         self.gamma = 0.99
+        self.value_loss_coef = value_loss_coef
+        self.regularization_loss_coef = regularization_loss_coef
         self.logger = Logger()
 
-        self.envs = [sim(dsp(self.net)) for _ in range(self.n_sessions)]
+        self.envs = [sim(dsp(self.net), mode) for _ in range(self.n_sessions)]
 
     def train_step(self):
+        self.opt.zero_grad()
         batch_of_sessions, batch_last_states = self.get_batch_of_sessions()
         batch_dict = self.flatten_batch(batch_of_sessions)
         self.compute_values_last_state(batch_dict, batch_last_states)
         loss = self.compute_reinforce_loss(batch_dict)\
               + self.compute_value_loss(batch_dict)\
               + self.compute_regularization_loss(batch_dict)
-        
-        self.opt.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.net.parameters(), 100)
+        self.logger.log('grad norm', self.compute_grad_norms())
+        self.logger.log('total loss', loss.item())
         self.opt.step()
 
         return loss.item()
+    
+    def compute_grad_norms(self):
+        avg_grad_norms = []
+        for p in self.net.parameters():
+            if p.grad is None:
+                continue
+            avg_grad_norms.append(torch.square(p.grad).mean().item())
+        return np.mean(avg_grad_norms)
 
     def get_batch_of_sessions(self):
         batch_sessions = []
         batch_last_states = []
+        num_resets = 0
         for env in self.envs:
             session = []
             for step in range(self.n_steps):
@@ -72,9 +112,14 @@ class A2C:
                     'action': action,
                     'step': step,
                 })
+                self.logger.log('step info', session[-1], mute=True)
+                if reward == 100:
+                    num_resets += 1
             batch_last_states.append(env.GetState())
             self.compute_cumulative_rewards(session)
             batch_sessions.append(session)
+        
+        self.logger.log('resets', num_resets)
         return batch_sessions, batch_last_states
 
     def compute_cumulative_rewards(self, session):
@@ -110,142 +155,33 @@ class A2C:
         batch_dict['values'] = values.squeeze(-1)
 
     def compute_values_last_state(self, batch_dict, batch_last_states):
-        with torch.no_grad():
-            _, last_state_values = self.net(torch.tensor(np.array(batch_last_states), dtype=torch.float32))
+        _, last_state_values = self.net(torch.tensor(np.array(batch_last_states), dtype=torch.float32))
         pows = torch.arange(self.n_steps, 0, -1)
         last_values_discount = torch.pow(self.gamma, pows).unsqueeze(0) * last_state_values
         batch_dict['cum_rewards'] += last_values_discount.flatten()
 
     def compute_reinforce_loss(self, batch_dict):
         log_probs = batch_dict['log_probs']
-        cum_rewards = batch_dict['cum_rewards']
-        values = batch_dict['values']
+        cum_rewards = batch_dict['cum_rewards'].detach()
+        # values = batch_dict['values'].detach()
+        values = 0
         loss = -torch.mean(log_probs * (cum_rewards - values))
         self.logger.log('policy_loss', loss.item())
         return loss
 
     def compute_value_loss(self, batch_dict):
-        cum_rewards = batch_dict['cum_rewards'].detach()
+        cum_rewards = batch_dict['cum_rewards']
         values = batch_dict['values']
-        loss = F.mse_loss(values, cum_rewards)
+        loss = F.mse_loss(values, cum_rewards)**0.5 * self.value_loss_coef
         self.logger.log('value_loss', loss.item())
         return loss
 
     def compute_regularization_loss(self, batch_dict):
         probs = batch_dict['probs']
         log_probs = batch_dict['log_probs']
-        loss = torch.mean(log_probs * probs)
+        loss = torch.mean(log_probs * probs) * self.regularization_loss_coef
         self.logger.log('reg_loss', loss.item())
         return loss
     
-    def plot_logs(self):
-        self.logger.plot()
-
-
-
-
-
-# class A2C_old:
-#     def __init__(self,
-#                 #  policy,
-#                  runner,
-#                  optimizer,
-#                  scheduler=None,
-#                  value_loss_coef=0.25,
-#                  entropy_coef=0.01,
-#                  max_grad_norm=0.5):
-#         # self.policy = policy
-#         self.runner = runner
-#         self.optimizer = optimizer
-#         self.scheduler = scheduler
-#         self.value_loss_coef = value_loss_coef
-#         self.entropy_coef = entropy_coef
-#         self.max_grad_norm = max_grad_norm
-#         self.init_logs()
-#         self.smoothed_logs = defaultdict(list)
-
-#     def init_logs(self):
-#         self.logs = {}
-#         self.logs['entropy'] = []
-#         self.logs['value_loss'] = []
-#         self.logs['policy_loss'] = []
-#         self.logs['value_targets'] = []
-#         self.logs['value_preds'] = []
-#         self.logs['grad_norm'] = []
-#         self.logs['advantages'] = []
-#         self.logs['total_loss'] = []
-#         self.logs['rewards'] = []
-
-#     def policy_loss(self, trajectory):
-#         # You will need to compute advantages here.
-#         # <TODO: implement>
-#         value_targets = np.mean(trajectory['value_targets'].detach().numpy())
-#         value_preds = np.mean(trajectory['values'].detach().numpy())
-#         anvantage = value_targets - value_preds
-#         self.logs['value_targets'].append(value_targets)
-#         self.logs['value_preds'].append(value_preds)
-#         self.logs['advantages'].append(anvantage)
-
-#         value = -torch.sum( trajectory['log_probs'] * ( trajectory['value_targets'] - trajectory['values']).detach() )
-#         self.logs['policy_loss'].append(value.item())
-#         return value
-
-#     def value_loss(self, trajectory):
-#         # <TODO: implement>
-#         # value = nn.functional.mse_loss(trajectory['values'].float(), trajectory['value_targets'].float())
-#         value = nn.functional.mse_loss(trajectory['values'], trajectory['value_targets'].float())
-#         self.logs['value_loss'].append(value.item())
-#         return value
-    
-#     def entropy_loss(self, trajectory):
-#         logits = trajectory['logits']
-#         probs = nn.functional.softmax(logits, dim=-1)
-#         log_probs = nn.functional.log_softmax(logits, dim=-1)
-#         value = torch.sum(probs * log_probs)
-#         self.logs['entropy'].append(value.item())
-#         return value
-
-#     def loss(self, trajectory):
-#         # <TODO: implement>
-#         value = self.policy_loss(trajectory) + self.value_loss_coef * self.value_loss(trajectory) + self.entropy_coef * self.entropy_loss(trajectory)
-#         self.logs['total_loss'].append(value.item())
-#         return value
-
-#     def step(self, trajectory):
-#         # <TODO: implement>
-#         self.optimizer.zero_grad()
-#         loss = self.loss(trajectory)
-#         loss.backward()
-#         torch.nn.utils.clip_grad_norm(self.runner.policy.model.parameters(), self.max_grad_norm)
-#         self.optimizer.step()
-#         if self.scheduler is not None:
-#             self.scheduler.step()
-
-#         total_norm = 0
-#         for p in self.runner.policy.model.parameters():
-#             param_norm = p.grad.data.norm(2)
-#             total_norm += param_norm.item()**2
-#         total_norm = total_norm**0.5
-#         self.logs['grad_norm'].append(total_norm)
-#         # print(total_norm)
-
-#     def update_smoothed_logs(self, period):
-#         l = len(self.smoothed_logs['total_loss']) * period
-#         for k, v in self.logs.items():
-#             new_value = np.mean(v[l:])
-#             self.smoothed_logs[k].append(new_value)
-        
-#     def plot_logs(self, smoothed=True):
-#         clear_output()
-#         figure, axis = plt.subplots(3, 3, figsize=(20, 10))
-#         if smoothed:
-#             logs = self.smoothed_logs
-#         else:
-#             logs = self.logs
-#         for i, (k, v) in enumerate(logs.items()):
-#             r = i // 3
-#             c = i % 3
-#             axis[r, c].plot(v)
-#             axis[r, c].set_title(k)
-#         plt.show()
-        
+    def plot_logs(self, window_size=10, log_scale=False):
+        self.logger.plot(window_size, log_scale=log_scale)

@@ -4,35 +4,52 @@ import torch
 import torch.nn as nn
 
 class MLP(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, mode) -> None:
         super().__init__()
+        assert mode in ("LunarLander-v2", "CartPole-v1", "MountainCar-v0")
+        if mode == "CartPole-v1":
+            self.num_inp = 4
+            self.num_out = 2
+            self.hidden_dim = 8
+        elif mode == "LunarLander-v2":
+            self.num_inp = 8
+            self.num_out = 4
+            self.hidden_dim = 30
+        elif mode == 'MountainCar-v0':
+            self.num_inp = 2
+            self.num_out = 2
+            self.hidden_dim = 10
         self.f = nn.Sequential(
-            nn.Linear(4, 10),
+            nn.Linear(self.num_inp, self.hidden_dim),
             nn.ReLU(),
-            nn.Linear(10, 10),
+            nn.Linear(self.hidden_dim, self.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.ReLU(),
         )
-        self.action_head = nn.Linear(10, 2)
-        self.value_head = nn.Linear(10, 1)
+        self.action_head = nn.Linear(self.hidden_dim, self.num_out)
+        self.value_head = nn.Linear(self.hidden_dim, 1)
 
     def forward(self, x):
         x = self.f(x)
         return self.action_head(x), self.value_head(x)
 
 class ActorCartPole:
-    def __init__(self, net) -> None:
+    def __init__(self, net: MLP) -> None:
         self.net = net
 
     def __call__(self, state):
         state = torch.tensor(state, dtype=torch.float)
         logits, _ = self.net(state)
         action_probs = nn.functional.softmax(logits, dim=-1).detach().numpy()
-        action = np.random.choice([0, 1], size=None, p=action_probs)
+        action = np.random.choice(range(self.net.num_out), size=None, p=action_probs)
         return action
 
 class EnvCartPole:
-    def __init__(self, actor) -> None:
-        self.env = gym.make("CartPole-v1")
+    def __init__(self, actor, mode) -> None:
+        assert mode in ("LunarLander-v2", "CartPole-v1", "MountainCar-v0")
+        self.mode = mode
+        self.env = gym.make(mode)
         self.actor = actor
         self.state = self.env.reset()
         self.reward = 0
@@ -42,7 +59,10 @@ class EnvCartPole:
         self.action = self.actor(self.state)
         self.state, self.reward, done, info = self.env.step(self.action)
         if done:
-            self.reward -= 10
+            if self.mode == "CartPole-v1":
+                self.reward -= 10
+            if self.state[0] >= 0.5:
+                self.reward = 100
             self.state = self.env.reset()
 
     def GetState(self):
