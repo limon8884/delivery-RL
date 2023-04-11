@@ -24,8 +24,8 @@ class MLP(nn.Module):
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.hidden_dim),
-            nn.ReLU(),
+            # nn.Linear(self.hidden_dim, self.hidden_dim),
+            # nn.ReLU(),
         )
         self.action_head = nn.Linear(self.hidden_dim, self.num_out)
         self.value_head = nn.Linear(self.hidden_dim, 1)
@@ -50,6 +50,8 @@ class EnvCartPole:
         assert mode in ("LunarLander-v2", "CartPole-v1", "MountainCar-v0")
         self.mode = mode
         self.env = gym.make(mode)
+        if mode == "MountainCar-v0":
+            self.env._max_episode_steps = 10000000
         self.actor = actor
         self.state = self.env.reset()
         self.reward = 0
@@ -58,10 +60,12 @@ class EnvCartPole:
     def Next(self):
         self.action = self.actor(self.state)
         self.state, self.reward, done, info = self.env.step(self.action)
+        if self.mode == "MountainCar-v0":
+            self.reward += self.state[0]**2
         if done:
             if self.mode == "CartPole-v1":
-                self.reward -= 10
-            if self.state[0] >= 0.5:
+                self.reward = -10
+            if self.state[0] >= 0.5 and self.mode == "MountainCar-v0":
                 self.reward = 100
             self.state = self.env.reset()
 

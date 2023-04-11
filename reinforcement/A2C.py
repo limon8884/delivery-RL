@@ -19,7 +19,7 @@ class Logger:
         else:
             self.logs_mute[key].append(value)
 
-    def plot(self, window_size=10, log_scale=False):
+    def plot(self, window_size=10, log_scale=False, start=0):
 
         def moving_average(a, window_size) :
             n = window_size
@@ -34,9 +34,9 @@ class Logger:
         for i, (k, v) in enumerate(self.logs.items()):
             r = i // ncols
             c = i % ncols
-            v_plot = v
+            v_plot = v[start:]
             if log_scale:
-                v_plot = np.log(np.maximum(0.001, v))
+                v_plot = np.log(np.maximum(0.001, v[start:]))
             if nrows != 1:
                 axis[r, c].plot(v_plot, c='b')
                 axis[r, c].plot(moving_average(v_plot, window_size), c='r')
@@ -68,6 +68,7 @@ class A2C:
         self.value_loss_coef = value_loss_coef
         self.regularization_loss_coef = regularization_loss_coef
         self.logger = Logger()
+        self.mode = mode
 
         self.envs = [sim(dsp(self.net), mode) for _ in range(self.n_sessions)]
 
@@ -81,6 +82,8 @@ class A2C:
               + self.compute_regularization_loss(batch_dict)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.net.parameters(), 100)
+        self.logger.log('value grad norm', torch.square(batch_dict['values'].grad).mean())
+        self.logger.log('log_probs grad norm', torch.square(batch_dict['log_probs'].grad).mean())
         self.logger.log('grad norm', self.compute_grad_norms())
         self.logger.log('total loss', loss.item())
         self.opt.step()
@@ -113,7 +116,7 @@ class A2C:
                     'step': step,
                 })
                 self.logger.log('step info', session[-1], mute=True)
-                if reward == 100:
+                if self.mode == 'MountainCar-v0' and reward == 100:
                     num_resets += 1
             batch_last_states.append(env.GetState())
             self.compute_cumulative_rewards(session)
@@ -154,6 +157,9 @@ class A2C:
         batch_dict['log_probs'] = torch.gather(log_probs, 1, actions).squeeze(-1)
         batch_dict['values'] = values.squeeze(-1)
 
+        batch_dict['values'].retain_grad()
+        batch_dict['log_probs'].retain_grad()
+
     def compute_values_last_state(self, batch_dict, batch_last_states):
         _, last_state_values = self.net(torch.tensor(np.array(batch_last_states), dtype=torch.float32))
         pows = torch.arange(self.n_steps, 0, -1)
@@ -163,15 +169,16 @@ class A2C:
     def compute_reinforce_loss(self, batch_dict):
         log_probs = batch_dict['log_probs']
         cum_rewards = batch_dict['cum_rewards'].detach()
-        # values = batch_dict['values'].detach()
-        values = 0
+        values = batch_dict['values'].detach()
+        # values = 0
         loss = -torch.mean(log_probs * (cum_rewards - values))
         self.logger.log('policy_loss', loss.item())
         return loss
 
     def compute_value_loss(self, batch_dict):
-        cum_rewards = batch_dict['cum_rewards']
+        cum_rewards = batch_dict['cum_rewards'].detach()
         values = batch_dict['values']
+        # values = torch.tensor(0.0)
         loss = F.mse_loss(values, cum_rewards)**0.5 * self.value_loss_coef
         self.logger.log('value_loss', loss.item())
         return loss
@@ -183,5 +190,5 @@ class A2C:
         self.logger.log('reg_loss', loss.item())
         return loss
     
-    def plot_logs(self, window_size=10, log_scale=False):
-        self.logger.plot(window_size, log_scale=log_scale)
+    def plot_logs(self, window_size=10, log_scale=False, start=0):
+        self.logger.plot(window_size, log_scale=log_scale, start=start)
