@@ -137,8 +137,8 @@ class BaseSimulator:
     def Next(self):
         assert self.env_config is not None
         self.gamble_iteration += 1
-        self.Update()
         self.Assign()
+        self.Update()
     
     def GetReward(self):
         r = self.current_reward
@@ -163,3 +163,46 @@ class BaseSimulator:
         }
 
 
+class ManualSimulator(BaseSimulator):
+    def __init__(self, step=0.5) -> None:
+        self.env_config = None
+        self.step = step
+        self.SetParams()
+
+        self.gamble_iteration = 0
+        self.total_gamble_eta = 0
+
+        self.free_orders = []
+        self.free_couriers = []
+        self.active_routes = []
+
+        self.finished_couriers = []
+        self.finished_orders = []
+
+        self.InitCouriers()
+        self.current_reward = 0
+
+    def Assign(self, assignments):
+        self.UpdateAssignment(assignments)
+
+        self.total_gamble_eta = 0
+        for o_idx, c_idx in assignments:
+            o = self.free_orders[o_idx]
+            c = self.free_couriers[c_idx]
+
+            if o is None or c is None:
+                continue
+
+            self.active_routes.append(ActiveRoute(c, o, self.gamble_iteration))
+            self.free_orders[o_idx] = None
+            self.free_couriers[c_idx] = None
+            self.total_gamble_eta += distance(c.position, o.point_from)
+
+        self.free_orders = [o for o in self.free_orders if o is not None]
+        self.free_couriers = [c for c in self.free_couriers if c is not None]
+
+    def Next(self, assignments):
+        assert self.env_config is not None
+        self.gamble_iteration += 1
+        self.Assign(assignments)
+        self.Update()
