@@ -67,11 +67,12 @@ def masked_preds(preds, mask):
     mask_inf_add_fake = torch.cat([mask_inf, torch.zeros((mask.shape[0], mask.shape[1], 1), device=mask.device)], dim=-1)
     return mask_inf_add_fake + preds
 
-def get_loss_solve(net, triples, metrics=defaultdict(list)):    
+def get_loss_solve(model, triples, metrics=defaultdict(list)):    
     scorer = ETAScoring()
     np_scores = [scorer(triple.orders, triple.couriers) for triple in triples]
-    preds = net(triples, 0)
-    mask = net.get_mask()
+    model.encode_input(triples, 0)
+    preds = model.inference()
+    mask = model.get_mask()
     tgt_ass = make_target_assignment_indexes_tensor(np_scores, mask)
     
     update_accuracy_metric(metrics, preds, tgt_ass)
