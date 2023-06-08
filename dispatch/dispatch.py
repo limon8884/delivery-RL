@@ -44,9 +44,9 @@ class Dispatch(BaseDispatch):
         assigned_order_idxs, assigned_courier_idxs = self.solver(scores)
         assignments = []
         for o_idx, c_idx in zip(assigned_order_idxs, assigned_courier_idxs):
-            assignments.append((o_idx, c_idx))
+            assignments.append((gamble_triple.orders[o_idx].id, gamble_triple.couriers[c_idx].id))
 
-        self.statistics['avg_scores'].append(np.mean([scores[ass[0], ass[1]] for ass in assignments]))
+        # self.statistics['avg_scores'].append(np.mean([scores[ass[0], ass[1]] for ass in assignments]))
         self.statistics['num_assignments'].append(len(assignments))
 
         return assignments
