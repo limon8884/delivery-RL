@@ -7,7 +7,9 @@ from objects.order import Order, random_order
 from objects.utils import distance
 
 class ActiveRoute:
-    def __init__(self, courier: Courier, order: Order, creation_time: int) -> None:
+    def __init__(self, courier: Courier, order: Order, creation_time: int, id: int = None) -> None:
+        if id is not None:
+            self.id = id
         self.courier = courier
         self.order = order
         self.target_point = order.point_from

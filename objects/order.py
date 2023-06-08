@@ -3,8 +3,11 @@ from typing import List, Tuple
 from objects.point import Point, get_random_point
 
 class Order:
-    def __init__(self, point_from: Point, point_to: Point, creation_time: int, expire_time: int) -> None:
-        self.id = random.randint(0, int(1e9))
+    def __init__(self, point_from: Point, point_to: Point, creation_time: int, expire_time: int, id: int = None) -> None:
+        if id is None:
+            self.id = random.randint(0, int(1e9))
+        else: 
+            self.id = id
 
         self.point_from = point_from
         self.point_to = point_to
