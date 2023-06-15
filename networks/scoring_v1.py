@@ -97,7 +97,13 @@ class ScoringNet(nn.Module):
             nn.ReLU(),
             nn.Linear(dim_ff, 1)
         ).to(device=device)
-        self.ord_score_head = nn.Linear(dim_ff, dim_ff, device=device)
+        self.ord_score_head = nn.Sequential(
+            nn.Linear(dim_ff, dim_ff, device=device),
+            nn.ReLU(),
+            nn.Linear(dim_ff, 1, device=device),
+            nn.Flatten(start_dim=-2)
+        )
+        
     
     def forward(self, tensors, masks):
         # self.masks = None
@@ -105,12 +111,12 @@ class ScoringNet(nn.Module):
 
         ord, crr = self.encoder_AR(tensors['o'], tensors['c'], tensors['ar'], masks)
         ord, crr = self.encoder_OC(ord, crr, masks)
-        ord, ord_fake_crr = self.score_and_fake_heads(ord)
+        ord_scores, ord_fake_crr = self.score_and_fake_heads(ord)
 
         scores = self.bipartite_scores(ord, crr)
         final_scores = torch.cat([scores, ord_fake_crr], dim=-1)
 
-        return final_scores
+        return final_scores, ord_scores
 
     # def make_tensors_and_create_masks(self, batch: List[GambleTriple], current_time):
     #     batch_c = []
@@ -224,6 +230,7 @@ class ScoringInterface:
         o_tensor, o_mask = self.make_tensor(batch_o, item_type='o', current_time=current_time)
         c_tensor, c_mask = self.make_tensor(batch_c, item_type='c', current_time=current_time)
         ar_tensor, ar_mask = self.make_tensor(batch_ar, item_type='ar', current_time=current_time)
+
         self.tensors = {
             'o': o_tensor,
             'c': c_tensor,
@@ -239,7 +246,9 @@ class ScoringInterface:
         samples = []
         lenghts = []
         for sequence in batch_sequences:
-            if item_type == 'o':
+            if len(sequence) == 0:
+                sample = torch.zeros((1, self.net.d_model), device=self.device, dtype=torch.float)
+            elif item_type == 'o':
                 sample = torch.stack([self.order_enc(item, current_time) for item in sequence])
             elif item_type == 'c':
                 sample = torch.stack([self.courier_enc(item, current_time) for item in sequence])
@@ -253,9 +262,27 @@ class ScoringInterface:
     
     def inference(self) -> Any:
         assert self.tensors is not None, 'call encode first'
-        self.scores = self.net(self.tensors, self.masks)
+        self.scores, self.values = self.net(self.tensors, self.masks)
     
         return self.scores   
+    
+    def get_assignments_batch(self, gamble_triples: List[GambleTriple]):
+        assignments_batch = []
+        with torch.no_grad():
+            argmaxes = torch.argmax(self.scores, dim=-1)
+            mask = self.get_mask()
+            for batch_idx in range(len(self.scores)):
+                assignments_batch.append([])
+                assigned_orders = set()
+                assigned_couriers = set()
+                for o_idx, c_idx in enumerate(argmaxes[batch_idx].numpy()):
+                    if c_idx != self.scores.shape[-1] - 1 and mask[batch_idx][o_idx][c_idx] \
+                            and o_idx not in assigned_orders and c_idx not in assigned_couriers:
+                        assignment = (gamble_triples[batch_idx].orders[o_idx].id, gamble_triples[batch_idx].couriers[c_idx].id)
+                        assignments_batch[-1].append(assignment)
+                        assigned_orders.add(o_idx)
+                        assigned_couriers.add(c_idx)
+            return assignments_batch
     
     def CE_loss(self, batch_assignments):
         '''
@@ -286,6 +313,9 @@ class ScoringInterface:
         self.net.load_state_dict(torch.load(path, map_location=self.device))
 
     def get_mask(self):
+        '''
+        returns True if element is not masked, False otherwise
+        '''
         with torch.no_grad():
             om_ones = torch.where(self.masks['o'], 0, 1).unsqueeze(-1).float()
             cm_ones = torch.where(self.masks['c'], 0, 1).unsqueeze(-2).float()

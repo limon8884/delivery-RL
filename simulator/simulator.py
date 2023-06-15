@@ -98,6 +98,7 @@ class Index:
         self.data[item.id] = item        
 
     def erase(self, id):
+        assert isinstance(id, int), 'Input should be ID (int)'
         assert self.data.get(id) is not None, 'ID is not in Index'
         del self.data[id]
 
@@ -105,20 +106,27 @@ class Index:
         return list(self.data.values())
     
     def get(self, id):
+        assert isinstance(id, int), 'Input should be ID (int)'
         assert self.data.get(id) is not None, 'ID is not in Index'
         return self.data[id]
     
 
 class Simulator:
-    def __init__(self, step=0.5) -> None:
+    def __init__(self, step=0.5, seed=0) -> None:
         self.env_config = None
         self.step = step
+        self.SetSeed(seed)
         self.Initialize()
 
         self.finished_couriers = []
         self.finished_orders = []
 
-        self.InitCouriers()    
+        self.InitCouriers()   
+
+    def SetSeed(self, seed): 
+        torch.manual_seed(seed)
+        random.seed(seed)
+        np.random.seed(seed)
 
     def Initialize(self):
         with open('environment_config.json') as f:
