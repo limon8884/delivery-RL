@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Sequence
 from utils import *
 import numpy as np
 import heapq
@@ -152,7 +152,7 @@ class Simulator:
             'reward': 0
         }
 
-    def Next(self, assignments):
+    def Next(self, assignments: Sequence[Tuple[int, int]]):
         '''
         Attention! assignments - is a sequence of ID's, not indexes
         '''

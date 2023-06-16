@@ -45,5 +45,5 @@ class ActiveRoute:
         self.order.plot(fig)
         return fig
     
-def random_ar(corner_bounds: Tuple[Point]):
-    return ActiveRoute(random_courier(corner_bounds), random_order(corner_bounds), 0)
+def random_ar(corner_bounds: Tuple[Point], id=None):
+    return ActiveRoute(random_courier(corner_bounds), random_order(corner_bounds), 0, id)

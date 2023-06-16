@@ -26,5 +26,5 @@ class Courier:
     def plot(self, fig):
         return self.position.plot(fig, 'red', 10, '.')
     
-def random_courier(corner_bounds: Tuple[Point]):
-    return Courier(get_random_point(corner_bounds), 0, 10)
+def random_courier(corner_bounds: Tuple[Point], id=None):
+    return Courier(get_random_point(corner_bounds), 0, 10, id)

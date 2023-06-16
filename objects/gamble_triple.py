@@ -33,8 +33,8 @@ def random_triple(corner_bounds: Tuple[Point], max_items=10, same_number=False):
     if same_number:
         num_couriers = num_orders
         num_ars = num_orders
-    os = [random_order(corner_bounds) for _ in range(num_orders)]
-    cs = [random_courier(corner_bounds) for _ in range(num_couriers)]
-    ars = [random_ar(corner_bounds) for _ in range(num_ars)]
+    os = [random_order(corner_bounds, id=i) for i in range(num_orders)]
+    cs = [random_courier(corner_bounds, id=i) for i in range(num_couriers)]
+    ars = [random_ar(corner_bounds, id=i) for i in range(num_ars)]
     
     return GambleTriple(os, cs, ars)

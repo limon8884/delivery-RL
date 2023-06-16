@@ -37,5 +37,5 @@ class Order:
         self.point_to.plot(fig, 'blue', 5, 'v')
         return fig
     
-def random_order(corner_bounds: Tuple[Point]):
-    return Order(get_random_point(corner_bounds), get_random_point(corner_bounds), 0, 10)
+def random_order(corner_bounds: Tuple[Point], id=None):
+    return Order(get_random_point(corner_bounds), get_random_point(corner_bounds), 0, 10, id)

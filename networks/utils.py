@@ -1,6 +1,9 @@
 import torch
 
 def create_mask(lenghts, device)->torch.BoolTensor:
+    '''
+    returns True if element is masked, False otherwise
+    '''
     max_len = max(lenghts)
     with torch.no_grad():
         if max_len == 0:

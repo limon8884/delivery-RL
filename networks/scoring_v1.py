@@ -194,6 +194,7 @@ class ScoringInterface:
     def __init__(self, net: ScoringNet, point_encoder: PointEncoder = None) -> None:
         self.net = net
         self.device = self.net.device
+        self.d_model = self.net.d_model
 
         self.order_enc = PositionalEncoder('o', 
                                                point_encoder or PointEncoder(net.point_enc_dim, net.device), 
@@ -227,9 +228,9 @@ class ScoringInterface:
             batch_c.append(triple.couriers)
             batch_ar.append(triple.active_routes)
 
-        o_tensor, o_mask = self.make_tensor(batch_o, item_type='o', current_time=current_time)
-        c_tensor, c_mask = self.make_tensor(batch_c, item_type='c', current_time=current_time)
-        ar_tensor, ar_mask = self.make_tensor(batch_ar, item_type='ar', current_time=current_time)
+        o_tensor, o_mask, o_ids = self.make_tensor(batch_o, item_type='o', current_time=current_time)
+        c_tensor, c_mask, c_ids = self.make_tensor(batch_c, item_type='c', current_time=current_time)
+        ar_tensor, ar_mask, ar_ids = self.make_tensor(batch_ar, item_type='ar', current_time=current_time)
 
         self.tensors = {
             'o': o_tensor,
@@ -241,24 +242,36 @@ class ScoringInterface:
             'c': c_mask,
             'ar': ar_mask
         }
+        self.ids = {
+            'o': o_ids,
+            'c': c_ids,
+            'ar': ar_ids
+        }
 
     def make_tensor(self, batch_sequences, item_type, current_time):
         samples = []
         lenghts = []
+        ids_batch = []
         for sequence in batch_sequences:
             if len(sequence) == 0:
-                sample = torch.zeros((1, self.net.d_model), device=self.device, dtype=torch.float)
+                sample = torch.zeros((1, self.d_model), device=self.device, dtype=torch.float)
+                ids = torch.tensor([-1], dtype=torch.int, device=self.device)
             elif item_type == 'o':
                 sample = torch.stack([self.order_enc(item, current_time) for item in sequence])
+                ids = torch.tensor([item.id for item in sequence], dtype=torch.int, device=self.device)
             elif item_type == 'c':
                 sample = torch.stack([self.courier_enc(item, current_time) for item in sequence])
+                ids = torch.tensor([item.id for item in sequence], dtype=torch.int, device=self.device)
             elif item_type == 'ar':
                 sample = torch.stack([self.ar_enc(item, current_time) for item in sequence])
+                ids = torch.tensor([item.id for item in sequence], dtype=torch.int, device=self.device)
             samples.append(sample)
             lenghts.append(len(sequence))
+            ids_batch.append(ids)
         
         tens = pad_sequence(samples, batch_first=True)
-        return tens, create_mask(lenghts, self.device)
+        ids_batch = pad_sequence(ids_batch, batch_first=True, padding_value=-1)
+        return tens, create_mask(lenghts, self.device), ids_batch
     
     def inference(self) -> Any:
         assert self.tensors is not None, 'call encode first'
@@ -313,9 +326,6 @@ class ScoringInterface:
         self.net.load_state_dict(torch.load(path, map_location=self.device))
 
     def get_mask(self):
-        '''
-        returns True if element is not masked, False otherwise
-        '''
         with torch.no_grad():
             om_ones = torch.where(self.masks['o'], 0, 1).unsqueeze(-1).float()
             cm_ones = torch.where(self.masks['c'], 0, 1).unsqueeze(-2).float()
