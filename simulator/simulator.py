@@ -12,78 +12,9 @@ from objects.active_route import ActiveRoute
 from objects.gamble_triple import GambleTriple
 from objects.utils import *
 
-class Timer:
-    def __init__(self) -> None:
-        self.time = 0
-        self.delta_increment = 1
+from simulator.item_generators import CourierGenerator, OrderGenerator, ActiveRouteGenerator
+from simulator.timer import Timer
 
-    def Update(self):
-        self.time += self.delta_increment
-
-    def __call__(self):
-        return self.time
-    
-    def reset(self):
-        self.time = 0
-
-class CourierGenerator:
-    def __init__(self, corner_bounds, timer: Timer, courier_live_time: int):
-        self.timer = timer
-        self.corner_bounds = corner_bounds
-        self.courier_live_time = courier_live_time
-        self.current_id = 0
-
-    def __call__(self):
-        courier = Courier(
-                get_random_point(self.corner_bounds),
-                self.timer(),
-                self.timer() + self.courier_live_time,
-                self.current_id
-        )
-        self.current_id += 1
-        return courier
-    
-    def reset(self):
-        self.current_id = 0
-
-class OrderGenerator:
-    def __init__(self, corner_bounds, timer: Timer, order_live_time: int):
-        self.timer = timer
-        self.corner_bounds = corner_bounds
-        self.order_live_time = order_live_time
-        self.current_id = 0
-
-    def __call__(self):
-        order = Order(
-                get_random_point(self.corner_bounds),
-                get_random_point(self.corner_bounds),
-                self.timer(),
-                self.timer() + self.order_live_time,
-                self.current_id
-        )
-        self.current_id += 1
-        return order
-    
-    def reset(self):
-        self.current_id = 0
-
-class ActiveRouteGenerator:
-    def __init__(self, timer: Timer):
-        self.timer = timer
-        self.current_id = 0
-
-    def __call__(self, order: Order, courier: Courier):
-        active_route = ActiveRoute(
-                courier,
-                order,
-                self.timer(),
-                self.current_id
-        )
-        self.current_id += 1
-        return active_route
-    
-    def reset(self):
-        self.current_id = 0
 
 class Index:
     '''
@@ -131,7 +62,7 @@ class Simulator:
         np.random.seed(seed)
 
     def Initialize(self):
-        with open('environment_config.json') as f:
+        with open('configs/simulator_settings.json') as f:
             self.env_config = json.load(f)
             
         self.timer = Timer()

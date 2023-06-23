@@ -1,0 +1,5 @@
+{
+    "max_num_orders": 100,
+    "max_num_couriers": 100,
+    "max_num_active_routes": 100
+}

@@ -42,7 +42,7 @@ class BaseSimulator:
             self.free_couriers.append(courier)
 
     def SetParams(self):
-        with open('environment_config.json') as f:
+        with open('configs/simulator_settings.json') as f:
             self.env_config = json.load(f)
             
         self.corner_bounds = (
