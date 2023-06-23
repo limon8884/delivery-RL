@@ -5,9 +5,10 @@
         "upper": 10.0,
         "lower": 0.0
     },
-    "num_couriers": 20,
-    "num_orders_every_gamble": 2,
+    "start_num_couriers": 20,
     "start_num_orders": 3,
+    "num_orders_every_gamble": 2,
+    "num_couriers_every_gamble": 0,
     "order_live_time_gambles": 10,
     "courier_live_time_gambles": 10000
 }

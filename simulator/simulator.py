@@ -73,7 +73,7 @@ class Simulator:
         )
         self.order_generator = OrderGenerator(corner_bounds=self.corner_bounds, timer=self.timer, order_live_time=self.env_config['order_live_time_gambles'])
         self.courier_generator = CourierGenerator(corner_bounds=self.corner_bounds, timer=self.timer, courier_live_time=self.env_config['courier_live_time_gambles'])
-        self.active_route_generator = ActiveRouteGenerator(corner_bounds=self.corner_bounds, self.timer)
+        self.active_route_generator = ActiveRouteGenerator(corner_bounds=self.corner_bounds, timer=self.timer)
 
         self.free_orders = Index()
         self.free_couriers = Index()
@@ -113,10 +113,9 @@ class Simulator:
             self.gamble_info['total_eta'] += distance(c.position, o.point_from)
 
     def InitCouriers(self):
-        for _ in range(self.env_config['num_couriers']):
+        for _ in range(self.env_config['start_num_couriers']):
             courier = self.courier_generator()
             self.free_couriers.insert(courier)
-            # self.free_couriers.append(courier)
     
     def InitOrders(self):
         for _ in range(self.env_config['start_num_orders']):
@@ -163,10 +162,11 @@ class Simulator:
         for _ in range(self.env_config['num_orders_every_gamble']):
             order = self.order_generator()
             self.free_orders.insert(order)
-            # self.free_orders.append(order)
 
     def GetNewCouriers(self):
-        pass
+        for _ in range(self.env_config['num_couriers_every_gamble']):
+            courier = self.courier_generator()
+            self.free_couriers.insert(courier)
 
     def GetState(self):
         return GambleTriple(self.free_orders.items(), self.free_couriers.items(), self.active_routes.items())
