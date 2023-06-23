@@ -73,7 +73,7 @@ class Simulator:
         )
         self.order_generator = OrderGenerator(corner_bounds=self.corner_bounds, timer=self.timer, order_live_time=self.env_config['order_live_time_gambles'])
         self.courier_generator = CourierGenerator(corner_bounds=self.corner_bounds, timer=self.timer, courier_live_time=self.env_config['courier_live_time_gambles'])
-        self.active_route_generator = ActiveRouteGenerator(self.timer)
+        self.active_route_generator = ActiveRouteGenerator(corner_bounds=self.corner_bounds, self.timer)
 
         self.free_orders = Index()
         self.free_couriers = Index()
