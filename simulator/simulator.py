@@ -112,15 +112,17 @@ class Index:
     
 
 class Simulator:
-    def __init__(self, step=0.5, seed=0) -> None:
+    def __init__(self, step=0.5, seed=None) -> None:
         self.env_config = None
         self.step = step
-        self.SetSeed(seed)
+        if seed is not None:
+            self.SetSeed(seed)
         self.Initialize()
 
         self.finished_couriers = []
         self.finished_orders = []
 
+        self.InitOrders()
         self.InitCouriers()   
 
     def SetSeed(self, seed): 
@@ -184,6 +186,11 @@ class Simulator:
             courier = self.courier_generator()
             self.free_couriers.insert(courier)
             # self.free_couriers.append(courier)
+    
+    def InitOrders(self):
+        for _ in range(self.env_config['start_num_orders']):
+            order = self.order_generator()
+            self.free_orders.insert(order)
         
     def UpdateOrders(self):
         for order in self.free_orders.items():

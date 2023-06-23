@@ -12,14 +12,17 @@ from objects.gamble_triple import GambleTriple
 
 
 def unmask_BOS_items(masks):
+    '''
+    Operation applies NOT inplace
+    '''
     masks_new = {
         'o': masks['o'].clone().detach(),
         'c': masks['c'].clone().detach(),
         'ar': masks['ar'].clone().detach()
     }
-    masks_new['o'][:, 0] = False
-    masks_new['c'][:, 0] = False
-    masks_new['ar'][:, 0] = False
+    masks_new['o'][..., 0] = False
+    masks_new['c'][..., 0] = False
+    masks_new['ar'][..., 0] = False
 
     return masks_new
 
@@ -133,7 +136,7 @@ class ScoringNet(nn.Module):
         return ord, crr
 
     def bipartite_scores(self, ord, crr):
-        crr_t = torch.transpose(crr, 1, 2)
+        crr_t = torch.transpose(crr, -2, -1)
         return torch.matmul(ord, crr_t)
 
     def score_and_fake_heads(self, ord):
@@ -172,10 +175,14 @@ class ScoringInterface:
         self.load_encoder_weights(path_weights + '/encoders')
         self.load_net_weights(path_weights + '/net.pt')
 
-    def encode_input(self, batch: List[GambleTriple], current_time):
+    def encode_input(self, batch: List[GambleTriple] | GambleTriple, current_time):
         '''
         Attention: the function adds BOS-fake items to every GambleTriple to strugle zero-input problem
         '''
+        unbatched_mode = isinstance(batch, GambleTriple)
+        if unbatched_mode:
+            batch = [batch]
+
         batch_c = []
         batch_o = []
         batch_ar = []
@@ -184,9 +191,9 @@ class ScoringInterface:
             batch_c.append(triple.couriers)
             batch_ar.append(triple.active_routes)
 
-        o_tensor, o_mask, o_ids = self.make_tensor(batch_o, item_type='o', current_time=current_time)
-        c_tensor, c_mask, c_ids = self.make_tensor(batch_c, item_type='c', current_time=current_time)
-        ar_tensor, ar_mask, ar_ids = self.make_tensor(batch_ar, item_type='ar', current_time=current_time)
+        o_tensor, o_mask, o_ids = self.make_tensor(batch_o, item_type='o', current_time=current_time, unbatched_mode=unbatched_mode)
+        c_tensor, c_mask, c_ids = self.make_tensor(batch_c, item_type='c', current_time=current_time, unbatched_mode=unbatched_mode)
+        ar_tensor, ar_mask, ar_ids = self.make_tensor(batch_ar, item_type='ar', current_time=current_time, unbatched_mode=unbatched_mode)
 
         self.tensors = {
             'o': o_tensor,
@@ -204,7 +211,7 @@ class ScoringInterface:
             'ar': ar_ids
         }
 
-    def make_tensor(self, batch_sequences, item_type, current_time):
+    def make_tensor(self, batch_sequences, item_type, current_time, unbatched_mode):
         '''
         Input: a batch of sequences of items
         Output: an embedding tensor of shape [bs, max_len + 1, emb_size]
@@ -235,8 +242,16 @@ class ScoringInterface:
             ids_batch.append(ids)
         
         tens = pad_sequence(samples, batch_first=True)
+        masks = create_mask(lenghts, self.device, mask_first=True)
         ids_batch = pad_sequence(ids_batch, batch_first=True, padding_value=-1)
-        return tens, create_mask(lenghts, self.device, mask_first=True), ids_batch
+
+        if unbatched_mode:
+            assert tens.shape[0] == 1, 'in unbatched mode should be 1'
+            tens = tens.squeeze(dim=0)
+            masks = masks.squeeze(dim=0)
+            ids_batch = ids_batch.squeeze(dim=0)
+
+        return tens, masks, ids_batch
     
     def inference(self) -> Any:
         assert self.tensors is not None, 'call encode first'
