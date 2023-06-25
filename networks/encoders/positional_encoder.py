@@ -7,6 +7,8 @@ from torch.nn.utils.rnn import pad_sequence
 from objects.utils import distance
 from objects.point import Point
 
+from networks.encoders.point_encoder import PointEncoder
+
 
 class FeatureExtractor:
     def __init__(self) -> None:
@@ -58,42 +60,11 @@ class FeatureExtractor:
         
         return result
 
-class PointEncoder(nn.Module):
-    def __init__(self, point_enc_dim, device):
-        super().__init__()
-        assert point_enc_dim % 4 == 0
-        self.point_enc_dim = point_enc_dim
-        self.sin_layer_x = nn.Linear(1, point_enc_dim // 4, device=device)
-        self.cos_layer_x = nn.Linear(1, point_enc_dim // 4, device=device)
-        self.sin_layer_y = nn.Linear(1, point_enc_dim // 4, device=device)
-        self.cos_layer_y = nn.Linear(1, point_enc_dim // 4, device=device)
-        self.device = device
-
-        for param in self.parameters():
-            param.requires_grad = False
-
-        # nn.init.uniform_(self.sin_layer.weight, 0, 100)
-        # nn.init.uniform_(self.cos_layer.weight, 0, 100)
-        # self.trainable = trainable
-        # self.freqs = torch.tensor([1 / 2**i for i in range(pos_enc_dim // 2)])
-
-    def forward(self, p: Point):
-        with torch.no_grad():
-            x = torch.tensor([p.x], dtype=torch.float32, device=self.device)
-            y = torch.tensor([p.y], dtype=torch.float32, device=self.device)
-            return torch.cat([
-                torch.sin(self.sin_layer_x(x)), 
-                torch.cos(self.cos_layer_x(x)),
-                torch.sin(self.sin_layer_y(y)), 
-                torch.cos(self.cos_layer_y(y)),
-            ], dim=-1).flatten()
-    
-        # pos_enc = torch.cat([torch.sin(f * self.freqs), torch.cos(f * self.freqs)], dim=-1)
-        # if self.trainable:
 
 class PositionalEncoder(nn.Module):
     def __init__(self, item_type: str, point_encoder: PointEncoder, num_enc_dim, out_dim, device=None):
         super().__init__()
+        assert item_type in ('o', 'c', 'ar'), 'not found type!'
         self.feature_extractor = FeatureExtractor()
         self.point_encoder = point_encoder
         self.number_encoder = nn.Linear(1, num_enc_dim, device=device)
@@ -120,30 +91,30 @@ class PositionalEncoder(nn.Module):
 
         return self.mlp(torch.cat(encoded_points + encoded_numbers).detach())
     
-class PositionalEncoderDemo(nn.Module):
-    def __init__(self, item_type: str, point_encoder: PointEncoder, num_enc_dim, out_dim, use_grad=False, device=None):
-        super().__init__()
-        self.feature_extractor = FeatureExtractor()
-        self.point_encoder = point_encoder
-        self.number_encoder = nn.Linear(1, num_enc_dim, device=device)
-        self.item_type = item_type
-        self.use_grad = use_grad
+# class PositionalEncoderDemo(nn.Module):
+#     def __init__(self, item_type: str, point_encoder: PointEncoder, num_enc_dim, out_dim, use_grad=False, device=None):
+#         super().__init__()
+#         self.feature_extractor = FeatureExtractor()
+#         self.point_encoder = point_encoder
+#         self.number_encoder = nn.Linear(1, num_enc_dim, device=device)
+#         self.item_type = item_type
+#         self.use_grad = use_grad
 
-        pt_enc_dim = self.point_encoder.point_enc_dim
-        input_dim = pt_enc_dim
-        self.mlp = nn.Sequential(
-            nn.Linear(input_dim, out_dim),
-            nn.LeakyReLU(),
-            nn.Linear(out_dim, out_dim)
-        )
-        self.mlp.to(device=device)
-        self.device = device
+#         pt_enc_dim = self.point_encoder.point_enc_dim
+#         input_dim = pt_enc_dim
+#         self.mlp = nn.Sequential(
+#             nn.Linear(input_dim, out_dim),
+#             nn.LeakyReLU(),
+#             nn.Linear(out_dim, out_dim)
+#         )
+#         self.mlp.to(device=device)
+#         self.device = device
 
-    def forward(self, item, current_time):
-        features = self.feature_extractor(item, current_time, self.item_type)
-        encoded_point = self.point_encoder(features['points'][0])
-        if not self.use_grad:
-            encoded_point = encoded_point.detach()
+#     def forward(self, item, current_time):
+#         features = self.feature_extractor(item, current_time, self.item_type)
+#         encoded_point = self.point_encoder(features['points'][0])
+#         if not self.use_grad:
+#             encoded_point = encoded_point.detach()
 
-        return self.mlp(encoded_point)
+#         return self.mlp(encoded_point)
         

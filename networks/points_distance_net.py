@@ -6,7 +6,7 @@ from torch.nn.utils.rnn import pad_sequence
 
 from utils import *
 from dispatch.utils import *
-from networks.encoders import PositionalEncoder, PointEncoder
+from networks.encoders.point_encoder import PointEncoder
 from networks.utils import *
 
 class PointDistNet(nn.Module):
