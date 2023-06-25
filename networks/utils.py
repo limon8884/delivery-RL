@@ -1,4 +1,10 @@
 import torch
+from typing import Sequence, List
+from torch.nn.utils.rnn import pad_sequence
+
+from objects.gamble_triple import GambleTriple
+from dispatch.solvers import HungarianSolver
+from dispatch.scorings import ETAScoring
 
 def create_mask(lenghts, device, mask_first)->torch.BoolTensor:
     '''
@@ -11,4 +17,76 @@ def create_mask(lenghts, device, mask_first)->torch.BoolTensor:
         if mask_first:
             result[:, 0] = True
         return result
+
+
+def get_target_assignments(triple: GambleTriple, max_num_ords: int, max_num_crrs: int) -> List[int]:
+    scorer = ETAScoring()
+    solver = HungarianSolver()
+    scores = scorer(triple.orders, triple.couriers)
+
+    num_ords = len(triple.orders)
+
+    assignments = [max_num_crrs] * num_ords + [-1] * (max_num_ords - num_ords)
+    for o_idx, c_idx in zip(*solver(scores)):
+        assignments[o_idx] = c_idx
+
+    return assignments
+
+
+def get_batch_embeddings_tensors(embeddings: List[torch.Tensor]):
+    return {
+        'o': pad_sequence([emb['o'] for emb in embeddings], batch_first=True, padding_value=0.0),
+        'c': pad_sequence([emb['c'] for emb in embeddings], batch_first=True, padding_value=0.0),
+        'ar': pad_sequence([emb['ar'] for emb in embeddings], batch_first=True, padding_value=0.0)
+    }
+
+
+def get_batch_masks(triples: List[GambleTriple]):
+    return {
+        'o': pad_sequence([torch.BoolTensor([True] + [False] * len(triple.orders)) for triple in triples], batch_first=True, padding_value=True),
+        'c': pad_sequence([torch.BoolTensor([True] + [False] * len(triple.couriers)) for triple in triples], batch_first=True, padding_value=True),
+        'ar': pad_sequence([torch.BoolTensor([True] + [False] * len(triple.active_routes)) for triple in triples], batch_first=True, padding_value=True)
+    }    
+
+
+def get_cross_mask(masks) -> torch.FloatTensor:
+    '''
+    Input: a dict of torch-masks, where True corresponds to masked element
+    Output: torch.Tensor of shape [bs, o, c + 1], where 0 corresponds to unmasked elements, -inf to masked ones
+    '''
+    with torch.no_grad():
+        om_ones = torch.where(masks['o'], 0, 1).unsqueeze(-1).float()
+        cm_ones = torch.where(masks['c'], 0, 1).unsqueeze(-2).float()
+        inverse_binary_mask = torch.matmul(om_ones, cm_ones).float()
+
+        real_part_mask = (1 - inverse_binary_mask) * -1e9 # [bs, o, c]
+        fake_part_mask = torch.zeros((inverse_binary_mask.shape[0], inverse_binary_mask.shape[1], 1), device=inverse_binary_mask.device) # [bs, o, 1]
+
+        return torch.cat([real_part_mask, fake_part_mask], dim=-1) # [bs, o, c + 1]
     
+
+def cross_entropy_assignment_loss(pred_scores, target_assigments, cross_mask):
+    '''
+    Input: 
+    * pred_scores - tensor of shape [bs, o + 1, c + 2]
+    * target_scores - matrix of shape [ba, o]
+    Output: loss
+    '''
+    assert len(pred_scores.shape) == 3, 'shape should be [bs, o, c+1]'
+    assert pred_scores.shape[0] == len(target_assigments), 'batch size should be equal'
+    assert pred_scores.shape[1] == len(target_assigments[0]) + 1, 'order dimention should differs one 1 (BOS item)'
+
+    if pred_scores.shape[1] == 1: # no orders
+        return 0
+    
+    # tgt_ass = torch.where(has_orders, mask.shape[2], -1)
+    # for idx, assignments in enumerate(batch_assignments):
+    #     for row, col in assignments:
+    #         tgt_ass[idx][row + 1] = col + 1
+
+    ce_loss = torch.nn.CrossEntropyLoss(reduction='mean', ignore_index=-1)
+    masked_scores_wo_bos = (cross_mask + pred_scores)[:, 1:, 1:]
+    loss = ce_loss(masked_scores_wo_bos.transpose(1, 2), torch.tensor(target_assigments, device=pred_scores.device, dtype=torch.long))
+    return loss
+    
+

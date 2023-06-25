@@ -44,6 +44,7 @@ class GambleTripleEncoder(nn.Module):
         
         if path_weights is not None:
             self.load_weights(path_weights)
+            print('gamble encoder weights loaded successfuly!')
 
     def load_weights(self, path: str):
         self.order_enc.load_state_dict(torch.load(path + '/o.pt', map_location=self.device))
