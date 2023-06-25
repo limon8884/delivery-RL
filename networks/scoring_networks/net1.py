@@ -136,8 +136,8 @@ class ScoringNet(nn.Module):
         Input: orders [bs, o, emb], ord_masks [bs, o]
         '''
         ord_scores = self.ord_scores_head(ord) # [bs, o]
-        numerator = torch.sum(torch.where(ord_mask, 0.0, ord_scores), dim=-1, dtype=torch.float)
-        denominator = torch.sum(torch.where(ord_mask, 0.0, 1.0), dim=-1, dtype=torch.float)
+        numerator = torch.sum(torch.where(ord_mask, 0.0, ord_scores), dim=-1)
+        denominator = torch.sum(torch.where(ord_mask, 0.0, 1.0), dim=-1)
 
         return numerator / denominator # [bs]
 
