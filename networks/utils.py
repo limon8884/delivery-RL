@@ -41,11 +41,11 @@ def get_batch_embeddings_tensors(embeddings: List[torch.Tensor]):
     }
 
 
-def get_batch_masks(triples: List[GambleTriple]):
+def get_batch_masks(triples: List[GambleTriple], device):
     return {
-        'o': pad_sequence([torch.BoolTensor([True] + [False] * len(triple.orders)) for triple in triples], batch_first=True, padding_value=True),
-        'c': pad_sequence([torch.BoolTensor([True] + [False] * len(triple.couriers)) for triple in triples], batch_first=True, padding_value=True),
-        'ar': pad_sequence([torch.BoolTensor([True] + [False] * len(triple.active_routes)) for triple in triples], batch_first=True, padding_value=True)
+        'o': pad_sequence([torch.BoolTensor([True] + [False] * len(triple.orders), device=device) for triple in triples], batch_first=True, padding_value=True),
+        'c': pad_sequence([torch.BoolTensor([True] + [False] * len(triple.couriers), device=device) for triple in triples], batch_first=True, padding_value=True),
+        'ar': pad_sequence([torch.BoolTensor([True] + [False] * len(triple.active_routes), device=device) for triple in triples], batch_first=True, padding_value=True)
     }    
 
 
