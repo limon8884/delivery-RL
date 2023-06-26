@@ -100,12 +100,12 @@ def get_assignments_by_scores(pred_scores, masks, ids):
     '''
     with torch.no_grad():
         assignments_batch = []
-        argmaxes = torch.argmax(pred_scores, dim=-1)
+        argmaxes = torch.argmax(pred_scores, dim=-1).cpu()
         for batch_idx in range(len(pred_scores)):
             assignments_batch.append([])
             assigned_orders = set()
             assigned_couriers = set()
-            for o_idx, c_idx in enumerate(argmaxes[batch_idx].cpu().numpy()):
+            for o_idx, c_idx in enumerate(argmaxes[batch_idx].numpy()):
                 if c_idx != pred_scores.shape[-1] - 1 \
                         and (not masks['o'][batch_idx][o_idx]) \
                         and (not masks['c'][batch_idx][c_idx]) \
