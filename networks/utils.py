@@ -90,3 +90,30 @@ def cross_entropy_assignment_loss(pred_scores, target_assigments, cross_mask):
     return loss
     
 
+def get_assignments_by_scores(pred_scores, masks, ids):
+    '''
+    Input:
+    * pred_scores - tensor of shape [bs, o+1, c+2] with fake courier and BOS items
+    * masks - a dict of tensors of shape [bs, o+1, c+1] with BOS items
+    * ids - a sequence of dicts of ids without masked items and BOS items
+    Output: a batch (sequence) of assignments (sequence of pairs)
+    '''
+    with torch.no_grad():
+        assignments_batch = []
+        argmaxes = torch.argmax(pred_scores, dim=-1)
+        for batch_idx in range(len(pred_scores)):
+            assignments_batch.append([])
+            assigned_orders = set()
+            assigned_couriers = set()
+            for o_idx, c_idx in enumerate(argmaxes[batch_idx].numpy()):
+                if c_idx != pred_scores.shape[-1] - 1 \
+                        and (not masks['o'][batch_idx][o_idx]) \
+                        and (not masks['c'][batch_idx][c_idx]) \
+                        and o_idx not in assigned_orders and c_idx not in assigned_couriers:
+                    assignment = (ids[batch_idx]['o'][o_idx].item(), ids[batch_idx]['c'][c_idx].item())
+                    assignments_batch[-1].append(assignment)
+                    assigned_orders.add(o_idx)
+                    assigned_couriers.add(c_idx)
+        return assignments_batch
+
+

@@ -12,6 +12,8 @@ from objects.order import Order
 from objects.courier import Courier
 from objects.gamble_triple import GambleTriple
 
+from networks.utils import get_batch_embeddings_tensors, get_batch_masks, get_assignments_by_scores
+
 class BaseDispatch:
     '''
     Gets 3 lists as input:
@@ -52,30 +54,55 @@ class Dispatch(BaseDispatch):
         return assignments
 
 
+# class NeuralDispatch(BaseDispatch):
+#     def __init__(self, net) -> None:
+#         super().__init__()
+#         self.net = net
+#         self.fallback_dispatch = Dispatch()
+
+#     def __call__(self, gamble_triple: GambleTriple) -> List[Tuple[int, int]]:
+#         if len(gamble_triple.orders) == 0 or len(gamble_triple.couriers) == 0:
+#             return []
+#         if len(gamble_triple.active_routes) == 0:
+#             return self.fallback_dispatch(gamble_triple)
+        
+#         with torch.no_grad():
+#             preds = self.net([gamble_triple], 0)[0]
+#             fake_courier_idx = preds.shape[-1] - 1
+#             argmaxes = torch.argmax(preds, dim=-1)
+
+#             assignments = []
+#             for o_idx, c_idx in enumerate(argmaxes):
+#                 if c_idx < len(gamble_triple.couriers):
+#                     assignments.append((o_idx, c_idx.item()))
+
+#             self.statistics['num_assignments'].append(len(assignments))
+
+#             return assignments
+
 class NeuralDispatch(BaseDispatch):
-    def __init__(self, net) -> None:
+    def __init__(self, net: nn.Module, encoder: nn.Module) -> None:
         super().__init__()
         self.net = net
-        self.fallback_dispatch = Dispatch()
+        self.net.eval()
+        self.encoder = encoder
+        self.encoder.eval()
 
-    def __call__(self, gamble_triple: GambleTriple) -> List[Tuple[int, int]]:
-        if len(gamble_triple.orders) == 0 or len(gamble_triple.couriers) == 0:
-            return []
-        if len(gamble_triple.active_routes) == 0:
-            return self.fallback_dispatch(gamble_triple)
-        
-        with torch.no_grad():
-            preds = self.net([gamble_triple], 0)[0]
-            fake_courier_idx = preds.shape[-1] - 1
-            argmaxes = torch.argmax(preds, dim=-1)
+    def __call__(self, batch_gamble_triples: List[GambleTriple]) -> List[List[Tuple[int, int]]]:
+        with torch.no_grad():            
+            embeds = []
+            ids = []
+            for triple in batch_gamble_triples:
+                embeds_current, ids_current = self.encoder(triple, 0)
+                embeds.append(embeds_current)
+                ids.append(ids_current)
 
-            assignments = []
-            for o_idx, c_idx in enumerate(argmaxes):
-                if c_idx < len(gamble_triple.couriers):
-                    assignments.append((o_idx, c_idx.item()))
+            batch_embs = get_batch_embeddings_tensors(embeds)
+            batch_masks = get_batch_masks(batch_gamble_triples, device=self.net.device)
 
-            self.statistics['num_assignments'].append(len(assignments))
+            pred_scores, _ = self.net(batch_embs, batch_masks)
+            assignments_batch = get_assignments_by_scores(pred_scores, batch_masks, ids)
 
-            return assignments
+            return assignments_batch
         
 

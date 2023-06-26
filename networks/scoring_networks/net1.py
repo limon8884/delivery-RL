@@ -31,7 +31,9 @@ class ScoringNet(nn.Module):
             n_head, 
             dim_ff, 
             device=None,
-            dropout=0.1):
+            path_weights=None,
+            dropout=0.1
+    ):
         super().__init__()
         self.device = device
         self.d_model = d_model # item emb size
@@ -90,6 +92,13 @@ class ScoringNet(nn.Module):
             nn.Linear(dim_ff, 1, device=device),
             nn.Flatten(start_dim=-2)
         )
+
+        if path_weights is not None:
+            self.load_weights(path_weights)
+
+    def load_weights(self, path):
+        self.load_state_dict(torch.load(path, map_location=self.device))
+        print('net weights loaded successfuly!')
         
     def forward(self, tensors, masks):
         '''
