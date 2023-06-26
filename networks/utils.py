@@ -100,7 +100,7 @@ def get_assignments_by_scores(pred_scores, masks, ids):
     '''
     with torch.no_grad():
         assignments_batch = []
-        argmaxes = torch.argmax(pred_scores, dim=-1).cpu()
+        argmaxes = torch.argmax(pred_scores, dim=-1).detach().cpu()
         for batch_idx in range(len(pred_scores)):
             assignments_batch.append([])
             assigned_orders = set()
