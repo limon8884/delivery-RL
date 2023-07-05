@@ -69,7 +69,7 @@ def cross_entropy_assignment_loss(pred_scores, target_assigments, cross_mask):
     '''
     Input: 
     * pred_scores - tensor of shape [bs, o + 1, c + 2]
-    * target_scores - matrix of shape [ba, o]
+    * target_scores - matrix of shape [bs, o]
     Output: loss
     '''
     assert len(pred_scores.shape) == 3, 'shape should be [bs, o, c+1]'
@@ -86,7 +86,12 @@ def cross_entropy_assignment_loss(pred_scores, target_assigments, cross_mask):
 
     ce_loss = torch.nn.CrossEntropyLoss(reduction='mean', ignore_index=-1)
     masked_scores_wo_bos = (cross_mask + pred_scores)[:, 1:, 1:]
-    loss = ce_loss(masked_scores_wo_bos.transpose(1, 2), torch.tensor(target_assigments, device=pred_scores.device, dtype=torch.long))
+    # print('masked_scores_wo_bos\n', masked_scores_wo_bos)
+    # print('target_assigments\n', target_assigments)
+    # print('#' * 50)
+    logits = masked_scores_wo_bos.reshape(-1, masked_scores_wo_bos.shape[-1])
+    classes = torch.tensor(target_assigments, device=pred_scores.device, dtype=torch.long).flatten()
+    loss = ce_loss(logits, classes)
     return loss
     
 
@@ -99,6 +104,7 @@ def get_assignments_by_scores(pred_scores, masks, ids):
     Output: a batch (sequence) of assignments (sequence of pairs)
     '''
     with torch.no_grad():
+        fake_crr_idx = pred_scores.shape[-1] - 1
         assignments_batch = []
         argmaxes = torch.argmax(pred_scores, dim=-1).detach().cpu().numpy()
         for batch_idx in range(len(pred_scores)):
@@ -106,7 +112,7 @@ def get_assignments_by_scores(pred_scores, masks, ids):
             assigned_orders = set()
             assigned_couriers = set()
             for o_idx, c_idx in enumerate(argmaxes[batch_idx]):
-                if c_idx != pred_scores.shape[-1] - 1 \
+                if c_idx != fake_crr_idx \
                         and (not masks['o'][batch_idx][o_idx]) \
                         and (not masks['c'][batch_idx][c_idx]) \
                         and o_idx not in assigned_orders and c_idx not in assigned_couriers:
@@ -114,6 +120,10 @@ def get_assignments_by_scores(pred_scores, masks, ids):
                     assignments_batch[-1].append(assignment)
                     assigned_orders.add(o_idx)
                     assigned_couriers.add(c_idx)
+
+        # print('pred_scores\n', pred_scores)
+        # print('assignments_batch\n', assignments_batch)
+        # print('#' * 50)
         return assignments_batch
 
 
