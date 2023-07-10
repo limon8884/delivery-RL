@@ -41,6 +41,9 @@ class Index:
         assert self.data.get(id) is not None, 'ID is not in Index'
         return self.data[id]
     
+    def __len__(self):
+        return len(self.data)
+    
 
 class Simulator:
     def __init__(self, step=0.5, seed=None) -> None:
@@ -92,6 +95,7 @@ class Simulator:
         self.gamble_info['iteration'] += 1
         self.Assign(assignments)
         self.Update()
+        self.CheckNumItems()
         self.timer.Update()
 
     def Update(self):
@@ -111,6 +115,10 @@ class Simulator:
             self.free_orders.erase(o_id)
             self.free_couriers.erase(c_id)
             self.gamble_info['total_eta'] += distance(c.position, o.point_from)
+
+    def CheckNumItems(self):
+        num_items = len(self.free_couriers) + len(self.free_orders) + len(self.active_routes)
+        assert num_items <= self.env_config['max_num_items'], 'number of items is restricted by max_num_items parameter'
 
     def InitCouriers(self):
         for _ in range(self.env_config['start_num_couriers']):

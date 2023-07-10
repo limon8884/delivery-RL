@@ -88,6 +88,8 @@ class NeuralDispatch(BaseDispatch):
         self.encoder = encoder
         self.encoder.eval()
 
+        self.last_preds = None
+
     def __call__(self, batch_gamble_triples: List[GambleTriple]) -> List[List[Tuple[int, int]]]:
         with torch.no_grad():            
             embeds = []
@@ -102,6 +104,8 @@ class NeuralDispatch(BaseDispatch):
 
             pred_scores, _ = self.net(batch_embs, batch_masks)
             assignments_batch = get_assignments_by_scores(pred_scores, batch_masks, ids)
+
+            self.last_preds = pred_scores
 
             return assignments_batch
         
