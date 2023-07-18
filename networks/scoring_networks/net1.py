@@ -114,7 +114,7 @@ class ScoringNet(nn.Module):
 
         scores = self.bipartite_scores(ord, crr)
         final_scores = torch.cat([scores, ord_fake_crr], dim=-1)
-        values = self.state_value(ord, masks['o'])
+        values = self.ord_values(ord, masks['o'])
 
         return final_scores, values
 
@@ -149,4 +149,11 @@ class ScoringNet(nn.Module):
         denominator = torch.sum(torch.where(ord_mask, 0.0, 1.0), dim=-1)
 
         return numerator / denominator # [bs]
+    
+    def ord_values(self, ord, ord_mask):
+        '''
+        Input: orders [bs, o, emb], ord_masks [bs, o]
+        '''
+        ord_scores = self.ord_scores_head(ord) # [bs, o]
+        return torch.where(ord_mask, 0.0, ord_scores)
 
