@@ -1,1 +1,4 @@
 __pycache__
+*.log
+wandb*
+testing_notebook.ipynb
