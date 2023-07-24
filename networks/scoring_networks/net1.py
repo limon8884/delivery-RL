@@ -1,8 +1,6 @@
-from typing import Any, List
-import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn.utils.rnn import pad_sequence
+# from torch.nn.utils.rnn import pad_sequence
 
 from utils import *
 from dispatch.utils import *
@@ -24,19 +22,19 @@ def unmask_BOS_items(masks):
 
     return masks_new
 
+
 class ScoringNet(nn.Module):
-    def __init__(self, 
-            n_layers, 
-            d_model, 
-            n_head, 
-            dim_ff, 
-            device=None,
-            path_weights=None,
-            dropout=0.1
-    ):
+    def __init__(self,
+                 n_layers,
+                 d_model,
+                 n_head,
+                 dim_ff,
+                 device=None,
+                 path_weights=None,
+                 dropout=0.1):
         super().__init__()
         self.device = device
-        self.d_model = d_model # item emb size
+        self.d_model = d_model  # item emb size
         self.n_head = n_head
         self.dim_ff = dim_ff
         self.n_layers = n_layers
@@ -137,23 +135,23 @@ class ScoringNet(nn.Module):
         return torch.matmul(ord, crr_t)
 
     def fake_crr_scores(self, ord):
-        fake_head = self.ord_fake_courier_head(ord) # [bs, o, 1]
+        fake_head = self.ord_fake_courier_head(ord)  # [bs, o, 1]
         return fake_head
     
     def state_value(self, ord, ord_mask):
         '''
         Input: orders [bs, o, emb], ord_masks [bs, o]
         '''
-        ord_scores = self.ord_scores_head(ord) # [bs, o]
+        ord_scores = self.ord_scores_head(ord)  # [bs, o]
         numerator = torch.sum(torch.where(ord_mask, 0.0, ord_scores.double()), dim=-1)
         denominator = torch.sum(torch.where(ord_mask, 0.0, 1.0), dim=-1)
 
-        return numerator / denominator # [bs]
+        return numerator / denominator  # [bs]
     
     def ord_values(self, ord, ord_mask):
         '''
         Input: orders [bs, o, emb], ord_masks [bs, o]
         '''
-        ord_scores = self.ord_scores_head(ord) # [bs, o]
+        ord_scores = self.ord_scores_head(ord)  # [bs, o]
         return torch.where(ord_mask, 0.0, ord_scores)
 

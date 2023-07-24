@@ -1,13 +1,15 @@
 {
-    "num_epochs": 10,
-    "frames_per_batch": 1000,
-    "total_frames": 50000,
-    "batch_size": 64,
+    "num_epochs": 3,
+    "frames_per_epoch": 40,
+    "total_frames": 4000,
+    "batch_size": 4,
     "max_num_orders": 100,
     "max_num_couriers": 100,
     "max_num_active_routes": 100,
     "gamma": 0.99,
     "lmbda": 0.95,
     "clip_epsilon": 0.2,
-    "entropy_eps": 1e-4
+    "entropy_eps": 1e-4,
+    "lr": 3e-4,
+    "max_grad_norm": 1.0
 }

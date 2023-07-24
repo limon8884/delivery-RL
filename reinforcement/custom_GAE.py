@@ -110,14 +110,14 @@ class CustomGAE(nn.Module):
 
         return tensordict
     
-    def vec_generalized_advantage_estimate(self, 
-        gamma: float,
-        lmbda: float,
-        state_value: torch.Tensor, # [*bs, ts, 100]
-        next_state_value: torch.Tensor, # [*bs, ts, 100]
-        reward: torch.Tensor, # [*bs, ts, 1]
-        done: torch.Tensor, # [*bs, ts, 1]
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def vec_generalized_advantage_estimate(self,
+                                           gamma: float,
+                                           lmbda: float,
+                                           state_value: torch.Tensor,  # [*bs, ts, 100]
+                                           next_state_value: torch.Tensor,  # [*bs, ts, 100]
+                                           reward: torch.Tensor,  # [*bs, ts, 1]
+                                           done: torch.Tensor,  # [*bs, ts, 1]
+                                           ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get generalized advantage estimate of a trajectory.
 
         Refer to "HIGH-DIMENSIONAL CONTINUOUS CONTROL USING GENERALIZED ADVANTAGE ESTIMATION"
@@ -155,7 +155,7 @@ class CustomGAE(nn.Module):
             gammalmbdas = torch.ones_like(state_value) * not_done * value
         else:
             gammalmbdas = torch.full_like(state_value, value) * not_done
-        gammalmbdas = _make_gammas_tensor(gammalmbdas, time_steps, True) # in: [*bs, 100, ts, 1]
+        gammalmbdas = _make_gammas_tensor(gammalmbdas, time_steps, True)  # in: [*bs, 100, ts, 1]
         gammalmbdas = gammalmbdas.cumprod(-2)
         # first_below_thr = gammalmbdas < 1e-7
         # # if we have multiple gammas, we only want to truncate if _all_ of

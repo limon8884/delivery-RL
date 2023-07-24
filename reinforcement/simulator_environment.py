@@ -11,14 +11,13 @@ from torchrl.data import (
     UnboundedDiscreteTensorSpec,
 )
 import json
-from simulator import Simulator
+from simulator.simulator import Simulator
 from networks.encoders import GambleTripleEncoder
 
 
 class SimulatorEnv(EnvBase):
     def __init__(self, simulator: type[Simulator], seed=None, device="cpu"):
         super().__init__(device=device, batch_size=[])
-        self.device = device
 
         self.load_settings()
 
