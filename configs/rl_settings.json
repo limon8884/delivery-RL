@@ -1,8 +1,8 @@
 {
-    "num_epochs": 3,
-    "frames_per_epoch": 40,
-    "total_frames": 4000,
-    "batch_size": 4,
+    "num_epochs": 5,
+    "frames_per_epoch": 640,
+    "total_frames": 64000,
+    "batch_size": 64,
     "max_num_orders": 100,
     "max_num_couriers": 100,
     "max_num_active_routes": 100,
