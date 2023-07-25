@@ -148,4 +148,4 @@ class ScoringNet(nn.Module):
         Input: orders [bs, o, emb], ord_masks [bs, o]
         '''
         ord_scores = self.ord_scores_head(ord)  # [bs, o]
-        return torch.where(ord_mask, 0.0, ord_scores)
+        return torch.where(ord_mask, float(0.0), ord_scores)
