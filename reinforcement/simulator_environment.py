@@ -16,17 +16,13 @@ from networks.encoders import GambleTripleEncoder
 
 
 class SimulatorEnv(EnvBase):
-    def __init__(self, simulator: type[Simulator], seed=None, device="cpu"):
+    def __init__(self, simulator: type[Simulator], encoder: GambleTripleEncoder, seed=None, device="cpu"):
         super().__init__(device=device, batch_size=[])
 
         self.load_settings()
 
         self.simulator = simulator()
-        self.encoder = GambleTripleEncoder(
-            number_enc_dim=self.number_enc_dim,
-            d_model=self.d_model,
-            point_enc_dim=self.point_enc_dim
-        )
+        self.encoder = encoder
         self._make_specs()
 
         if seed is None:
@@ -90,7 +86,7 @@ class SimulatorEnv(EnvBase):
         assignments = []
         assigned_o_idxs = set()
         assigned_c_idxs = set()
-        for o_idx, c_idx in enumerate(tensordict['action'].numpy()):
+        for o_idx, c_idx in enumerate(tensordict['action'].detach().cpu().numpy()):
             if c_idx != self.max_num_couriers \
                 and not tensordict['observation', 'masks', 'o'][o_idx] \
                 and not tensordict['observation', 'masks', 'c'][c_idx] \
