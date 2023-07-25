@@ -1,10 +1,9 @@
-import random
-from typing import List, Tuple
-
-from objects.point import Point, get_random_point
+from typing import Tuple
+from objects.point import Point
 from objects.courier import Courier, random_courier
 from objects.order import Order, random_order
 from objects.utils import distance
+
 
 class ActiveRoute:
     def __init__(self, courier: Courier, order: Order, creation_time: int, id: int = None) -> None:
@@ -34,7 +33,7 @@ class ActiveRoute:
                 self.order.CompleteOrder(time)
         else:
             self.courier.position += step * (self.target_point - self.courier.position).normalize()
-            
+
         return self
 
     def __repr__(self) -> str:
@@ -44,6 +43,7 @@ class ActiveRoute:
         self.courier.plot(fig)
         self.order.plot(fig)
         return fig
-    
+
+
 def random_ar(corner_bounds: Tuple[Point], id=None):
     return ActiveRoute(random_courier(corner_bounds), random_order(corner_bounds), 0, id)

@@ -1,11 +1,12 @@
 import random
-from typing import List, Tuple
+from typing import Tuple
+
 
 class Point:
     def __init__(self, x: float, y: float) -> None:
         self.x = x
         self.y = y
-    
+
     def __add__(self, other):
         return Point(self.x + other.x, self.y + other.y)
 
@@ -30,6 +31,7 @@ class Point:
     def plot(self, fig, color='black', size=10, marker='.'):
         fig.scatter(self.x, self.y, color=color, s=size, marker=marker)
         return fig
+
 
 def get_random_point(corner_bounds: Tuple[Point] = (Point(0, 0), Point(10, 10))):
     left_lower_bound, right_upper_bound = corner_bounds

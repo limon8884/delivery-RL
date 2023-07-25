@@ -1,10 +1,10 @@
 import random
 from typing import List, Tuple
-
-from objects.point import Point, get_random_point
+from objects.point import Point
 from objects.order import Order, random_order
 from objects.courier import Courier, random_courier
 from objects.active_route import ActiveRoute, random_ar
+
 
 class GambleTriple:
     def __init__(self, orders: List[Order], couriers: List[Courier], active_routes: List[ActiveRoute]) -> None:
@@ -14,7 +14,7 @@ class GambleTriple:
 
     def __repr__(self) -> str:
         return 'Orders:\n' + '\n'.join([o.__repr__() for o in self.orders]) \
-            + '\nCouriers:\n' + '\n'.join([c.__repr__() for c in self.couriers]) \
+            + '\nCouriers:\n' + '\n'.join([c.__repr__() for c in self.couriers])
 
     def plot(self, fig):
         for i, order in enumerate(self.orders):
@@ -36,5 +36,5 @@ def random_triple(corner_bounds: Tuple[Point], max_items=10, same_number=False):
     os = [random_order(corner_bounds, id=i) for i in range(num_orders)]
     cs = [random_courier(corner_bounds, id=i) for i in range(num_couriers)]
     ars = [random_ar(corner_bounds, id=i) for i in range(num_ars)]
-    
+
     return GambleTriple(os, cs, ars)
