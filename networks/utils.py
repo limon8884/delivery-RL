@@ -76,7 +76,7 @@ def get_cross_mask(masks) -> torch.FloatTensor:
 
 def cross_entropy_assignment_loss(pred_scores, target_assigments, cross_mask):
     '''
-    Input: 
+    Input:
     * pred_scores - tensor of shape [bs, o + 1, c + 2]
     * target_scores - matrix of shape [bs, o]
     Output: loss

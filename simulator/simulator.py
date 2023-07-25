@@ -1,16 +1,16 @@
-from typing import List, Tuple, Dict, Sequence
-from utils import *
+from typing import Tuple, Dict, Sequence
+# from utils import *
 import numpy as np
-import heapq
 import random
+import torch
 import json
 
-from objects.point import Point, get_random_point
+from objects.point import Point
 from objects.order import Order
 from objects.courier import Courier
 from objects.active_route import ActiveRoute
 from objects.gamble_triple import GambleTriple
-from objects.utils import *
+from objects.utils import distance
 
 from simulator.item_generators import CourierGenerator, OrderGenerator, ActiveRouteGenerator
 from simulator.timer import Timer
@@ -26,7 +26,7 @@ class Index:
     def insert(self, item):
         assert hasattr(item, 'id')
         assert self.data.get(item.id) is None, 'ID is in Index now'
-        self.data[item.id] = item        
+        self.data[item.id] = item
 
     def erase(self, id):
         assert isinstance(id, int), 'Input should be ID (int)'
@@ -35,15 +35,15 @@ class Index:
 
     def items(self):
         return list(self.data.values())
-    
+
     def get(self, id):
         assert isinstance(id, int), 'Input should be ID (int)'
         assert self.data.get(id) is not None, 'ID is not in Index'
         return self.data[id]
-    
+
     def __len__(self):
         return len(self.data)
-    
+
 
 class Simulator:
     def __init__(self, step=0.5, seed=None) -> None:
@@ -57,9 +57,9 @@ class Simulator:
         self.finished_orders = []
 
         self.InitOrders()
-        self.InitCouriers()   
+        self.InitCouriers()
 
-    def SetSeed(self, seed): 
+    def SetSeed(self, seed):
         torch.manual_seed(seed)
         random.seed(seed)
         np.random.seed(seed)
@@ -67,15 +67,17 @@ class Simulator:
     def Initialize(self):
         with open('configs/simulator_settings.json') as f:
             self.env_config = json.load(f)
-            
+
         self.timer = Timer()
 
         self.corner_bounds = (
             Point(self.env_config['bounds']['left'], self.env_config['bounds']['lower']),
             Point(self.env_config['bounds']['right'], self.env_config['bounds']['upper'])
         )
-        self.order_generator = OrderGenerator(corner_bounds=self.corner_bounds, timer=self.timer, order_live_time=self.env_config['order_live_time_gambles'])
-        self.courier_generator = CourierGenerator(corner_bounds=self.corner_bounds, timer=self.timer, courier_live_time=self.env_config['courier_live_time_gambles'])
+        self.order_generator = OrderGenerator(corner_bounds=self.corner_bounds, timer=self.timer,
+                                              order_live_time=self.env_config['order_live_time_gambles'])
+        self.courier_generator = CourierGenerator(corner_bounds=self.corner_bounds, timer=self.timer,
+                                                  courier_live_time=self.env_config['courier_live_time_gambles'])
         self.active_route_generator = ActiveRouteGenerator(corner_bounds=self.corner_bounds, timer=self.timer)
 
         self.free_orders = Index()
@@ -124,12 +126,12 @@ class Simulator:
         for _ in range(self.env_config['start_num_couriers']):
             courier = self.courier_generator()
             self.free_couriers.insert(courier)
-    
+
     def InitOrders(self):
         for _ in range(self.env_config['start_num_orders']):
             order = self.order_generator()
             self.free_orders.insert(order)
-        
+
     def UpdateOrders(self):
         for order in self.free_orders.items():
             order.next(self.timer())
@@ -149,7 +151,7 @@ class Simulator:
             active_route.next(self.step, self.timer())
             if not active_route.is_active:
                 self.FreeActiveRoute(active_route)
-        
+
     def FreeOrder(self, order: Order):
         self.free_orders.erase(order.id)
         self.finished_orders.append(order)
@@ -189,6 +191,3 @@ class Simulator:
             'current_active_routes': len(self.active_routes.items()),
             'total_eta': self.gamble_info['total_eta']
         }
-
-
-

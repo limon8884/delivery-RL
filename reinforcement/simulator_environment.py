@@ -73,12 +73,12 @@ class SimulatorEnv(EnvBase):
                                        pad=(0, 0, 0, max_limits[item_type] - length),
                                        mode='constant', value=0.0)
             masks[item_type] = F.pad(input=masks[item_type],
-                                    pad=(0, max_limits[item_type] - length),
-                                    mode='constant', value=True)
+                                     pad=(0, max_limits[item_type] - length),
+                                     mode='constant', value=True)
             ids[item_type] = F.pad(input=ids[item_type],
                                    pad=(0, max_limits[item_type] - length),
                                    mode='constant', value=-1)
-        
+
     def _step(self, tensordict: TensorDictBase) -> TensorDictBase:
         '''
         tensordict['action'] - a np.array of indexes (not IDs) of couriers
@@ -91,7 +91,7 @@ class SimulatorEnv(EnvBase):
         assigned_o_idxs = set()
         assigned_c_idxs = set()
         for o_idx, c_idx in enumerate(tensordict['action'].numpy()):
-            if c_idx != self.max_num_couriers  \
+            if c_idx != self.max_num_couriers \
                 and not tensordict['observation', 'masks', 'o'][o_idx] \
                 and not tensordict['observation', 'masks', 'c'][c_idx] \
                 and (o_idx not in assigned_o_idxs) \

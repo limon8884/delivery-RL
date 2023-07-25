@@ -8,6 +8,6 @@ class Timer:
 
     def __call__(self):
         return self.time
-    
+
     def reset(self):
         self.time = 0

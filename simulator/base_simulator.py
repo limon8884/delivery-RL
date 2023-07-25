@@ -1,8 +1,5 @@
-from typing import List, Tuple, Dict
-from utils import *
-import numpy as np
-import heapq
-import random
+from typing import Dict
+# from utils import *
 import json
 
 from objects.point import Point, get_random_point
@@ -10,7 +7,8 @@ from objects.order import Order
 from objects.courier import Courier
 from objects.active_route import ActiveRoute
 from objects.gamble_triple import GambleTriple
-from objects.utils import *
+from objects.utils import distance
+
 
 class BaseSimulator:
     def __init__(self, dispatch, step=0.5) -> None:
@@ -44,7 +42,7 @@ class BaseSimulator:
     def SetParams(self):
         with open('configs/simulator_settings.json') as f:
             self.env_config = json.load(f)
-            
+
         self.corner_bounds = (
             Point(self.env_config['bounds']['left'], self.env_config['bounds']['lower']),
             Point(self.env_config['bounds']['right'], self.env_config['bounds']['upper'])
@@ -74,7 +72,6 @@ class BaseSimulator:
 
         self.free_orders = [o for o in self.free_orders if o is not None]
         self.free_couriers = [c for c in self.free_couriers if c is not None]
-        
 
     def UpdateOrders(self):
         for order in self.free_orders:
@@ -95,7 +92,7 @@ class BaseSimulator:
             active_route.next(self.step, self.gamble_iteration)
             if not active_route.is_active:
                 self.FreeActiveRoute(active_route)
-        
+
     def FreeOrder(self, order):
         order_idx = self.free_orders.index(order)
         self.finished_orders.append(order)
@@ -118,8 +115,8 @@ class BaseSimulator:
     def GetNewOrders(self):
         for _ in range(self.env_config['num_orders_every_gamble']):
             order = Order(
-                get_random_point(self.corner_bounds), 
-                get_random_point(self.corner_bounds), 
+                get_random_point(self.corner_bounds),
+                get_random_point(self.corner_bounds),
                 self.gamble_iteration,
                 self.gamble_iteration + self.env_config['order_live_time_gambles']
             )
@@ -139,12 +136,12 @@ class BaseSimulator:
         self.gamble_iteration += 1
         self.Assign()
         self.Update()
-    
+
     def GetReward(self):
         r = self.current_reward
         self.current_reward = 0
         return r
-    
+
     def GetAssignment(self):
         return self.last_assignment
 

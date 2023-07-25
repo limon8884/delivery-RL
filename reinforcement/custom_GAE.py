@@ -94,7 +94,7 @@ class CustomGAE(nn.Module):
             self.value_network(step_td, **kwargs)
         next_value = step_td.get(self.value_key)
         done = tensordict.get(("next", "done"))
-               
+
         adv, value_target = self.vec_generalized_advantage_estimate(
             gamma, lmbda, value, next_value, reward, done
         )
@@ -109,7 +109,7 @@ class CustomGAE(nn.Module):
         tensordict.set(self.value_target_key, value_target)
 
         return tensordict
-    
+
     def vec_generalized_advantage_estimate(self,
                                            gamma: float,
                                            lmbda: float,
@@ -185,5 +185,3 @@ class CustomGAE(nn.Module):
         advantage = advantage.transpose(-1, -3).squeeze(-3)
 
         return advantage.unsqueeze(-1), value_target
-        
-

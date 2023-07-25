@@ -10,6 +10,8 @@ from collections import Counter
 from objects.gamble_triple import random_triple
 from objects.point import Point
 from tqdm import tqdm
+import typing
+
 
 def make_target_score_tensor(np_scores, mask):
     with torch.no_grad():
@@ -17,8 +19,9 @@ def make_target_score_tensor(np_scores, mask):
         for idx, scores in enumerate(np_scores):
             source = torch.tensor(scores, device=mask.device)
             target[idx][:source.shape[-2], :source.shape[-1]] = source
-            
+
         return target
+
 
 def make_target_assignment_tensor(np_scores, mask):
     solver = HungarianSolver()
@@ -28,8 +31,9 @@ def make_target_assignment_tensor(np_scores, mask):
             row_ids, col_ids = solver(scores)
             for row, col in zip(row_ids, col_ids):
                 target[idx][row][col] = 1.0
-            
+
         return target
+
 
 def make_target_assignment_indexes_tensor(np_scores, mask):
     '''
@@ -45,12 +49,14 @@ def make_target_assignment_indexes_tensor(np_scores, mask):
 
     return tgt_ass
 
+
 def get_hard_assignments(preds):
     z = torch.zeros_like(preds)
     o = torch.ones_like(preds)
     preds_hard = torch.scatter(z, dim=-1, index=torch.argmax(preds, dim=-1, keepdim=True), src=o)
 
     return preds_hard
+
 
 def get_loss(net, triples):
     scorer = ETAScoring()
@@ -62,25 +68,31 @@ def get_loss(net, triples):
     mse_loss = nn.MSELoss(reduction='none')
     return (mse_loss(preds, tgt) * mask).sum() / mask.sum()
 
+
 def masked_preds(preds, mask):
     mask_inf = (1 - mask) * -1e9
-    mask_inf_add_fake = torch.cat([mask_inf, torch.zeros((mask.shape[0], mask.shape[1], 1), device=mask.device)], dim=-1)
+    mask_inf_add_fake = torch.cat(
+        [mask_inf, torch.zeros((mask.shape[0], mask.shape[1], 1), device=mask.device)],
+        dim=-1
+        )
     return mask_inf_add_fake + preds
 
-def get_loss_solve(model, triples, metrics=defaultdict(list)):    
+
+def get_loss_solve(model, triples, metrics=defaultdict(list)):
     scorer = ETAScoring()
     np_scores = [scorer(triple.orders, triple.couriers) for triple in triples]
     model.encode_input(triples, 0)
     preds = model.inference()
     mask = model.get_mask()
     tgt_ass = make_target_assignment_indexes_tensor(np_scores, mask)
-    
+
     update_accuracy_metric(metrics, preds, tgt_ass)
     # update_grad_norm(metrics, net)
 
     ce_loss = nn.CrossEntropyLoss(reduction='sum', ignore_index=-1)
     loss = ce_loss(masked_preds(preds, mask).transpose(1, 2), tgt_ass) / mask[:, :, 0].sum()
     return loss
+
 
 def update_accuracy_metric(metrics, preds, tgt_ass):
     preds_hard = torch.argmax(preds, dim=-1)
@@ -90,6 +102,7 @@ def update_accuracy_metric(metrics, preds, tgt_ass):
     # eta_net = torch.max(preds, dim=-1).sum() / pred_ass.sum()
     # eta_solver = torch.max
 
+
 def add_avg_grad_norm_metric(metrics, net):
     grad_norms = []
     for name, param in net.named_parameters():
@@ -97,6 +110,7 @@ def add_avg_grad_norm_metric(metrics, net):
             continue
         grad_norms.append(torch.square(param.grad).mean().item())
     metrics['grad_norm'].append(np.log(np.mean(grad_norms)))
+
 
 def print_info(epoch, metrics, losses):
     clear_output()
@@ -116,7 +130,6 @@ def print_info(epoch, metrics, losses):
     plt.show()
 
 
-
 def target_assigments(triple):
     scoring = ETAScoring()
     solver = HungarianSolver()
@@ -128,18 +141,21 @@ def target_assigments(triple):
         answer[o] = c
     return answer
 
+
 def pred_assigments(net, triple):
     preds = net([triple], 0)
     fake_courier_idx = preds[0].shape[1] - 1
     argmaxes = torch.argmax(preds[0], dim=-1)
     return torch.where(argmaxes == fake_courier_idx, -1, argmaxes).numpy()
 
+
 def target_assigments_batch(triples):
     assignments_batch = []
     for triple in triples:
         assignments_batch.append(target_assigments(triple))
-    
+
     return assignments_batch
+
 
 def pred_assigments_batch(net, triples):
     preds = net(triples, 0)
@@ -154,7 +170,8 @@ def pred_assigments_batch(net, triples):
 
     return assignments_batch
 
-def get_dict_metrics(a, b, n_couriers = 1000):
+
+def get_dict_metrics(a, b, n_couriers=1000):
     return {
         'fake_mistake_not_assigns': ((a != b) & (a == -1) & (b < n_couriers)).sum(),
         'fake_mistake_assigns': ((a != b) & (b == -1)).sum(),
@@ -162,6 +179,7 @@ def get_dict_metrics(a, b, n_couriers = 1000):
         'masked_assigns': ((b >= n_couriers)).sum(),
         'correct': (a == b).sum(),
     }
+
 
 def get_metrics(net, n_samples, max_items=3, bounds=(Point(0, 0), Point(10, 10))):
     c = Counter()
@@ -171,8 +189,9 @@ def get_metrics(net, n_samples, max_items=3, bounds=(Point(0, 0), Point(10, 10))
         tgt_ass = target_assigments(triple)
         assert pred_ass.shape == tgt_ass.shape
         c.update(get_dict_metrics(tgt_ass, pred_ass))
-    
+
     return c
+
 
 def get_metrics_batch(net, batch_size, n_samples, max_items=3, bounds=(Point(0, 0), Point(10, 10))):
     c = Counter()
@@ -184,5 +203,62 @@ def get_metrics_batch(net, batch_size, n_samples, max_items=3, bounds=(Point(0, 
         for i, (pred_ass, tgt_ass) in enumerate(zip(pred_ass_batch, tgt_ass_batch)):
             assert pred_ass.shape == tgt_ass.shape
             c.update(get_dict_metrics(tgt_ass, pred_ass, n_couriers=len(triples[i].couriers)))
-    
+
     return c
+
+
+def get_batch_quality_metrics(dispatch: typing.Any, simulator_type: typing.Any, batch_size: int, num_steps: int):
+    '''
+    Runs given dispatch in simulator and collects downstream metrics
+    '''
+    simulators = [simulator_type() for i in range(batch_size)]
+    all_metrics = [[] for _ in range(batch_size)]
+
+    for step in range(num_steps):
+        triples = [sim.GetState() for sim in simulators]
+        # print(triples)
+        assignments = dispatch(triples)
+        # else:
+        #     assert batch_size == 1, 'batch size should be 1 in this mode'
+        #     assignments = [dispatch(triples[0])]
+
+        for i in range(batch_size):
+            simulators[i].Next(assignments[i])
+            all_metrics[i].append(simulators[i].GetMetrics())
+
+    return all_metrics
+
+
+def get_CR(batch_metrics):
+    '''
+    Takes downstream metrics and returns total CR
+    '''
+    return (
+        sum([metric[-1]['completed_orders'] for metric in batch_metrics])
+        /
+        sum([metric[-1]['finished_orders'] for metric in batch_metrics])
+    )
+
+
+def update_assignment_accuracy_statistics(tgt: typing.List[int], pred: torch.Tensor, statistics: typing.Counter):
+    '''
+    Takes a gamble correct assignments and predictions and returns the quality statistics
+    Input:
+    * tgt - list of order assignments of length ord
+    * pred - tensor of shape [ord+1, crr+2]
+    '''
+    preds_np = pred[1:, 1:].argmax(dim=-1).cpu().numpy()  # [ord]
+    tgts_np = np.array(tgt)
+    n_couriers = pred.shape[-1] - 2
+    n_real_couriers = (tgts_np != -1).sum() - 1
+
+    statistics.update({
+        'fake_mistake_not_assigns': ((tgts_np == n_couriers) & (preds_np != n_couriers)).sum(),
+        'fake_mistake_assigns': ((tgts_np != n_couriers) & (tgts_np != -1) & (preds_np == n_couriers)).sum(),
+        'masked_assigns': ((tgts_np == -1) & ((preds_np < n_real_couriers) | (preds_np == n_couriers))).sum(),
+        'real_mistakes': ((tgts_np != preds_np) & (tgts_np != n_couriers)
+                          & (preds_np != n_couriers) & (tgts_np != -1)).sum(),
+        'not_masked_couriers': (tgts_np != -1).sum(),
+        'correct': ((tgts_np == preds_np) & (tgts_np != -1)).sum(),
+        }
+    )
