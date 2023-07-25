@@ -1,18 +1,12 @@
 from typing import List, Tuple
-import itertools
-import numpy as np
-
-from utils import *
-from dispatch.utils import *
-from dispatch.generators import FullGenerator
+import torch
+import torch.nn as nn
 from dispatch.scorings import ETAScoring
 from dispatch.solvers import HungarianSolver
-from objects.active_route import ActiveRoute
-from objects.order import Order
-from objects.courier import Courier
 from objects.gamble_triple import GambleTriple
 
 from networks.utils import get_batch_embeddings_tensors, get_batch_masks, get_assignments_by_scores
+
 
 class BaseDispatch:
     '''
@@ -41,7 +35,7 @@ class Dispatch(BaseDispatch):
     def __call__(self, gamble_triple: GambleTriple) -> List[Tuple[int, int]]:
         if len(gamble_triple.orders) == 0 or len(gamble_triple.couriers) == 0:
             return []
-        
+
         scores = self.scoring(gamble_triple.orders, gamble_triple.couriers)
         assigned_order_idxs, assigned_courier_idxs = self.solver(scores)
         assignments = []
@@ -65,7 +59,7 @@ class Dispatch(BaseDispatch):
 #             return []
 #         if len(gamble_triple.active_routes) == 0:
 #             return self.fallback_dispatch(gamble_triple)
-        
+
 #         with torch.no_grad():
 #             preds = self.net([gamble_triple], 0)[0]
 #             fake_courier_idx = preds.shape[-1] - 1
@@ -91,7 +85,7 @@ class NeuralDispatch(BaseDispatch):
         self.last_preds = None
 
     def __call__(self, batch_gamble_triples: List[GambleTriple]) -> List[List[Tuple[int, int]]]:
-        with torch.no_grad():            
+        with torch.no_grad():
             embeds = []
             ids = []
             for triple in batch_gamble_triples:
@@ -108,5 +102,3 @@ class NeuralDispatch(BaseDispatch):
             self.last_preds = pred_scores
 
             return assignments_batch
-        
-

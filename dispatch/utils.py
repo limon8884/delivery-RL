@@ -1,8 +1,6 @@
-from typing import List, Dict
-
-from utils import *
 from objects.order import Order
 from objects.courier import Courier
+
 
 class Edge:
     def __init__(self, order: Order, courier: Courier) -> None:

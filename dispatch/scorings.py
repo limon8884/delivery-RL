@@ -1,8 +1,11 @@
 from typing import List
 import numpy as np
 
-from dispatch.utils import *
+# from dispatch.utils import *
 from objects.utils import distance
+from objects.order import Order
+from objects.courier import Courier
+
 
 class ETAScoring:
     def __init__(self) -> None:
@@ -19,5 +22,3 @@ class ETAScoring:
                 edges[-1].append(dist)
 
         return -np.array(edges)
-
-

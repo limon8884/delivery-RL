@@ -1,5 +1,3 @@
-from utils import *
-
 class FullGenerator:
     def __init__(self) -> None:
         pass
