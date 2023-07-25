@@ -1,13 +1,8 @@
-from typing import List
-import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn.utils.rnn import pad_sequence
-
-from utils import *
-from dispatch.utils import *
+# from torch.nn.utils.rnn import pad_sequence
 from networks.encoders.point_encoder import PointEncoder
-from networks.utils import *
+
 
 class PointDistNet(nn.Module):
     def __init__(self, enc_pos_dim=32, out_dim=128, device=None):

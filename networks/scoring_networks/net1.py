@@ -1,10 +1,5 @@
 import torch
 import torch.nn as nn
-# from torch.nn.utils.rnn import pad_sequence
-
-from utils import *
-from dispatch.utils import *
-from networks.utils import *
 
 
 def unmask_BOS_items(masks):
@@ -41,17 +36,17 @@ class ScoringNet(nn.Module):
 
         self.encoders_AR = nn.ModuleDict({
             'o': nn.TransformerDecoderLayer(
-                d_model=d_model, 
-                nhead=n_head, 
-                dim_feedforward=dim_ff, 
+                d_model=d_model,
+                nhead=n_head,
+                dim_feedforward=dim_ff,
                 batch_first=True,
                 device=self.device,
                 dropout=dropout
             ),
             'c': nn.TransformerDecoderLayer(
-                d_model=d_model, 
-                nhead=n_head, 
-                dim_feedforward=dim_ff, 
+                d_model=d_model,
+                nhead=n_head,
+                dim_feedforward=dim_ff,
                 batch_first=True,
                 device=self.device,
                 dropout=dropout
@@ -60,17 +55,17 @@ class ScoringNet(nn.Module):
         self.encoders_OC = nn.ModuleList([
             nn.ModuleDict({
                 'o': nn.TransformerDecoderLayer(
-                    d_model=d_model, 
-                    nhead=n_head, 
-                    dim_feedforward=dim_ff, 
+                    d_model=d_model,
+                    nhead=n_head,
+                    dim_feedforward=dim_ff,
                     batch_first=True,
                     device=self.device,
                     dropout=dropout
                 ),
                 'c': nn.TransformerDecoderLayer(
-                    d_model=d_model, 
-                    nhead=n_head, 
-                    dim_feedforward=dim_ff, 
+                    d_model=d_model,
+                    nhead=n_head,
+                    dim_feedforward=dim_ff,
                     batch_first=True,
                     device=self.device,
                     dropout=dropout
@@ -97,7 +92,7 @@ class ScoringNet(nn.Module):
     def load_weights(self, path):
         self.load_state_dict(torch.load(path, map_location=self.device))
         print('net weights loaded successfuly!')
-        
+
     def forward(self, tensors, masks):
         '''
         Input: tensors of shape [bs, o, c, emb] and masks
@@ -121,7 +116,7 @@ class ScoringNet(nn.Module):
         new_crr = self.encoders_AR['c'](crr, ar, tgt_key_padding_mask=masks['c'], memory_key_padding_mask=masks['ar'])
 
         return new_ord, new_crr
-    
+
     def encoder_OC(self, ord, crr, masks):
         for encoders in self.encoders_OC:
             new_ord = encoders['o'](ord, crr, tgt_key_padding_mask=masks['o'], memory_key_padding_mask=masks['c'])
@@ -137,7 +132,7 @@ class ScoringNet(nn.Module):
     def fake_crr_scores(self, ord):
         fake_head = self.ord_fake_courier_head(ord)  # [bs, o, 1]
         return fake_head
-    
+
     def state_value(self, ord, ord_mask):
         '''
         Input: orders [bs, o, emb], ord_masks [bs, o]
@@ -147,11 +142,10 @@ class ScoringNet(nn.Module):
         denominator = torch.sum(torch.where(ord_mask, 0.0, 1.0), dim=-1)
 
         return numerator / denominator  # [bs]
-    
+
     def ord_values(self, ord, ord_mask):
         '''
         Input: orders [bs, o, emb], ord_masks [bs, o]
         '''
         ord_scores = self.ord_scores_head(ord)  # [bs, o]
         return torch.where(ord_mask, 0.0, ord_scores)
-

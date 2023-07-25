@@ -1,10 +1,7 @@
-from typing import List
-import numpy as np
 import torch
 import torch.nn as nn
-
-from objects.utils import distance
 from objects.point import Point
+
 
 class PointEncoder(nn.Module):
     def __init__(self, point_enc_dim, device):
@@ -25,8 +22,8 @@ class PointEncoder(nn.Module):
             x = torch.tensor([p.x], dtype=torch.float32, device=self.device)
             y = torch.tensor([p.y], dtype=torch.float32, device=self.device)
             return torch.cat([
-                torch.sin(self.sin_layer_x(x)), 
+                torch.sin(self.sin_layer_x(x)),
                 torch.cos(self.cos_layer_x(x)),
-                torch.sin(self.sin_layer_y(y)), 
+                torch.sin(self.sin_layer_y(y)),
                 torch.cos(self.cos_layer_y(y)),
             ], dim=-1).flatten()

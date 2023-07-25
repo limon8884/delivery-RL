@@ -1,14 +1,10 @@
 from typing import Any, List
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence
-
-from utils import *
-from dispatch.utils import *
 from networks.encoders.positional_encoder import PositionalEncoder
 from networks.encoders.point_encoder import PointEncoder
-from networks.utils import *
+from networks.utils import create_mask
 from objects.gamble_triple import GambleTriple
 
 
@@ -27,24 +23,19 @@ def unmask_BOS_items(masks):
 
     return masks_new
 
-# def unmask_BOS_items(masks):
-#     masks['o'][:, 0] = False
-#     masks['c'][:, 0] = False
-#     masks['ar'][:, 0] = False
-
 
 class ScoringNet(nn.Module):
-    def __init__(self, 
-            mode='default', 
-            # point_encoder=None,
-            n_layers=4, 
-            d_model=128, 
-            n_head=4, 
-            dim_ff=128, 
-            point_enc_dim=64, 
-            number_enc_dim=8,
-            device=None,
-            dropout=0.1):
+    def __init__(self,
+                 mode='default',
+                 n_layers=4,
+                 d_model=128,
+                 n_head=4,
+                 dim_ff=128,
+                 point_enc_dim=64,
+                 number_enc_dim=8,
+                 device=None,
+                 dropout=0.1
+                 ):
         super().__init__()
         self.mode = mode
         self.device = device
@@ -57,17 +48,17 @@ class ScoringNet(nn.Module):
 
         self.encoders_AR = nn.ModuleDict({
             'o': nn.TransformerDecoderLayer(
-                d_model=d_model, 
-                nhead=n_head, 
-                dim_feedforward=dim_ff, 
+                d_model=d_model,
+                nhead=n_head,
+                dim_feedforward=dim_ff,
                 batch_first=True,
                 device=self.device,
                 dropout=dropout
             ),
             'c': nn.TransformerDecoderLayer(
-                d_model=d_model, 
-                nhead=n_head, 
-                dim_feedforward=dim_ff, 
+                d_model=d_model,
+                nhead=n_head,
+                dim_feedforward=dim_ff,
                 batch_first=True,
                 device=self.device,
                 dropout=dropout
@@ -76,17 +67,17 @@ class ScoringNet(nn.Module):
         self.encoders_OC = nn.ModuleList([
             nn.ModuleDict({
                 'o': nn.TransformerDecoderLayer(
-                    d_model=d_model, 
-                    nhead=n_head, 
-                    dim_feedforward=dim_ff, 
+                    d_model=d_model,
+                    nhead=n_head,
+                    dim_feedforward=dim_ff,
                     batch_first=True,
                     device=self.device,
                     dropout=dropout
                 ),
                 'c': nn.TransformerDecoderLayer(
-                    d_model=d_model, 
-                    nhead=n_head, 
-                    dim_feedforward=dim_ff, 
+                    d_model=d_model,
+                    nhead=n_head,
+                    dim_feedforward=dim_ff,
                     batch_first=True,
                     device=self.device,
                     dropout=dropout
@@ -106,7 +97,7 @@ class ScoringNet(nn.Module):
             nn.Linear(dim_ff, 1, device=device),
             nn.Flatten(start_dim=-2)
         )
-        
+
     def forward(self, tensors, masks):
         masks = unmask_BOS_items(masks)
 
@@ -127,7 +118,7 @@ class ScoringNet(nn.Module):
         new_crr = self.encoders_AR['c'](crr, ar, tgt_key_padding_mask=masks['c'], memory_key_padding_mask=masks['ar'])
 
         return new_ord, new_crr
-    
+
     def encoder_OC(self, ord, crr, masks):
         for encoders in self.encoders_OC:
             new_ord = encoders['o'](ord, crr, tgt_key_padding_mask=masks['o'], memory_key_padding_mask=masks['c'])
@@ -141,7 +132,7 @@ class ScoringNet(nn.Module):
         return torch.matmul(ord, crr_t)
 
     def score_and_fake_heads(self, ord):
-        fake_head = self.ord_fake_courier_head(ord) # [bs, o, 1]
+        fake_head = self.ord_fake_courier_head(ord)  # [bs, o, 1]
         ord_scores = self.ord_score_head(ord)
 
         return ord_scores, fake_head
@@ -153,24 +144,24 @@ class ScoringInterface:
         self.device = self.net.device
         self.d_model = self.net.d_model
 
-        self.order_enc = PositionalEncoder('o', 
-                                               point_encoder or PointEncoder(net.point_enc_dim, net.device), 
-                                               num_enc_dim=net.number_enc_dim, 
-                                               out_dim=net.d_model,  
-                                               device=net.device
-                                               )
-        self.courier_enc = PositionalEncoder('c', 
-                                                 point_encoder or PointEncoder(net.point_enc_dim, net.device), 
-                                                 num_enc_dim=net.number_enc_dim, 
-                                                 out_dim=net.d_model,  
-                                                 device=net.device
-                                                )
-        self.ar_enc = PositionalEncoder('ar', 
-                                            point_encoder or PointEncoder(net.point_enc_dim, net.device), 
-                                            num_enc_dim=net.number_enc_dim, 
-                                            out_dim=net.d_model,  
-                                            device=net.device
-                                        )   
+        self.order_enc = PositionalEncoder('o',
+                                           point_encoder or PointEncoder(net.point_enc_dim, net.device),
+                                           num_enc_dim=net.number_enc_dim,
+                                           out_dim=net.d_model,
+                                           device=net.device
+                                           )
+        self.courier_enc = PositionalEncoder('c',
+                                             point_encoder or PointEncoder(net.point_enc_dim, net.device),
+                                             num_enc_dim=net.number_enc_dim,
+                                             out_dim=net.d_model,
+                                             device=net.device
+                                             )
+        self.ar_enc = PositionalEncoder('ar',
+                                        point_encoder or PointEncoder(net.point_enc_dim, net.device),
+                                        num_enc_dim=net.number_enc_dim,
+                                        out_dim=net.d_model,
+                                        device=net.device
+                                        )
 
     def load_weights(self, path_weights: str):
         self.load_encoder_weights(path_weights + '/encoders')
@@ -192,9 +183,12 @@ class ScoringInterface:
             batch_c.append(triple.couriers)
             batch_ar.append(triple.active_routes)
 
-        o_tensor, o_mask, o_ids = self.make_tensor(batch_o, item_type='o', current_time=current_time, unbatched_mode=unbatched_mode)
-        c_tensor, c_mask, c_ids = self.make_tensor(batch_c, item_type='c', current_time=current_time, unbatched_mode=unbatched_mode)
-        ar_tensor, ar_mask, ar_ids = self.make_tensor(batch_ar, item_type='ar', current_time=current_time, unbatched_mode=unbatched_mode)
+        o_tensor, o_mask, o_ids = self.make_tensor(batch_o, item_type='o',
+                                                   current_time=current_time, unbatched_mode=unbatched_mode)
+        c_tensor, c_mask, c_ids = self.make_tensor(batch_c, item_type='c',
+                                                   current_time=current_time, unbatched_mode=unbatched_mode)
+        ar_tensor, ar_mask, ar_ids = self.make_tensor(batch_ar, item_type='ar',
+                                                      current_time=current_time, unbatched_mode=unbatched_mode)
 
         self.tensors = {
             'o': o_tensor,
@@ -241,7 +235,7 @@ class ScoringInterface:
             samples.append(sample)
             lenghts.append(len(sequence) + 1)
             ids_batch.append(ids)
-        
+
         tens = pad_sequence(samples, batch_first=True)
         masks = create_mask(lenghts, self.device, mask_first=True)
         ids_batch = pad_sequence(ids_batch, batch_first=True, padding_value=-1)
@@ -253,23 +247,13 @@ class ScoringInterface:
             ids_batch = ids_batch.squeeze(dim=0)
 
         return tens, masks, ids_batch
-    
+
     def inference(self) -> Any:
         assert self.tensors is not None, 'call encode first'
         self.scores, self.values = self.net(self.tensors, self.masks)
-    
-        return self.scores   
-    
-    # def mask_BOS_items(self):
-    #     self.masks['o'][:, 0] = True
-    #     self.masks['c'][:, 0] = True
-    #     self.masks['ar'][:, 0] = True
 
-    # def unmask_BOS_items(self):
-    #     self.masks['o'][:, 0] = False
-    #     self.masks['c'][:, 0] = False
-    #     self.masks['ar'][:, 0] = False
-    
+        return self.scores
+
     def get_assignments_batch(self, gamble_triples: List[GambleTriple]):
         assignments_batch = []
         with torch.no_grad():
@@ -282,12 +266,15 @@ class ScoringInterface:
                 for o_idx, c_idx in enumerate(argmaxes[batch_idx].numpy()):
                     if c_idx != self.scores.shape[-1] - 1 and mask[batch_idx][o_idx][c_idx] \
                             and o_idx not in assigned_orders and c_idx not in assigned_couriers:
-                        assignment = (gamble_triples[batch_idx].orders[o_idx - 1].id, gamble_triples[batch_idx].couriers[c_idx - 1].id)
+                        assignment = (
+                            gamble_triples[batch_idx].orders[o_idx - 1].id,
+                            gamble_triples[batch_idx].couriers[c_idx - 1].id
+                            )
                         assignments_batch[-1].append(assignment)
                         assigned_orders.add(o_idx)
                         assigned_couriers.add(c_idx)
             return assignments_batch
-    
+
     def CE_loss(self, batch_assignments):
         '''
         assignmets - is a batch of np.arrays arr, where arr[i] = j means that i-th order is assigned on j-th courier
@@ -295,17 +282,20 @@ class ScoringInterface:
         '''
         mask = self.get_mask()
         assert len(batch_assignments) == mask.shape[0]
-    
+
         has_orders = mask.sum(dim=-1) > 0
         if has_orders.sum() == 0:
             return 0
-        
+
         tgt_ass = torch.where(has_orders, mask.shape[2], -1)
         for idx, assignments in enumerate(batch_assignments):
             for row, col in assignments:
                 tgt_ass[idx][row + 1] = col + 1
 
-        mask_inf_add_fake = torch.cat([(1 - mask) * -1e9, torch.zeros((mask.shape[0], mask.shape[1], 1), device=self.device)], dim=-1)
+        mask_inf_add_fake = torch.cat(
+            [(1 - mask) * -1e9, torch.zeros((mask.shape[0], mask.shape[1], 1), device=self.device)],
+            dim=-1
+            )
 
         ce_loss = nn.CrossEntropyLoss(reduction='sum', ignore_index=-1)
         loss = ce_loss((mask_inf_add_fake + self.scores).transpose(1, 2), tgt_ass) / has_orders.sum()
@@ -328,4 +318,3 @@ class ScoringInterface:
             om_ones = torch.where(self.masks['o'], 0, 1).unsqueeze(-1).float()
             cm_ones = torch.where(self.masks['c'], 0, 1).unsqueeze(-2).float()
             return torch.matmul(om_ones, cm_ones).float()
-        
