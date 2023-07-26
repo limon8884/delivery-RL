@@ -10,7 +10,8 @@ from src.networks.utils import (
     get_batch_masks,
     cross_entropy_assignment_loss,
     get_cross_mask,
-    get_assignments_by_scores
+    get_assignments_by_scores,
+    compute_grad_norm
 )
 from src.utils import (
     get_batch_quality_metrics,
@@ -18,6 +19,7 @@ from src.utils import (
     update_assignment_accuracy_statistics,
     update_run_counters
 )
+from src.helpers.TimeLogger import TimeLogger
 
 import torch
 import json
@@ -76,6 +78,7 @@ wandb.init(
         'device': device,
         })
 
+time_logger = TimeLogger()
 
 num_epochs = training_settings['num_epochs']
 num_iters = training_settings['num_iters_in_epoch']
@@ -111,8 +114,9 @@ for epoch in tqdm(range(num_epochs)):
     if use_simulators:
         simulators = [Simulator() for i in range(batch_size)]
 
+    time_logger()
     for iter in range(num_iters):
-
+        time_logger('loop')
         # generate training data
         if use_simulators:
             if use_parallel:
@@ -130,6 +134,7 @@ for epoch in tqdm(range(num_epochs)):
                            for _ in range(batch_size)]
         max_num_ords = max([len(triple.orders) for triple in triples])
         max_num_crrs = max([len(triple.couriers) for triple in triples])
+        time_logger('generating train data')
 
         # encode data
         target_assignment_idxs = []
@@ -142,15 +147,18 @@ for epoch in tqdm(range(num_epochs)):
             ids.append(current_ids)
         batch_embs = get_batch_embeddings_tensors(embeds)
         batch_masks = get_batch_masks(triples, device=device)
+        time_logger('encode data')
 
         # network forward pass
         optimizer.zero_grad()
         pred_scores, _ = net(batch_embs, batch_masks)
+        time_logger('net pass')
 
         # gradient step
         loss = cross_entropy_assignment_loss(pred_scores, target_assignment_idxs, get_cross_mask(batch_masks))
         loss.backward()
         optimizer.step()
+        time_logger('gradient step')
 
         # interraction with simulators
         if use_simulators:
@@ -161,22 +169,33 @@ for epoch in tqdm(range(num_epochs)):
             else:
                 for i in range(batch_size):
                     simulators[i].Next(assignments_batch[i])
+        time_logger('interraction with simulators')
 
         # get accuracy statistics
         for batch_idx in range(batch_size):
             update_assignment_accuracy_statistics(target_assignment_idxs[batch_idx],
                                                   pred_scores[batch_idx], assignment_statistics)
+        time_logger('get accuracy statistics')
 
+        # wandb update
         wandb.log({"loss": loss.item()})
+        wandb.log({
+            'net_grad_norm': compute_grad_norm(net),
+            'encoder_grad_norm': compute_grad_norm(encoder)
+        }, step=wandb.run.step)
+        time_logger('send wandb statistics')
 
+    # evaluation
     dsp = NeuralDispatch(net, encoder)
-    cr = get_CR(get_batch_quality_metrics(dsp, Simulator,
-                                          batch_size=training_settings['eval_batch_size'],
-                                          num_steps=training_settings['eval_num_steps']))
-    print(cr)
-    wandb.log({'cr': cr})
-    wandb.log(assignment_statistics)
+    eval_metrics = get_batch_quality_metrics(dsp, Simulator,
+                                             batch_size=training_settings['eval_batch_size'],
+                                             num_steps=training_settings['eval_num_steps'])
+    cr = get_CR(eval_metrics)
+    timings = time_logger.get_timings()
+
+    wandb.log({'cr': cr}, step=wandb.run.step)
+    wandb.log(assignment_statistics, step=wandb.run.step)
+    wandb.log(timings, step=wandb.run.step)
+    wandb.log(eval_metrics, step=wandb.run.step)
 
 wandb.finish()
-
-print(assignment_statistics)

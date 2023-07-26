@@ -127,3 +127,12 @@ def get_assignments_by_scores(pred_scores, masks, ids):
         # print('assignments_batch\n', assignments_batch)
         # print('#' * 50)
         return assignments_batch
+
+
+def compute_grad_norm(model):
+    grads = [
+        param.grad.detach().flatten()
+        for param in model.parameters()
+        if param.grad is not None and param.requires_grad
+    ]
+    return torch.cat(grads).norm()
