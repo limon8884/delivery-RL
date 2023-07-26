@@ -141,8 +141,8 @@ for i, tensordict_data in enumerate(collector):
 
     dsp = NeuralDispatch(net, encoder)
     cr = get_CR(get_batch_quality_metrics(dsp, Simulator,
-                                            batch_size=training_settings['eval_batch_size'],
-                                            num_steps=training_settings['eval_num_steps']))
+                                          batch_size=training_settings['eval_batch_size'],
+                                          num_steps=training_settings['eval_num_steps']))
     print('cr: ', cr)
     # wandb.log({'cr': cr})
 

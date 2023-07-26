@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import json
 from src.dispatch.solvers import HungarianSolver
 from src.dispatch.scorings import ETAScoring
 from collections import defaultdict
@@ -262,3 +263,12 @@ def update_assignment_accuracy_statistics(tgt: typing.List[int], pred: torch.Ten
         'correct': ((tgts_np == preds_np) & (tgts_np != -1)).sum(),
         }
     )
+
+
+def update_run_counters(mode='test'):
+    with open('configs/run_ids.json') as f:
+        data = json.load(f)
+    data[mode] += 1
+    new_json = json.dumps(data)
+    with open('configs/run_ids.json', 'w') as f:
+        f.write(new_json)
