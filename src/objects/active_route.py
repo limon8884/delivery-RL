@@ -1,8 +1,8 @@
 from typing import Tuple
-from objects.point import Point
-from objects.courier import Courier, random_courier
-from objects.order import Order, random_order
-from objects.utils import distance
+from src.objects.point import Point
+from src.objects.courier import Courier, random_courier
+from src.objects.order import Order, random_order
+from src.objects.utils import distance
 
 
 class ActiveRoute:

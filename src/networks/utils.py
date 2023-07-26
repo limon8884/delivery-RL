@@ -2,9 +2,9 @@ import torch
 from typing import List
 from torch.nn.utils.rnn import pad_sequence
 
-from objects.gamble_triple import GambleTriple
-from dispatch.solvers import HungarianSolver
-from dispatch.scorings import ETAScoring
+from src.objects.gamble_triple import GambleTriple
+from src.dispatch.solvers import HungarianSolver
+from src.dispatch.scorings import ETAScoring
 
 
 def create_mask(lenghts, device, mask_first) -> torch.BoolTensor:

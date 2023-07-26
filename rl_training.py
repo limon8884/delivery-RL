@@ -1,29 +1,15 @@
-# from utils import *
-from dispatch.dispatch import Dispatch, NeuralDispatch
-# from simulator.base_simulator import BaseSimulator, ManualSimulator
-from simulator.simulator import Simulator
-# from simulator.graphics import plot_CR, plot_counts
-from tqdm import tqdm
+from src.objects.point import Point
+from src.networks.scoring_networks.net1 import ScoringNet
+from src.networks.encoders.gamble_encoder import GambleTripleEncoder
+from src.reinforcement.simulator_environment import SimulatorEnv
+from src.reinforcement.custom_GAE import CustomGAE
+from src.simulator.simulator import Simulator
+from src.dispatch.dispatch import NeuralDispatch
+from src.utils import get_batch_quality_metrics, get_CR
 import json
-# from collections import Counter
-
+import time
+from tqdm import tqdm
 import torch
-# from networks.encoders.point_encoder import PointEncoder
-# from networks.scoring_v1 import ScoringNet, ScoringInterface
-
-# from collections import defaultdict
-import matplotlib.pyplot as plt
-import torch
-
-
-from objects.point import Point
-from networks.scoring_networks.net1 import ScoringNet
-from networks.encoders.gamble_encoder import GambleTripleEncoder
-# from networks.utils import get_assignments_by_scores
-
-from reinforcement.simulator_environment import SimulatorEnv
-from reinforcement.custom_GAE import CustomGAE
-from simulator.simulator import Simulator
 from torchrl.envs.utils import check_env_specs
 from tensordict.nn import TensorDictModule
 from torch.distributions.categorical import Categorical
@@ -32,20 +18,18 @@ from torchrl.collectors import SyncDataCollector
 from torchrl.data import ReplayBuffer, LazyTensorStorage
 from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.objectives import ClipPPOLoss
-from utils import get_batch_quality_metrics, get_CR
-import json
-import time
 
 
+# if __name__ == "__main__":
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 print(f'device: {device}')
 
 with open('configs/training_settings.json') as f:
     training_settings = json.load(f)
 with open('configs/network_hyperparams.json') as f:
-    hyperparams = json.load(f) 
+    hyperparams = json.load(f)
 with open('configs/rl_settings.json') as f:
-    rl_settings = json.load(f)   
+    rl_settings = json.load(f)
 
 net = ScoringNet(
     n_layers=hyperparams['n_layers'],
@@ -57,8 +41,8 @@ net = ScoringNet(
 )
 
 encoder = GambleTripleEncoder(
-    number_enc_dim=hyperparams['number_enc_dim'], 
-    d_model=hyperparams['d_model'], 
+    number_enc_dim=hyperparams['number_enc_dim'],
+    d_model=hyperparams['d_model'],
     point_enc_dim=hyperparams['point_enc_dim'],
     path_weights='pretrained_models/assignment_cloning_model_v2/encoders/',
     # point_encoder=point_encoder,
@@ -97,7 +81,11 @@ replay_buffer = ReplayBuffer(
 )
 
 advantage_module = CustomGAE(
-    gamma=rl_settings['gamma'], lmbda=rl_settings['lmbda'], value_network=module, average_gae=True, value_key='state_value'
+    gamma=rl_settings['gamma'],
+    lmbda=rl_settings['lmbda'],
+    value_network=module,
+    average_gae=True,
+    value_key='state_value'
 )
 
 loss_module = ClipPPOLoss(
@@ -113,7 +101,6 @@ loss_module = ClipPPOLoss(
     gamma=0.99,
     loss_critic_type="smooth_l1",
 )
-
 
 optim = torch.optim.Adam(list(loss_module.parameters()) + list(encoder.parameters()), lr=rl_settings['lr'])
 pbar = tqdm(total=rl_settings['total_frames'])
@@ -151,13 +138,15 @@ for i, tensordict_data in enumerate(collector):
             #     'loss_critic': loss_vals['loss_critic'],
             #     'loss_entropy': loss_vals['loss_entropy']
             #     })
-            
+
     dsp = NeuralDispatch(net, encoder)
-    cr = get_CR(get_batch_quality_metrics(dsp, Simulator, batch_size=training_settings['eval_batch_size'], num_steps=training_settings['eval_num_steps']))
+    cr = get_CR(get_batch_quality_metrics(dsp, Simulator,
+                                            batch_size=training_settings['eval_batch_size'],
+                                            num_steps=training_settings['eval_num_steps']))
     print('cr: ', cr)
     # wandb.log({'cr': cr})
-    
+
     start_outer = time.time()
-    print(f'inner time: {start_outer - start_inner}', end='\n')    
+    print(f'inner time: {start_outer - start_inner}', end='\n')
 
 # wandb.finish()

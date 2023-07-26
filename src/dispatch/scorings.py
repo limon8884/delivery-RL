@@ -2,9 +2,9 @@ from typing import List
 import numpy as np
 
 # from dispatch.utils import *
-from objects.utils import distance
-from objects.order import Order
-from objects.courier import Courier
+from src.objects.utils import distance
+from src.objects.order import Order
+from src.objects.courier import Courier
 
 
 class ETAScoring:

@@ -5,15 +5,15 @@ import random
 import torch
 import json
 
-from objects.point import Point
-from objects.order import Order
-from objects.courier import Courier
-from objects.active_route import ActiveRoute
-from objects.gamble_triple import GambleTriple
-from objects.utils import distance
+from src.objects.point import Point
+from src.objects.order import Order
+from src.objects.courier import Courier
+from src.objects.active_route import ActiveRoute
+from src.objects.gamble_triple import GambleTriple
+from src.objects.utils import distance
 
-from simulator.item_generators import CourierGenerator, OrderGenerator, ActiveRouteGenerator
-from simulator.timer import Timer
+from src.simulator.item_generators import CourierGenerator, OrderGenerator, ActiveRouteGenerator
+from src.simulator.timer import Timer
 
 
 class Index:

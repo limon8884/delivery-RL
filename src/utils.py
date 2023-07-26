@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
-from dispatch.solvers import HungarianSolver
-from dispatch.scorings import ETAScoring
+from src.dispatch.solvers import HungarianSolver
+from src.dispatch.scorings import ETAScoring
 from collections import defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
 from collections import Counter
-from objects.gamble_triple import random_triple
-from objects.point import Point
+from src.objects.gamble_triple import random_triple
+from src.objects.point import Point
 from tqdm import tqdm
 import typing
 

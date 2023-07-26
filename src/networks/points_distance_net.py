@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
-# from torch.nn.utils.rnn import pad_sequence
-from networks.encoders.point_encoder import PointEncoder
+from src.networks.encoders.point_encoder import PointEncoder
 
 
 class PointDistNet(nn.Module):

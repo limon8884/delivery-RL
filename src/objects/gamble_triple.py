@@ -1,9 +1,9 @@
 import random
 from typing import List, Tuple
-from objects.point import Point
-from objects.order import Order, random_order
-from objects.courier import Courier, random_courier
-from objects.active_route import ActiveRoute, random_ar
+from src.objects.point import Point
+from src.objects.order import Order, random_order
+from src.objects.courier import Courier, random_courier
+from src.objects.active_route import ActiveRoute, random_ar
 
 
 class GambleTriple:

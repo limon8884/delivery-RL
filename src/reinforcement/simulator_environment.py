@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torchrl.envs import EnvBase
 from tensordict.tensordict import TensorDictBase, TensorDict
-from typing import Optional
+from typing import Optional, Type
 from torchrl.data import (
     CompositeSpec,
     UnboundedContinuousTensorSpec,
@@ -11,12 +11,12 @@ from torchrl.data import (
     UnboundedDiscreteTensorSpec,
 )
 import json
-from simulator.simulator import Simulator
-from networks.encoders import GambleTripleEncoder
+from src.simulator.simulator import Simulator
+from src.networks.encoders import GambleTripleEncoder
 
 
 class SimulatorEnv(EnvBase):
-    def __init__(self, simulator: type[Simulator], encoder: GambleTripleEncoder, seed=None, device="cpu"):
+    def __init__(self, simulator: Type[Simulator], encoder: GambleTripleEncoder, seed=None, device="cpu"):
         super().__init__(device=device, batch_size=[])
 
         self.load_settings()

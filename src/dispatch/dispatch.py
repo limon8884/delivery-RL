@@ -1,11 +1,11 @@
 from typing import List, Tuple
 import torch
 import torch.nn as nn
-from dispatch.scorings import ETAScoring
-from dispatch.solvers import HungarianSolver
-from objects.gamble_triple import GambleTriple
+from src.dispatch.scorings import ETAScoring
+from src.dispatch.solvers import HungarianSolver
+from src.objects.gamble_triple import GambleTriple
 
-from networks.utils import get_batch_embeddings_tensors, get_batch_masks, get_assignments_by_scores
+from src.networks.utils import get_batch_embeddings_tensors, get_batch_masks, get_assignments_by_scores
 
 
 class BaseDispatch:

@@ -2,12 +2,12 @@ from typing import Dict
 # from utils import *
 import json
 
-from objects.point import Point, get_random_point
-from objects.order import Order
-from objects.courier import Courier
-from objects.active_route import ActiveRoute
-from objects.gamble_triple import GambleTriple
-from objects.utils import distance
+from src.objects.point import Point, get_random_point
+from src.objects.order import Order
+from src.objects.courier import Courier
+from src.objects.active_route import ActiveRoute
+from src.objects.gamble_triple import GambleTriple
+from src.objects.utils import distance
 
 
 class BaseSimulator:

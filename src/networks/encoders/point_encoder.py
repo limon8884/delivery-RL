@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from objects.point import Point
+from src.objects.point import Point
 
 
 class PointEncoder(nn.Module):

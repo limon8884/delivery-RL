@@ -2,10 +2,10 @@ from typing import Any, List
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence
-from networks.encoders.positional_encoder import PositionalEncoder
-from networks.encoders.point_encoder import PointEncoder
-from networks.utils import create_mask
-from objects.gamble_triple import GambleTriple
+from src.networks.encoders.positional_encoder import PositionalEncoder
+from src.networks.encoders.point_encoder import PointEncoder
+from src.networks.utils import create_mask
+from src.objects.gamble_triple import GambleTriple
 
 
 def unmask_BOS_items(masks):

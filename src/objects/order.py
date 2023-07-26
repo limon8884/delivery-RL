@@ -1,6 +1,6 @@
 import random
 from typing import Tuple
-from objects.point import Point, get_random_point
+from src.objects.point import Point, get_random_point
 
 
 class Order:

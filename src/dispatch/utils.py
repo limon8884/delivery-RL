@@ -1,5 +1,5 @@
-from objects.order import Order
-from objects.courier import Courier
+from src.objects.order import Order
+from src.objects.courier import Courier
 
 
 class Edge:

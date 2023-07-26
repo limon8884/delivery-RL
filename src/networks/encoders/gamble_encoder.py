@@ -1,13 +1,9 @@
 import torch
 import torch.nn as nn
-# from torch.nn.utils.rnn import pad_sequence
 
-# from utils import *
-# from dispatch.utils import *
-from networks.encoders.positional_encoder import PositionalEncoder
-from networks.encoders.point_encoder import PointEncoder
-# from networks.utils import *
-from objects.gamble_triple import GambleTriple
+from src.networks.encoders.positional_encoder import PositionalEncoder
+from src.networks.encoders.point_encoder import PointEncoder
+from src.objects.gamble_triple import GambleTriple
 
 
 class GambleTripleEncoder(nn.Module):

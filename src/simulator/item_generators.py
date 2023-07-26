@@ -1,8 +1,8 @@
-from objects.point import get_random_point
-from objects.order import Order
-from objects.courier import Courier
-from objects.active_route import ActiveRoute
-from simulator.timer import Timer
+from src.objects.point import get_random_point
+from src.objects.order import Order
+from src.objects.courier import Courier
+from src.objects.active_route import ActiveRoute
+from src.simulator.timer import Timer
 
 
 class _Generator:

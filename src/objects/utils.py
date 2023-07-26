@@ -1,4 +1,4 @@
-from objects.point import Point
+from src.objects.point import Point
 
 
 def distance(first_point: Point, second_point: Point):

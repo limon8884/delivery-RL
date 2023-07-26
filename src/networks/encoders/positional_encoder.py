@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 # from torch.nn.utils.rnn import pad_sequence
-from objects.utils import distance
-from networks.encoders.point_encoder import PointEncoder
+from src.objects.utils import distance
+from src.networks.encoders.point_encoder import PointEncoder
 
 
 class FeatureExtractor:
