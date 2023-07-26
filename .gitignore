@@ -1,4 +1,5 @@
 __pycache__
 *.log
 wandb*
+wandb
 testing_notebook.ipynb
