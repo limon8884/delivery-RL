@@ -88,7 +88,7 @@ use_parallel = training_settings['use_parallel']
 
 optimized_parameters = list(net.parameters()) + list(encoder.parameters())
 if training_settings['optimizer'] == 'adam':
-    optimizier = torch.optim.Adam(optimized_parameters, lr=training_settings['lr'])
+    optimizer = torch.optim.Adam(optimized_parameters, lr=training_settings['lr'])
 elif training_settings['optimizer'] == 'sgd':
     optimizer = torch.optim.SGD(optimized_parameters, lr=training_settings['lr'],
                                 momentum=training_settings['momentum'])
