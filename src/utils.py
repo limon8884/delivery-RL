@@ -12,6 +12,7 @@ from src.objects.gamble_triple import random_triple
 from src.objects.point import Point
 from tqdm import tqdm
 import typing
+from typing import Sequence, Dict, Any, Callable
 
 
 def make_target_score_tensor(np_scores, mask):
@@ -272,3 +273,10 @@ def update_run_counters(mode='test'):
     new_json = json.dumps(data)
     with open('configs/run_ids.json', 'w') as f:
         f.write(new_json)
+
+
+def aggregate_metrics(data: Sequence[Dict[str, Any]], agg_func: Callable):
+    result = {}
+    for key in data[0]:
+        result[key] = agg_func([d[key] for d in data])
+    return result

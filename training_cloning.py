@@ -17,13 +17,15 @@ from src.utils import (
     get_batch_quality_metrics,
     get_CR,
     update_assignment_accuracy_statistics,
-    update_run_counters
+    update_run_counters,
+    aggregate_metrics
 )
 from src.helpers.TimeLogger import TimeLogger
 
 import torch
 import json
 import wandb
+import numpy as np
 from typing import List
 from tqdm import tqdm
 from collections import Counter
@@ -107,6 +109,12 @@ def apply_get_state_to_simulator(idx: int, simulators: List[Simulator]):
     return simulators[idx].GetState()
 
 
+wandb_steps = {
+    'train': 0,
+    'simulator': 0,
+    'eval': 0
+}
+
 for epoch in tqdm(range(num_epochs)):
     net.train()
     encoder.train()
@@ -178,24 +186,29 @@ for epoch in tqdm(range(num_epochs)):
         time_logger('get accuracy statistics')
 
         # wandb update
-        wandb.log({"loss": loss.item()})
         wandb.log({
+            'loss': loss.item(),
             'net_grad_norm': compute_grad_norm(net),
             'encoder_grad_norm': compute_grad_norm(encoder)
-        }, step=wandb.run.step)
+        }, step=wandb_steps['train'])
+        wandb_steps['train'] += 1
         time_logger('send wandb statistics')
 
     # evaluation
     dsp = NeuralDispatch(net, encoder)
-    eval_metrics = get_batch_quality_metrics(dsp, Simulator,
-                                             batch_size=training_settings['eval_batch_size'],
-                                             num_steps=training_settings['eval_num_steps'])
-    cr = get_CR(eval_metrics)
+    simulator_metrics = get_batch_quality_metrics(dsp, Simulator,
+                                                  batch_size=training_settings['eval_batch_size'],
+                                                  num_steps=training_settings['eval_num_steps'])
+    cr = get_CR(simulator_metrics)
     timings = time_logger.get_timings()
 
-    wandb.log({'cr': cr}, step=wandb.run.step)
-    wandb.log(assignment_statistics, step=wandb.run.step)
-    wandb.log(timings, step=wandb.run.step)
-    wandb.log(eval_metrics, step=wandb.run.step)
+    wandb.log({'cr': cr}, step=wandb_steps['eval'])
+    wandb.log(assignment_statistics, step=wandb_steps['eval'])
+    wandb.log(timings, step=wandb_steps['eval'])
+    wandb_steps['eval'] += 1
+
+    for batch_metric in zip(*simulator_metrics):
+        wandb.log(aggregate_metrics(batch_metric, np.mean()), step=wandb_steps['simulator'])
+        wandb_steps['simulator'] += 1
 
 wandb.finish()
