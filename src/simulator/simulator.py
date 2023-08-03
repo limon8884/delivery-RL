@@ -86,7 +86,7 @@ class Simulator:
 
         self.gamble_info = {
             'iteration': 0,
-            'total_eta': 0,
+            'avg_eta': 0,
             'reward': 0
         }
 
@@ -107,7 +107,7 @@ class Simulator:
 
     def Assign(self, assignments):
         self.last_assignment = assignments
-        self.gamble_info['total_eta'] = 0
+        self.gamble_info['avg_eta'] = 0
 
         for o_id, c_id in assignments:
             o = self.free_orders.get(o_id)
@@ -116,7 +116,10 @@ class Simulator:
             self.active_routes.insert(ar)
             self.free_orders.erase(o_id)
             self.free_couriers.erase(c_id)
-            self.gamble_info['total_eta'] += distance(c.position, o.point_from)
+            self.gamble_info['avg_eta'] += distance(c.position, o.point_from)
+
+        if len(assignments) > 0:
+            self.gamble_info['avg_eta'] /= len(assignments)
 
     def CheckNumItems(self):
         num_items = len(self.free_couriers) + len(self.free_orders) + len(self.active_routes)
@@ -189,5 +192,5 @@ class Simulator:
             'current_free_couriers': len(self.free_couriers.items()),
             'current_free_orders': len(self.free_orders.items()),
             'current_active_routes': len(self.active_routes.items()),
-            'total_eta': self.gamble_info['total_eta']
+            'avg_eta': self.gamble_info['avg_eta']
         }

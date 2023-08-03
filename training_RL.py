@@ -184,7 +184,7 @@ for tensordict_data in tqdm(collector):
             optimizer.step()
             optimizer.zero_grad()
             time_logger('gradient step')
-            
+
             wandb.log({
                 "loss_total": loss_value.item(),
                 'loss_objective': loss_vals['loss_objective'].item(),

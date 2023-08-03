@@ -210,6 +210,5 @@ for epoch in tqdm(range(num_epochs)):
     for batch_metric in zip(*simulator_metrics):
         wandb.log(aggregate_metrics(batch_metric, np.mean), step=wandb_steps['simulator'], commit=True)
         wandb_steps['simulator'] += 1
-    
 
 wandb.finish()
