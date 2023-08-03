@@ -186,11 +186,13 @@ for epoch in tqdm(range(num_epochs)):
         time_logger('get accuracy statistics')
 
         # wandb update
+        current_step = wandb.run.step
         wandb.log({
             'loss': loss.item(),
             'net_grad_norm': compute_grad_norm(net),
-            'encoder_grad_norm': compute_grad_norm(encoder)
-        }, step=wandb_steps['train'], commit=True)
+            'encoder_grad_norm': compute_grad_norm(encoder),
+            'iter': wandb_steps['train']
+        })
         wandb_steps['train'] += 1
         time_logger('send wandb statistics')
 
@@ -202,13 +204,11 @@ for epoch in tqdm(range(num_epochs)):
     cr = get_CR(simulator_metrics)
     timings = time_logger.get_timings()
 
-    wandb.log({'cr': cr}, step=wandb_steps['eval'], commit=True)
-    wandb.log(assignment_statistics, step=wandb_steps['eval'], commit=True)
-    wandb.log(timings, step=wandb_steps['eval'], commit=True)
+    wandb.log({'cr': cr, **assignment_statistics, **timings, 'iter': wandb_steps['eval']})
     wandb_steps['eval'] += 1
 
     for batch_metric in zip(*simulator_metrics):
-        wandb.log(aggregate_metrics(batch_metric, np.mean), step=wandb_steps['simulator'], commit=True)
+        wandb.log({**aggregate_metrics(batch_metric, np.mean), 'iter:': wandb_steps['simulator']})
         wandb_steps['simulator'] += 1
 
 wandb.finish()

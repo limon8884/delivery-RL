@@ -186,7 +186,7 @@ class Simulator:
 
     def GetMetrics(self) -> Dict:
         return {
-            'iter': self.gamble_info['iteration'],
+            'iteration': self.gamble_info['iteration'],
             'completed_orders': sum([int(order.is_completed) for order in self.finished_orders]),
             'finished_orders': len(self.finished_orders),
             'current_free_couriers': len(self.free_couriers.items()),
