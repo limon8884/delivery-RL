@@ -211,4 +211,7 @@ for epoch in tqdm(range(num_epochs)):
         wandb.log({**aggregate_metrics(batch_metric, np.mean), 'iter:': wandb_steps['simulator']})
         wandb_steps['simulator'] += 1
 
+    torch.save(net.state_dict(), paths['temporary'] + 'net.pt')
+    torch.save(encoder.state_dict(), paths['temporary'] + 'encoder.pt')
+
 wandb.finish()
