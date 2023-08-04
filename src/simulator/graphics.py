@@ -2,12 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_CR(metrics):
+def plot_CR(metrics, title=''):
     print('micro average CR: ',
           np.mean([m['completed_orders'] / m['finished_orders'] for m in metrics if m['finished_orders'] != 0]))
     print('macro average CR: ',
           np.sum([m['completed_orders'] for m in metrics]) / np.sum([m['finished_orders'] for m in metrics]))
-    plt.title('CR')
+    plt.title('CR ' + title)
     plt.ylim(0)
     plt.plot([m['completed_orders'] / m['finished_orders'] for m in metrics if m['finished_orders'] != 0])
     plt.show()
