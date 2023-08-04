@@ -26,7 +26,7 @@ class GambleTriple:
             fig.annotate(str(i), (courier.position.x, courier.position.y))
 
 
-def random_triple(corner_bounds: Tuple[Point], max_items=10, same_number=False):
+def random_triple(corner_bounds: Tuple[Point, Point], max_items=10, same_number=False):
     num_orders = int(random.random() * max_items) + 1
     num_couriers = int(random.random() * max_items) + 1
     num_ars = int(random.random() * max_items) + 1

@@ -6,7 +6,7 @@ from src.objects.utils import distance
 
 
 class ActiveRoute:
-    def __init__(self, courier: Courier, order: Order, creation_time: int, id: int = None) -> None:
+    def __init__(self, courier: Courier, order: Order, creation_time: int, id: int | None = None) -> None:
         if id is not None:
             self.id = id
         self.courier = courier
@@ -45,5 +45,5 @@ class ActiveRoute:
         return fig
 
 
-def random_ar(corner_bounds: Tuple[Point], id=None):
+def random_ar(corner_bounds: Tuple[Point, Point], id=None):
     return ActiveRoute(random_courier(corner_bounds), random_order(corner_bounds), 0, id)

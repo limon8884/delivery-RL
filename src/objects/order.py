@@ -9,7 +9,7 @@ class Order:
                  point_to: Point,
                  creation_time: int,
                  expire_time: int,
-                 id: int = None
+                 id: int | None = None
                  ) -> None:
         if id is None:
             self.id = random.randint(0, int(1e9))
@@ -51,5 +51,5 @@ class Order:
         return fig
 
 
-def random_order(corner_bounds: Tuple[Point], id=None):
+def random_order(corner_bounds: Tuple[Point, Point], id=None):
     return Order(get_random_point(corner_bounds), get_random_point(corner_bounds), 0, 10, id)

@@ -4,7 +4,7 @@ from src.objects.point import Point, get_random_point
 
 
 class Courier:
-    def __init__(self, position: Point, creation_time: int, off_time: int, id: int = None) -> None:
+    def __init__(self, position: Point, creation_time: int, off_time: int, id: int | None = None) -> None:
         if id is None:
             self.id = id or random.randint(0, int(1e9))
         else:
@@ -28,5 +28,5 @@ class Courier:
         return self.position.plot(fig, 'red', 10, '.')
 
 
-def random_courier(corner_bounds: Tuple[Point], id=None):
+def random_courier(corner_bounds: Tuple[Point, Point], id=None):
     return Courier(get_random_point(corner_bounds), 0, 10, id)
