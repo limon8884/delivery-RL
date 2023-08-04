@@ -4,7 +4,7 @@ I will try to use RL approachs to solve a dispath assignment promlem.
 Please, read `result.ipynb` to get more information of the work.
 ### Description
 Every delivery company solves a problem of matching couriers and orders. The box which take new couriers and orders as input and then assign one to another is named dispatch.
-The main idea is to create neural-network-based dispatch.
+The main idea is to create neural-network-based dispatch and the fine-tune it via reinforcement learning.
 ### Plan
 1. Write a simulator and a default algorithm-based dispatch (without any NNs)
 2. Create a NN architecture which is able to match couriers and orders somehow
