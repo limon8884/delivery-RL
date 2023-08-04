@@ -51,15 +51,15 @@ net = ScoringNet(
     d_model=hyperparams['d_model'],
     n_head=hyperparams['n_head'],
     dim_ff=hyperparams['dim_ff'],
-    device=device,
-    path_weights=paths['pretrained_net']
+    path_weights=paths['pretrained_net'] if training_settings['use_pretrained'] else None,
+    device=device
 )
 
 encoder = GambleTripleEncoder(
     number_enc_dim=hyperparams['number_enc_dim'],
     d_model=hyperparams['d_model'],
     point_enc_dim=hyperparams['point_enc_dim'],
-    path_weights=paths['pretrained_encoder'],
+    path_weights=paths['pretrained_encoder'] if training_settings['use_pretrained'] else None,
     device=device
 )
 
@@ -186,7 +186,6 @@ for epoch in tqdm(range(num_epochs)):
         time_logger('get accuracy statistics')
 
         # wandb update
-        current_step = wandb.run.step
         wandb.log({
             'loss': loss.item(),
             'net_grad_norm': compute_grad_norm(net),

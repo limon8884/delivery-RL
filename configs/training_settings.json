@@ -9,5 +9,6 @@
     "optimizer": "adam",
     "use_simulators_instead_of_random_triples": false,
     "max_items_in_triple": 30,
-    "use_parallel": true
+    "use_parallel": true,
+    "use_pretrained": true
 }

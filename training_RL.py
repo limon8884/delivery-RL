@@ -37,8 +37,6 @@ device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('
 print(f'device: {device}')
 update_run_counters(mode='RL')
 
-with open('configs/training_settings.json') as f:
-    training_settings = json.load(f)
 with open('configs/network_hyperparams.json') as f:
     hyperparams = json.load(f)
 with open('configs/rl_settings.json') as f:
@@ -53,15 +51,15 @@ net = ScoringNet(
     d_model=hyperparams['d_model'],
     n_head=hyperparams['n_head'],
     dim_ff=hyperparams['dim_ff'],
-    device=device,
-    path_weights=paths['pretrained_net']
+    path_weights=paths['pretrained_net'] if rl_settings['use_pretrained'] else None,
+    device=device
 )
 
 encoder = GambleTripleEncoder(
     number_enc_dim=hyperparams['number_enc_dim'],
     d_model=hyperparams['d_model'],
     point_enc_dim=hyperparams['point_enc_dim'],
-    path_weights=paths['pretrained_encoder'],
+    path_weights=paths['pretrained_encoder'] if rl_settings['use_pretrained'] else None,
     device=device
 )
 
@@ -125,7 +123,6 @@ wandb.init(
     config={
         'hyperparams': hyperparams,
         'rl_settings': rl_settings,
-        # 'training_settings': training_settings,
         'paths': paths,
         'device': device,
         })
@@ -137,14 +134,12 @@ num_iters = rl_settings['num_iters_in_epoch']
 batch_size = rl_settings['batch_size']
 total_frames = rl_settings['total_frames']
 frames_per_epoch = rl_settings['frames_per_epoch']
-# use_simulators = training_settings['use_simulators_instead_of_random_triples']
-# use_parallel = training_settings['use_parallel']
 
 
 optimized_parameters = list(loss_module.parameters()) + list(encoder.parameters())
-if training_settings['optimizer'] == 'adam':
+if rl_settings['optimizer'] == 'adam':
     optimizer = torch.optim.Adam(optimized_parameters, lr=rl_settings['lr'])
-elif training_settings['optimizer'] == 'sgd':
+elif rl_settings['optimizer'] == 'sgd':
     optimizer = torch.optim.SGD(optimized_parameters, lr=rl_settings['lr'],
                                 momentum=rl_settings['momentum'])
 else:
@@ -157,6 +152,7 @@ wandb_steps = {
 }
 
 for tensordict_data in tqdm(collector):
+    time_logger()
     for epoch in range(num_epochs):
         # We'll need an "advantage" signal to make PPO work.
         # We re-compute it at each epoch as its value depends on the value
@@ -191,26 +187,28 @@ for tensordict_data in tqdm(collector):
                 'loss_critic': loss_vals['loss_critic'].item(),
                 'loss_entropy': loss_vals['loss_entropy'].item(),
                 'net_grad_norm': compute_grad_norm(net),
-                'encoder_grad_norm': compute_grad_norm(encoder)
-                }, step=wandb_steps['train'], commit=True)
+                'encoder_grad_norm': compute_grad_norm(encoder),
+                'iter': wandb_steps['train']
+                })
             wandb_steps['train'] += 1
             time_logger('send wandb statistics')
 
         # evaluation
         dsp = NeuralDispatch(net, encoder)
         simulator_metrics = get_batch_quality_metrics(dsp, Simulator,
-                                                      batch_size=training_settings['eval_batch_size'],
-                                                      num_steps=training_settings['eval_num_steps'])
+                                                      batch_size=rl_settings['eval_batch_size'],
+                                                      num_steps=rl_settings['eval_num_steps'])
         cr = get_CR(simulator_metrics)
         timings = time_logger.get_timings()
 
-        wandb.log({'cr': cr}, step=wandb_steps['eval'], commit=True)
-        # wandb.log(assignment_statistics, step=wandb_steps['eval'], commit=True)
-        wandb.log(timings, step=wandb_steps['eval'], commit=True)
+        wandb.log({'cr': cr, **timings, 'iter': wandb_steps['eval']})
         wandb_steps['eval'] += 1
 
         for batch_metric in zip(*simulator_metrics):
-            wandb.log(aggregate_metrics(batch_metric, np.mean), step=wandb_steps['simulator'], commit=True)
+            wandb.log({**aggregate_metrics(batch_metric, np.mean), 'iter:': wandb_steps['simulator']})
             wandb_steps['simulator'] += 1
+
+        torch.save(net.state_dict(), paths['temporary'] + 'net.pt')
+        torch.save(encoder.state_dict(), paths['temporary'] + 'encoder.pt')
 
 wandb.finish()

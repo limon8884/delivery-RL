@@ -102,8 +102,10 @@ class SimulatorEnv(EnvBase):
 
         # print(assignments)
         # print(self.simulator.GetState())
+        prev_completed_orders = self.simulator.GetMetrics()['completed_orders']
         self.simulator.Next(assignments)
         triple = self.simulator.GetState()
+        current_completed_orders = self.simulator.GetMetrics()['completed_orders']
         tensors, ids = self.encoder(triple, 0)
         masks = self.make_masks(tensors)
         self.pad_tensors(tensors, masks, ids)
@@ -128,10 +130,8 @@ class SimulatorEnv(EnvBase):
                             'ar': ids['ar']
                         }
                     },
-                    "reward": torch.tensor(0, dtype=torch.float32),
+                    "reward": torch.tensor(current_completed_orders - prev_completed_orders, dtype=torch.float32),
                     "done": torch.tensor(False, dtype=torch.bool),
-                    # "reward": torch.tensor([0] * sub_batch_size, dtype=torch.float32),
-                    # "done": torch.tensor([False] * sub_batch_size, dtype=torch.bool),
                 }
             },
             tensordict.shape
