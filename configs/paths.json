@@ -1,5 +1,5 @@
 {
-    "pretrained_net": "pretrained_models/eta_scoring_1/eta_scoring_1.pt",
-    "pretrained_encoder": "pretrained_models/assignment_cloning_model_v2/encoders/",
+    "pretrained_net": "pretrained_models/cloning/net.pt",
+    "pretrained_encoder": "pretrained_models/cloning/encoder.pt",
     "temporary": "pretrained_models/tmp/"
 }

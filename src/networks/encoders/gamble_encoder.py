@@ -8,7 +8,7 @@ from src.objects.gamble_triple import GambleTriple
 
 class GambleTripleEncoder(nn.Module):
     def __init__(self, number_enc_dim, d_model, path_weights=None,
-                 point_encoder: PointEncoder = None, point_enc_dim=None, device=None):
+                 point_encoder: PointEncoder | None = None, point_enc_dim=None, device=None):
         super().__init__()
         self.device = device
         self.d_model = d_model
@@ -42,9 +42,14 @@ class GambleTripleEncoder(nn.Module):
             print('gamble encoder weights loaded successfuly!')
 
     def load_weights(self, path: str):
-        self.order_enc.load_state_dict(torch.load(path + '/o.pt', map_location=self.device))
-        self.courier_enc.load_state_dict(torch.load(path + '/c.pt', map_location=self.device))
-        self.ar_enc.load_state_dict(torch.load(path + '/ar.pt', map_location=self.device))
+        if path.endswith('/'):
+            self.order_enc.load_state_dict(torch.load(path + '/o.pt', map_location=self.device))
+            self.courier_enc.load_state_dict(torch.load(path + '/c.pt', map_location=self.device))
+            self.ar_enc.load_state_dict(torch.load(path + '/ar.pt', map_location=self.device))
+        elif path.endswith('.pt'):
+            self.load_state_dict(torch.load(path, map_location=self.device))
+        else:
+            raise RuntimeError('invalid path to encoder weights')
 
     def forward(self, gamble_triple: GambleTriple, current_time: int):
         '''
