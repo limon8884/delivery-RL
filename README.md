@@ -40,9 +40,21 @@ A dispatch is a black-box which takes a simulator state as an input and returns 
 The baseline dispatch which works fine is a Hungarian-dispatch. Free couriers and free orders can be represented as a bipartite graph. The weight between courier and order is set to the distance between courier and source point of the order. To find the optimal matching on this graph, the hungarian algorithm can be used - it minimized the total weights of chosen edges.
 
 ### NN-dispatch
+TBD
 
+### RL-environment
+TBD
 
+### Training pipeline
+The main metric, by which our algorithms can be compared is CR (complete rate) - the proportion of success (delivered) orders.
 
+#### Cloning training
+Here we have a supervised learning problem: given an gambletriple we need to predict the index of courier for every order (or -1 if not assigned). The target is the baseline-dipatch assignments. We will use cross entropy loss for these classification problem. 
 
+Every iteration a random gable-triple is sampled then the loss on it can be computed. The evaluation would be done on the simulator.
+I've made 2 runs: the main training and the futher training.
+Reports can be found here:
+1. main: https://api.wandb.ai/links/limon8884/z8bgvw2o
+2. posttraining: https://api.wandb.ai/links/limon8884/pvfcqcap
 
 
