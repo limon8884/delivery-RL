@@ -131,7 +131,6 @@ inner_time_logger = TimeLogger()
 outer_time_logger = TimeLogger()
 
 num_epochs = rl_settings['num_epochs']
-num_iters = rl_settings['num_iters_in_epoch']
 batch_size = rl_settings['batch_size']
 total_frames = rl_settings['total_frames']
 frames_per_epoch = rl_settings['frames_per_epoch']
