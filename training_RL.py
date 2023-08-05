@@ -127,7 +127,8 @@ wandb.init(
         'device': device,
         })
 
-time_logger = TimeLogger()
+inner_time_logger = TimeLogger()
+outer_time_logger = TimeLogger()
 
 num_epochs = rl_settings['num_epochs']
 num_iters = rl_settings['num_iters_in_epoch']
@@ -148,11 +149,14 @@ else:
 wandb_steps = {
     'train': 0,
     'simulator': 0,
-    'eval': 0
+    'eval': 0,
+    'outer': 0
 }
 
+outer_time_logger()
 for tensordict_data in tqdm(collector):
-    time_logger()
+    outer_time_logger('collector')
+    inner_time_logger()
     for epoch in range(num_epochs):
         # We'll need an "advantage" signal to make PPO work.
         # We re-compute it at each epoch as its value depends on the value
@@ -165,7 +169,7 @@ for tensordict_data in tqdm(collector):
         replay_buffer.extend(data_view.cpu())
 
         for iter in range(frames_per_epoch // batch_size):
-            time_logger('loop')
+            inner_time_logger('loop')
             subdata = replay_buffer.sample()
             loss_vals = loss_module(subdata.to(device))
             loss_value = (
@@ -173,13 +177,13 @@ for tensordict_data in tqdm(collector):
                 + loss_vals["loss_critic"]
                 + loss_vals["loss_entropy"]
             )
-            time_logger('forward pass')
+            inner_time_logger('forward pass')
 
             loss_value.backward()
             # torch.nn.utils.clip_grad_norm_(optimized_parameters, rl_settings['max_grad_norm'])
             optimizer.step()
             optimizer.zero_grad()
-            time_logger('gradient step')
+            inner_time_logger('gradient step')
 
             wandb.log({
                 "loss_total": loss_value.item(),
@@ -191,7 +195,7 @@ for tensordict_data in tqdm(collector):
                 'iter': wandb_steps['train']
                 })
             wandb_steps['train'] += 1
-            time_logger('send wandb statistics')
+            inner_time_logger('send wandb statistics')
 
         # evaluation
         dsp = NeuralDispatch(net, encoder)
@@ -199,7 +203,7 @@ for tensordict_data in tqdm(collector):
                                                       batch_size=rl_settings['eval_batch_size'],
                                                       num_steps=rl_settings['eval_num_steps'])
         cr = get_CR(simulator_metrics)
-        timings = time_logger.get_timings()
+        timings = inner_time_logger.get_timings()
 
         wandb.log({'cr': cr, **timings, 'iter': wandb_steps['eval']})
         wandb_steps['eval'] += 1
@@ -211,4 +215,7 @@ for tensordict_data in tqdm(collector):
         torch.save(net.state_dict(), paths['temporary'] + 'net.pt')
         torch.save(encoder.state_dict(), paths['temporary'] + 'encoder.pt')
 
+    wandb.log({**outer_time_logger.get_timings(), 'iter': wandb_steps['outer']})
+    wandb_steps['outer'] += 1
+    outer_time_logger('epoch')
 wandb.finish()
