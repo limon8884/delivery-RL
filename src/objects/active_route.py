@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 from src.objects.point import Point
 from src.objects.courier import Courier, random_courier
 from src.objects.order import Order, random_order
@@ -6,7 +6,7 @@ from src.objects.utils import distance
 
 
 class ActiveRoute:
-    def __init__(self, courier: Courier, order: Order, creation_time: int, id: int | None = None) -> None:
+    def __init__(self, courier: Courier, order: Order, creation_time: int, id: Union[int, None] = None) -> None:
         if id is not None:
             self.id = id
         self.courier = courier

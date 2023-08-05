@@ -1,5 +1,5 @@
 import random
-from typing import Tuple
+from typing import Tuple, Union
 from src.objects.point import Point, get_random_point
 
 
@@ -9,7 +9,7 @@ class Order:
                  point_to: Point,
                  creation_time: int,
                  expire_time: int,
-                 id: int | None = None
+                 id: Union[int, None] = None
                  ) -> None:
         if id is None:
             self.id = random.randint(0, int(1e9))

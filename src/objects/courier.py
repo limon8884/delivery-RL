@@ -1,10 +1,10 @@
 import random
-from typing import Tuple
+from typing import Tuple, Union
 from src.objects.point import Point, get_random_point
 
 
 class Courier:
-    def __init__(self, position: Point, creation_time: int, off_time: int, id: int | None = None) -> None:
+    def __init__(self, position: Point, creation_time: int, off_time: int, id: Union[int, None] = None) -> None:
         if id is None:
             self.id = id or random.randint(0, int(1e9))
         else:

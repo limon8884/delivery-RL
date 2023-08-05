@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from typing import Union
 
 from src.networks.encoders.positional_encoder import PositionalEncoder
 from src.networks.encoders.point_encoder import PointEncoder
@@ -8,7 +9,7 @@ from src.objects.gamble_triple import GambleTriple
 
 class GambleTripleEncoder(nn.Module):
     def __init__(self, number_enc_dim, d_model, path_weights=None,
-                 point_encoder: PointEncoder | None = None, point_enc_dim=None, device=None):
+                 point_encoder: Union[PointEncoder, None] = None, point_enc_dim=None, device=None):
         super().__init__()
         self.device = device
         self.d_model = d_model
