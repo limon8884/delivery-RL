@@ -10,4 +10,6 @@ joblib
 wandb==0.15.7
 ipython
 tqdm
+flake8
+mypy
 # gym['InvertedDoublePendulum-v2']
