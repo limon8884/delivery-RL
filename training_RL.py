@@ -154,6 +154,7 @@ wandb_steps = {
 
 outer_time_logger()
 for tensordict_data in tqdm(collector):
+    print('collected!')
     outer_time_logger('collector')
     inner_time_logger()
     for epoch in range(num_epochs):
