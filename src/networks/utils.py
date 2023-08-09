@@ -136,5 +136,5 @@ def compute_grad_norm(model):
         if param.grad is not None and param.requires_grad
     ]
     if len(grads) > 0:
-        torch.cat(grads).norm()
+        return torch.cat(grads).norm()
     return 0
