@@ -136,7 +136,7 @@ total_frames = rl_settings['total_frames']
 frames_per_epoch = rl_settings['frames_per_epoch']
 
 
-optimized_parameters = list(loss_module.parameters()) + list(encoder.parameters())
+optimized_parameters = list(loss_module.parameters())
 if rl_settings['optimizer'] == 'adam':
     optimizer = torch.optim.Adam(optimized_parameters, lr=rl_settings['lr'])
 elif rl_settings['optimizer'] == 'sgd':
@@ -186,12 +186,12 @@ for tensordict_data in tqdm(collector):
             inner_time_logger('gradient step')
 
             wandb.log({
+                'net_grad_norm': compute_grad_norm(net),
+                'encoder_grad_norm': compute_grad_norm(encoder),
                 "loss_total": loss_value.item(),
                 'loss_objective': loss_vals['loss_objective'].item(),
                 'loss_critic': loss_vals['loss_critic'].item(),
                 'loss_entropy': loss_vals['loss_entropy'].item(),
-                'net_grad_norm': compute_grad_norm(net),
-                'encoder_grad_norm': compute_grad_norm(encoder),
                 'iter': wandb_steps['train']
                 })
             wandb_steps['train'] += 1
