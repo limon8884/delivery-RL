@@ -84,8 +84,6 @@ collector = SyncDataCollector(
     policy_module_actor,
     frames_per_batch=rl_settings['frames_per_epoch'],
     total_frames=rl_settings['total_frames'],
-    max_frames_per_traj=50,
-    reset_at_each_iter=True,
     split_trajs=False,
     device=device,
 )
