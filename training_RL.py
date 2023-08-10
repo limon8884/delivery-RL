@@ -156,7 +156,6 @@ outer_time_logger()
 for tensordict_data in tqdm(collector):
     print('collected!')
     outer_time_logger('collector')
-    inner_time_logger()
     for epoch in range(num_epochs):
         # We'll need an "advantage" signal to make PPO work.
         # We re-compute it at each epoch as its value depends on the value
@@ -168,6 +167,7 @@ for tensordict_data in tqdm(collector):
         data_view = tensordict_data.reshape(-1)
         replay_buffer.extend(data_view.cpu())
 
+        inner_time_logger()
         for iter in range(frames_per_epoch // batch_size):
             inner_time_logger('loop')
             subdata = replay_buffer.sample()
