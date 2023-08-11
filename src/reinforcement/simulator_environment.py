@@ -83,7 +83,7 @@ class SimulatorEnv(EnvBase):
         If there is no courier assigned self.max_num_couriers is provided.
         BOS-fake items are included.
         '''
-        
+
         if self.simulator.gamble_info['iteration'] == self.max_trajectory_length:
             raise RuntimeError('Reaching max trajectory length without reseting!')
 
