@@ -51,8 +51,8 @@ bounds = (Point(0, 0), Point(10, 10))
 # example
 dsp = NeuralDispatch(net, encoder)
 simulator_metrics = get_batch_quality_metrics(dsp, Simulator,
-                                              batch_size=training_settings['eval_batch_size'],
-                                              num_steps=training_settings['eval_num_steps'])
+                                              batch_size=8,
+                                              num_steps=100)
 cr = get_CR(simulator_metrics)
 
 for iter, batch_metric in enumerate(zip(*simulator_metrics)):
