@@ -46,25 +46,19 @@ class Index:
 
 
 class Simulator:
-    def __init__(self, step=0.5, seed=None) -> None:
+    def __init__(self, courier_speed=0.5, seed=None) -> None:
         self.env_config = None
-        self.step = step
+        self.courier_speed = courier_speed
         if seed is not None:
             self.SetSeed(seed)
-        self.Initialize()
-
-        self.finished_couriers = []
-        self.finished_orders = []
-
-        self.InitOrders()
-        self.InitCouriers()
+        self.reset()
 
     def SetSeed(self, seed):
         torch.manual_seed(seed)
         random.seed(seed)
         np.random.seed(seed)
 
-    def Initialize(self):
+    def reset(self):
         with open('configs/simulator_settings.json') as f:
             self.env_config = json.load(f)
 
@@ -83,6 +77,12 @@ class Simulator:
         self.free_orders = Index()
         self.free_couriers = Index()
         self.active_routes = Index()
+
+        self.finished_couriers = []
+        self.finished_orders = []
+
+        self.InitOrders()
+        self.InitCouriers()
 
         self.gamble_info = {
             'iteration': 0,
@@ -151,7 +151,7 @@ class Simulator:
 
     def UpdateActiveRoutes(self):
         for active_route in self.active_routes.items():
-            active_route.next(self.step, self.timer())
+            active_route.next(self.courier_speed, self.timer())
             if not active_route.is_active:
                 self.FreeActiveRoute(active_route)
 
