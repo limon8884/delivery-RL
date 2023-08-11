@@ -141,36 +141,36 @@ class SimulatorEnv(EnvBase):
         return out
 
     def _reset(self, tensordict: TensorDictBase) -> TensorDictBase:
-        if tensordict is None or tensordict.is_empty():
-            triple = self.simulator.GetState()
-            tensors, ids = self.encoder(triple, 0)
-            masks = self.make_masks(tensors)
-            self.pad_tensors(tensors, masks, ids)
+        self.simulator.reset()
+        triple = self.simulator.GetState()
+        tensors, ids = self.encoder(triple, 0)
+        masks = self.make_masks(tensors)
+        self.pad_tensors(tensors, masks, ids)
+        new_observation = {
+            'tensors': {
+                'o': tensors['o'],
+                'c': tensors['c'],
+                'ar': tensors['ar']
+            },
+            'masks': {
+                'o': masks['o'],
+                'c': masks['c'],
+                'ar': masks['ar']
+            },
+            'ids': {
+                'o': ids['o'],
+                'c': ids['c'],
+                'ar': ids['ar']
+            }
+        }
 
-            return TensorDict(
-                {
-                    "observation": {
-                        'tensors': {
-                            'o': tensors['o'],
-                            'c': tensors['c'],
-                            'ar': tensors['ar']
-                        },
-                        'masks': {
-                            'o': masks['o'],
-                            'c': masks['c'],
-                            'ar': masks['ar']
-                        },
-                        'ids': {
-                            'o': ids['o'],
-                            'c': ids['c'],
-                            'ar': ids['ar']
-                        }
-                    }
-                },
-                # batch_size=[sub_batch_size]
-                batch_size=self.batch_size
-            )
-        return tensordict
+        # if tensordict is None or tensordict.is_empty():
+        return TensorDict(
+            {
+                "observation": new_observation
+            },
+            batch_size=self.batch_size
+        )
 
     def _set_seed(self, seed: Optional[int]):
         rng = torch.manual_seed(seed)
