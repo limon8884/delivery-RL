@@ -6,6 +6,7 @@
     "max_num_orders": 100,
     "max_num_couriers": 100,
     "max_num_active_routes": 100,
+    "max_trajectory_length": 50,
     "gamma": 0.99,
     "lmbda": 0.95,
     "clip_epsilon": 0.2,
@@ -15,6 +16,6 @@
     "max_grad_norm": 1.0,
     "eval_batch_size": 8,
     "eval_num_steps": 100,
-    "optimizer": "sgd",
+    "optimizer": "adam",
     "use_pretrained": true
 }

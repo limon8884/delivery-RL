@@ -86,8 +86,7 @@ class Simulator:
 
         self.gamble_info = {
             'iteration': 0,
-            'avg_eta': 0,
-            'reward': 0
+            'avg_eta': 0
         }
 
     def Next(self, assignments: Sequence[Tuple[int, int]]):

@@ -88,17 +88,17 @@ policy_module_actor = ProbabilisticActor(
 collector = SyncDataCollector(
     my_env,
     policy_module_actor,
-    frames_per_batch=2,
-    total_frames=8,
+    frames_per_batch=5,
+    total_frames=10,
     split_trajs=False,
-    # max_frames_per_traj=3,
-    reset_at_each_iter=True,
+    max_frames_per_traj=rl_settings['max_trajectory_length'],
+    reset_at_each_iter=False,
     device=device,
 )
 
 for tensordict_data in tqdm(collector):
-    print('step', tensordict_data['step_count'])
-    print('next step', tensordict_data['next', 'step_count'])
+    print('step', tensordict_data['step_count'], tensordict_data['done'])
+    print('next step', tensordict_data['next', 'step_count'], tensordict_data['next', 'done'])
     # print(tensordict_data['observation', 'ids', 'o'])
     # print(tensordict_data['observation', 'ids', 'c'])
     # print(tensordict_data['observation', 'ids', 'ar'])

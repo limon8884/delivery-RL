@@ -35,6 +35,7 @@ class SimulatorEnv(EnvBase):
         self.max_num_orders = settings['max_num_orders']
         self.max_num_couriers = settings['max_num_couriers']
         self.max_num_active_routes = settings['max_num_active_routes']
+        self.max_trajectory_length = settings['max_trajectory_length']
 
         with open('configs/network_hyperparams.json') as f:
             hyperparams = json.load(f)
@@ -82,6 +83,9 @@ class SimulatorEnv(EnvBase):
         If there is no courier assigned self.max_num_couriers is provided.
         BOS-fake items are included.
         '''
+        
+        if self.simulator.gamble_info['iteration'] == self.max_trajectory_length:
+            raise RuntimeError('Reaching max trajectory length without reseting!')
 
         assignments = []
         assigned_o_idxs = set()
@@ -135,9 +139,12 @@ class SimulatorEnv(EnvBase):
                 }
             },
             tensordict.shape
-            # batch_size=tensordict.shape[0]
         )
-        # print(out['next', 'observation', 'ids', 'o'])
+
+        if self.simulator.gamble_info['iteration'] == self.max_trajectory_length:
+            out['next', 'done'] = torch.tensor(True, dtype=torch.bool)
+            self.simulator.reset()
+
         return out
 
     def _reset(self, tensordict: TensorDictBase) -> TensorDictBase:

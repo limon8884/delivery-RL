@@ -85,6 +85,8 @@ collector = SyncDataCollector(
     frames_per_batch=rl_settings['frames_per_epoch'],
     total_frames=rl_settings['total_frames'],
     split_trajs=False,
+    max_frames_per_traj=rl_settings['max_trajectory_length'],
+    reset_at_each_iter=False,
     device=device,
 )
 
@@ -157,13 +159,10 @@ for tensordict_data in tqdm(collector):
     print('collected!')
     outer_time_logger('collector')
     for epoch in range(num_epochs):
-        # We'll need an "advantage" signal to make PPO work.
-        # We re-compute it at each epoch as its value depends on the value
-        # network which is updated in the inner loop.
         net.train()
         encoder.train()
-        # assignment_statistics = Counter()
-        advantage_module(tensordict_data)
+        with torch.no_grad():
+            advantage_module(tensordict_data)
         data_view = tensordict_data.reshape(-1)
         replay_buffer.extend(data_view.cpu())
 
