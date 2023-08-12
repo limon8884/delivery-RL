@@ -50,6 +50,8 @@ bounds = (Point(0, 0), Point(10, 10))
 
 # example
 dsp = NeuralDispatch(net, encoder)
+net.eval()
+encoder.eval()
 simulator_metrics = get_batch_quality_metrics(dsp, Simulator,
                                               batch_size=8,
                                               num_steps=100)
