@@ -158,6 +158,7 @@ outer_time_logger()
 for tensordict_data in tqdm(collector):
     print('collected!')
     outer_time_logger('collector')
+    inner_time_logger()
     for epoch in range(num_epochs):
         net.train()
         encoder.train()
@@ -165,10 +166,9 @@ for tensordict_data in tqdm(collector):
             advantage_module(tensordict_data)
         data_view = tensordict_data.reshape(-1)
         replay_buffer.extend(data_view.cpu())
-
-        inner_time_logger()
+        inner_time_logger('replay buffer extended')
+        
         for iter in range(frames_per_epoch // batch_size):
-            inner_time_logger('loop')
             subdata = replay_buffer.sample()
             loss_vals = loss_module(subdata.to(device))
             loss_value = (
@@ -176,13 +176,11 @@ for tensordict_data in tqdm(collector):
                 + loss_vals["loss_critic"]
                 + loss_vals["loss_entropy"]
             )
-            inner_time_logger('forward pass')
 
             optimizer.zero_grad()
             loss_value.backward()
             # torch.nn.utils.clip_grad_norm_(optimized_parameters, rl_settings['max_grad_norm'])
             optimizer.step()
-            inner_time_logger('gradient step')
 
             wandb.log({
                 'net_grad_norm': compute_grad_norm(net),
@@ -194,27 +192,27 @@ for tensordict_data in tqdm(collector):
                 'iter': wandb_steps['train']
                 })
             wandb_steps['train'] += 1
-            inner_time_logger('send wandb statistics')
-
+        inner_time_logger('inner iterations')
         # evaluation
         dsp = NeuralDispatch(net, encoder)
         simulator_metrics = get_batch_quality_metrics(dsp, Simulator,
                                                       batch_size=rl_settings['eval_batch_size'],
                                                       num_steps=rl_settings['eval_num_steps'])
         cr = get_CR(simulator_metrics)
-        timings = inner_time_logger.get_timings()
 
-        wandb.log({'cr': cr, **timings, 'iter': wandb_steps['eval']})
+        wandb.log({'cr': cr, 'iter': wandb_steps['eval']})
         wandb_steps['eval'] += 1
 
         for batch_metric in zip(*simulator_metrics):
             wandb.log({**aggregate_metrics(batch_metric, np.mean), 'iter:': wandb_steps['simulator']})
             wandb_steps['simulator'] += 1
+        inner_time_logger('evaluation')
 
         torch.save(net.state_dict(), paths['temporary'] + 'net.pt')
         torch.save(encoder.state_dict(), paths['temporary'] + 'encoder.pt')
+        inner_time_logger('save models')
 
-    wandb.log({**outer_time_logger.get_timings(), 'iter': wandb_steps['outer']})
+    wandb.log({**outer_time_logger.get_timings(), **inner_time_logger.get_timings(), 'iter': wandb_steps['outer']})
     wandb_steps['outer'] += 1
     outer_time_logger('epoch')
 wandb.finish()
