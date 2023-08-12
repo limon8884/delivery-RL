@@ -4,7 +4,8 @@ from typing import Optional
 
 
 class TimeLogger():
-    def __init__(self) -> None:
+    def __init__(self, prefix: Optional[str]) -> None:
+        self.prefix = prefix
         self.last_ts = time()
         self.total_timings = defaultdict(float)
         self.num_calls = defaultdict(int)
@@ -21,4 +22,4 @@ class TimeLogger():
         self.total_timings[key] += interval
 
     def get_timings(self):
-        return {key: self.total_timings[key] / self.num_calls[key] for key in self.total_timings}
+        return {self.prefix + key: self.total_timings[key] / self.num_calls[key] for key in self.total_timings}
