@@ -7,15 +7,15 @@
     "max_num_couriers": 100,
     "max_num_active_routes": 100,
     "max_trajectory_length": 160,
-    "gamma": 0.99,
+    "gamma": 0.999,
     "lmbda": 0.95,
     "clip_epsilon": 0.2,
     "entropy_eps": 1e-4,
-    "lr": 1e-4,
+    "lr": 3e-4,
     "momentum": 0.9,
     "max_grad_norm": 1.0,
     "eval_batch_size": 8,
     "eval_num_steps": 100,
-    "optimizer": "sgd",
+    "optimizer": "adam",
     "use_pretrained": true
 }
