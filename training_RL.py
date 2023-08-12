@@ -155,7 +155,7 @@ wandb_steps = {
 }
 
 time_logger()
-for tensordict_data in tqdm(collector):
+for outer_iter, tensordict_data in enumerate(collector):
     print('collected!')
     time_logger('collector')
     for epoch in range(num_epochs):
@@ -192,16 +192,17 @@ for tensordict_data in tqdm(collector):
     time_logger('epochs')
 
     # evaluation
-    dsp = NeuralDispatch(net, encoder)
-    net.eval()
-    simulator_metrics = get_batch_quality_metrics(dsp, Simulator,
-                                                  batch_size=rl_settings['eval_batch_size'],
-                                                  num_steps=rl_settings['eval_num_steps'])
-    cr = get_CR(simulator_metrics)
-    for batch_metric in zip(*simulator_metrics):
-        wandb.log({**aggregate_metrics(batch_metric, np.mean), 'iter:': wandb_steps['simulator']})
-        wandb_steps['simulator'] += 1
-    time_logger('evaluation')
+    if outer_iter % 10 == 0:
+        dsp = NeuralDispatch(net, encoder)
+        net.eval()
+        simulator_metrics = get_batch_quality_metrics(dsp, Simulator,
+                                                    batch_size=rl_settings['eval_batch_size'],
+                                                    num_steps=rl_settings['eval_num_steps'])
+        cr = get_CR(simulator_metrics)
+        for batch_metric in zip(*simulator_metrics):
+            wandb.log({**aggregate_metrics(batch_metric, np.mean), 'iter:': wandb_steps['simulator']})
+            wandb_steps['simulator'] += 1
+        time_logger('evaluation')
 
     torch.save(net.state_dict(), paths['temporary'] + 'net.pt')
     torch.save(encoder.state_dict(), paths['temporary'] + 'encoder.pt')

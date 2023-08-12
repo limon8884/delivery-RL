@@ -217,15 +217,11 @@ def get_batch_quality_metrics(dispatch: typing.Any, simulator_type: typing.Any, 
     simulators = [simulator_type() for i in range(batch_size)]
     all_metrics = [[] for _ in range(batch_size)]
 
-    def apply_next_to_simulator(idx, simulators, assignments):
-        simulators[idx].Next(assignments[idx])
-
     for step in range(num_steps):
         triples = [sim.GetState() for sim in simulators]
         assignments = dispatch(triples)
-        Parallel(n_jobs=-1)(delayed(apply_next_to_simulator)(i, simulators, assignments)
-                            for i in range(batch_size))
         for i in range(batch_size):
+            simulators[i].Next(assignments[i])
             all_metrics[i].append(simulators[i].GetMetrics())
 
     return all_metrics
@@ -235,11 +231,11 @@ def get_CR(batch_metrics):
     '''
     Takes downstream metrics and returns total CR
     '''
-    return (
-        sum([metric[-1]['completed_orders'] for metric in batch_metrics])
-        /
-        sum([metric[-1]['finished_orders'] for metric in batch_metrics])
-    )
+    num = sum([metric[-1]['completed_orders'] for metric in batch_metrics])
+    denom = sum([metric[-1]['finished_orders'] for metric in batch_metrics])
+    if denom == 0:
+        return 0
+    return num / denom
 
 
 def update_assignment_accuracy_statistics(tgt: typing.List[int], pred: torch.Tensor, statistics: typing.Counter):
