@@ -148,10 +148,13 @@ elif rl_settings['optimizer'] == 'sgd':
                                 momentum=rl_settings['momentum'])
 else:
     raise RuntimeError('Unknown optimizer')
+
 if rl_settings['scheduler'] is None:
     scheduler = None
 elif scheduler == 'OneCycle'
     scheduler = OneCycleLR(optimizer, max_lr=rl_settings['max_lr'], total_steps=total_iters)
+else:
+    raise RuntimeError('Unknown scheduler')
 
 wandb_steps = {
     'train': 0,
