@@ -276,3 +276,11 @@ def aggregate_metrics(data: Sequence[Dict[str, Any]], agg_func: Callable):
     for key in data[0]:
         result[key] = agg_func([d[key] for d in data])
     return result
+
+def repr_big_number(num: int) -> str:
+    if num < 1000:
+        return num
+    elif num < 1_000_000:
+        return "{:.1f}".format(num / 1000) + 'K'
+    else:
+        return "{:.1f}".format(num / 1_000_000) + 'M'
