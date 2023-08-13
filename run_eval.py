@@ -34,7 +34,7 @@ net = ScoringNet(
     d_model=hyperparams['d_model'],
     n_head=hyperparams['n_head'],
     dim_ff=hyperparams['dim_ff'],
-    path_weights=paths['pretrained_net'] if training_settings['use_pretrained_net'] else None,
+    path_weights=paths['pretrained_net'] if training_settings['use_pretrained'] else None,
     device=device
 )
 
@@ -42,7 +42,7 @@ encoder = GambleTripleEncoder(
     number_enc_dim=hyperparams['number_enc_dim'],
     d_model=hyperparams['d_model'],
     point_enc_dim=hyperparams['point_enc_dim'],
-    path_weights=paths['pretrained_encoder'] if training_settings['use_pretrained_encoder'] else None,
+    path_weights=paths['pretrained_encoder'] if training_settings['use_pretrained'] else None,
     device=device
 )
 
