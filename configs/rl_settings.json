@@ -1,7 +1,7 @@
 {
     "num_epochs": 10,
     "frames_per_epoch": 640,
-    "total_frames": 64000,
+    "total_frames": 640000,
     "batch_size": 64,
     "max_num_orders": 100,
     "max_num_couriers": 100,
@@ -10,12 +10,13 @@
     "gamma": 0.999,
     "lmbda": 0.95,
     "clip_epsilon": 0.2,
-    "entropy_eps": 1e-4,
+    "entropy_eps": 1e-2,
     "lr": 3e-4,
     "momentum": 0.9,
     "max_grad_norm": 1.0,
     "eval_batch_size": 8,
     "eval_num_steps": 100,
     "optimizer": "adam",
-    "use_pretrained": true
+    "use_pretrained_net": false,
+    "use_pretrained_encoder": true
 }

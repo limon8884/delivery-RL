@@ -51,7 +51,7 @@ net = ScoringNet(
     d_model=hyperparams['d_model'],
     n_head=hyperparams['n_head'],
     dim_ff=hyperparams['dim_ff'],
-    path_weights=paths['pretrained_net'] if rl_settings['use_pretrained'] else None,
+    path_weights=paths['pretrained_net'] if rl_settings['use_pretrained_net'] else None,
     device=device
 )
 
@@ -59,7 +59,7 @@ encoder = GambleTripleEncoder(
     number_enc_dim=hyperparams['number_enc_dim'],
     d_model=hyperparams['d_model'],
     point_enc_dim=hyperparams['point_enc_dim'],
-    path_weights=paths['pretrained_encoder'] if rl_settings['use_pretrained'] else None,
+    path_weights=paths['pretrained_encoder'] if rl_settings['use_pretrained_encoder'] else None,
     device=device
 )
 encoder.eval()
@@ -176,7 +176,7 @@ for outer_iter, tensordict_data in enumerate(collector):
 
             optimizer.zero_grad()
             loss_value.backward()
-            # torch.nn.utils.clip_grad_norm_(optimized_parameters, rl_settings['max_grad_norm'])
+            torch.nn.utils.clip_grad_norm_(optimized_parameters, rl_settings['max_grad_norm'])
             optimizer.step()
 
             wandb.log({
@@ -196,8 +196,8 @@ for outer_iter, tensordict_data in enumerate(collector):
         dsp = NeuralDispatch(net, encoder)
         net.eval()
         simulator_metrics = get_batch_quality_metrics(dsp, Simulator,
-                                                    batch_size=rl_settings['eval_batch_size'],
-                                                    num_steps=rl_settings['eval_num_steps'])
+                                                      batch_size=rl_settings['eval_batch_size'],
+                                                      num_steps=rl_settings['eval_num_steps'])
         cr = get_CR(simulator_metrics)
         for batch_metric in zip(*simulator_metrics):
             wandb.log({**aggregate_metrics(batch_metric, np.mean), 'iter:': wandb_steps['simulator']})
