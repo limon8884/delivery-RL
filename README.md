@@ -53,9 +53,10 @@ We want to assign every order of some courier (or no order) - it is a classifica
 So, in fact we have a seq2seq problem. Transformers is a good approach to solve such problems: the backbobne of my NN are combined decoder-transformer layers.
 
 
-### RL-environment
+### RL-finetune
 I've used a PPO algorithm to fine-tune a given model via RL.
-The first success run: https://api.wandb.ai/links/limon8884/0o6f6e5t
+The first success run report: https://api.wandb.ai/links/limon8884/0o6f6e5t
+Script: `training_RL.py`
 
 #### Cloning training
 Here we have a supervised learning problem: given an gambletriple we need to predict the index of courier for every order (or -1 if not assigned). The target is the baseline-dipatch assignments. We will use cross entropy loss for these classification problem. 
@@ -65,5 +66,4 @@ I've made 2 runs: the main training and the futher training.
 Reports can be found here:
 1. main: https://api.wandb.ai/links/limon8884/z8bgvw2o
 2. futher training: https://api.wandb.ai/links/limon8884/pvfcqcap
-
-
+Script: `training_cloning.py`
