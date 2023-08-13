@@ -12,7 +12,8 @@ from src.utils import (
     get_batch_quality_metrics,
     get_CR,
     update_run_counters,
-    aggregate_metrics
+    aggregate_metrics, 
+    repr_big_number
 )
 from src.helpers.TimeLogger import TimeLogger
 
@@ -24,6 +25,7 @@ from torchrl.collectors import SyncDataCollector
 from torchrl.data import ReplayBuffer, LazyTensorStorage
 from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.objectives import ClipPPOLoss
+from torch.optim.lr_scheduler import OneCycleLR
 
 import torch
 import json
@@ -136,7 +138,7 @@ num_epochs = rl_settings['num_epochs']
 batch_size = rl_settings['batch_size']
 total_frames = rl_settings['total_frames']
 frames_per_epoch = rl_settings['frames_per_epoch']
-
+total_iters = num_epochs * total_frames
 
 optimized_parameters = list(loss_module.parameters())
 if rl_settings['optimizer'] == 'adam':
@@ -146,6 +148,10 @@ elif rl_settings['optimizer'] == 'sgd':
                                 momentum=rl_settings['momentum'])
 else:
     raise RuntimeError('Unknown optimizer')
+if rl_settings['scheduler'] is None:
+    scheduler = None
+elif scheduler == 'OneCycle'
+    scheduler = OneCycleLR(optimizer, max_lr=rl_settings['max_lr'], total_steps=total_iters)
 
 wandb_steps = {
     'train': 0,
@@ -154,9 +160,9 @@ wandb_steps = {
     'outer': 0
 }
 
+print('Starting training! Total iters: ' + repr_big_number(total_iters))
 time_logger()
-for outer_iter, tensordict_data in enumerate(collector):
-    print('collected!')
+for collector_iter, tensordict_data in enumerate(collector):
     time_logger('collector')
     for epoch in range(num_epochs):
         net.train()
@@ -178,10 +184,13 @@ for outer_iter, tensordict_data in enumerate(collector):
             loss_value.backward()
             torch.nn.utils.clip_grad_norm_(optimized_parameters, rl_settings['max_grad_norm'])
             optimizer.step()
+            if scheduler is not None:
+                scheduler.step()
 
             wandb.log({
                 'net_grad_norm': compute_grad_norm(net),
                 'encoder_grad_norm': compute_grad_norm(encoder),
+                'lr': scheduler.get_lr() if scheduler is not None else rl_settings['lr'],
                 "loss_total": loss_value.item(),
                 'loss_objective': loss_vals['loss_objective'].item(),
                 'loss_critic': loss_vals['loss_critic'].item(),
@@ -192,7 +201,7 @@ for outer_iter, tensordict_data in enumerate(collector):
     time_logger('epochs')
 
     # evaluation
-    if outer_iter % 10 == 0:
+    if collector_iter % rl_settings['eval_freq'] == 0:
         dsp = NeuralDispatch(net, encoder)
         net.eval()
         simulator_metrics = get_batch_quality_metrics(dsp, Simulator,
