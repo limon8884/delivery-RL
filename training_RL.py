@@ -151,7 +151,7 @@ else:
 
 if rl_settings['scheduler'] is None:
     scheduler = None
-elif scheduler == 'OneCycle'
+elif scheduler == 'OneCycle':
     scheduler = OneCycleLR(optimizer, max_lr=rl_settings['max_lr'], total_steps=total_iters)
 else:
     raise RuntimeError('Unknown scheduler')
