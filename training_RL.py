@@ -164,7 +164,7 @@ wandb_steps = {
 }
 
 print('Starting training! Total iters: ' + repr_big_number(total_iters) +
-      ', total epochs: ' + repr_big_number(total_frames // frames_per_batch * num_epochs))
+      ', total epochs: ' + repr_big_number(total_frames // frames_per_epoch * num_epochs))
 time_logger()
 for collector_iter, tensordict_data in enumerate(collector):
     time_logger('collector')
