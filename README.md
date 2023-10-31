@@ -1,5 +1,5 @@
 # Overview
-Every delivery company solves the problem of matching couriers and orders. The box which takes new couriers and orders sets as input and then assigns one to another is named dispatch. The main purpose of the project is to create a neural network-based dispatch and fine-tune it via reinforcement learning to solve the assignment problem.
+Every delivery company solves the problem of matching couriers and orders. The black-box which takes new couriers and orders sets as input and then assigns one to another is named dispatch. The main purpose of the project is to create a neural network-based dispatch and fine-tune it via reinforcement learning to solve the assignment problem.
 
 The main ideas are described below. Please, read `result.ipynb` to get more information about the approach.
 
