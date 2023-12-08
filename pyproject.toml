@@ -1,0 +1,12 @@
+[project]
+name = "delivery-RL"
+authors = [
+    {name = "Danil Bokatenko", email = 'dbokatenko@nes.ru'},
+]
+description = "TBD"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy"
+]
+dynamic = ["version"]

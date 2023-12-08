@@ -3,3 +3,7 @@ __pycache__
 wandb*
 wandb
 testing_notebook.ipynb
+python*
+pyvenv.cfg
+lib64
+settings.json
