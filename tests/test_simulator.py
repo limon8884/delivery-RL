@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 import random
 
 from src_new.simulator import DataReader, Simulator
-from src_new.dispatch import HungarianDispatch, DistanceScorer
+from src_new.dispatchs.hungarian_dispatch import HungarianDispatch
+from src_new.dispatchs.scorers import DistanceScorer
 
 
 BASE_DTTM = datetime.utcnow()

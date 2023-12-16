@@ -2,7 +2,7 @@ import typing
 import json
 from pathlib import Path
 from datetime import timedelta, datetime
-from collections import defaultdict
+# from collections import defaultdict
 
 from .objects import (
     Point,
@@ -14,7 +14,7 @@ from .objects import (
     Assignment,
     CityStamp,
 )
-from src_new.dispatch import BaseDispatch
+from src_new.dispatchs.base_dispatch import BaseDispatch
 
 
 class DataReader:
@@ -267,11 +267,9 @@ class Simulator(object):
 
     def _update_orders_statistics(self, order: Order) -> None:
         assert order.done()
-        # self.statistics['completed_orders'][self._iter] += 1
 
     def _update_couriers_statistics(self, courier: Courier) -> None:
         assert courier.done()
-        # self.statistics['completed_orders'][self._iter] += 1
 
     def _update_claims_statistics(self, claim: Claim) -> None:
         assert claim.done()

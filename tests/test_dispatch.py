@@ -3,8 +3,15 @@ from datetime import datetime, timedelta
 import random
 import numpy as np
 
-from src_new.dispatch import DistanceScorer, HungarianDispatch, GreedyDispatch
-from src_new.objects import Gamble, Courier, Claim, Point
+from src_new.dispatchs.scorers import DistanceScorer
+from src_new.dispatchs.hungarian_dispatch import HungarianDispatch
+from src_new.dispatchs.greedy_dispatch import GreedyDispatch
+from src_new.objects import (
+    Gamble,
+    Courier,
+    Claim,
+    Point,
+)
 from src_new.utils import get_random_point
 
 
@@ -16,7 +23,6 @@ def make_gamble_from_coords(couriers_coords: list[Point], claims_coords: list[Po
         couriers=[
             Courier(
                 id=i,
-                dttm=BASE_DTTM,
                 position=p,
                 start_dttm=BASE_DTTM,
                 end_dttm=BASE_DTTM,
@@ -27,7 +33,6 @@ def make_gamble_from_coords(couriers_coords: list[Point], claims_coords: list[Po
         claims=[
             Claim(
                 id=i,
-                dttm=BASE_DTTM,
                 source_point=p,
                 destination_point=Point(0, 0),
                 creation_dttm=BASE_DTTM,
