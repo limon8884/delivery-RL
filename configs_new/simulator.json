@@ -1,0 +1,25 @@
+{
+    "sampler": {
+        "num_sampler": {
+            "num_couriers": 5,
+            "num_claims": 10
+        },
+        "pos_sampler": {
+            "left_bound": 37.35,
+            "lower_bound": 55.58,
+            "right_bound": 37.85,
+            "upper_bound": 55.92
+        },
+        "done_dttm_sampler": {
+            "cancell_claim_time_secs": 300,
+            "courier_end_time_secs": 18000
+        },
+        "waiting_time_sampler": {
+            "waiting_time_on_source_secs": 300,
+            "waiting_time_on_destination_secs": 180
+        }
+    },
+    "courier_speed": 0.000126,
+    "gamble_duration_interval_sec": 30,
+    "start_dttm": "2023-12-28T08:41:54.018836"
+}

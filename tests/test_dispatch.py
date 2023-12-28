@@ -37,7 +37,8 @@ def make_gamble_from_coords(couriers_coords: list[Point], claims_coords: list[Po
                 destination_point=Point(0, 0),
                 creation_dttm=BASE_DTTM,
                 cancell_if_not_assigned_dttm=BASE_DTTM,
-                waiting_on_point=timedelta(seconds=0)
+                waiting_on_point_source=timedelta(seconds=0),
+                waiting_on_point_destination=timedelta(seconds=0)
             )
             for i, p in enumerate(claims_coords)
         ],
