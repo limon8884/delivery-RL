@@ -7,6 +7,8 @@ from src_new.simulator.simulator import DataReader, Simulator
 from src_new.dispatchs.hungarian_dispatch import HungarianDispatch
 from src_new.dispatchs.scorers import DistanceScorer
 from src_new.database.database import Database, Metric
+from src_new.database.logger import Logger
+
 
 BASE_DTTM = datetime.utcnow()
 
@@ -59,14 +61,17 @@ def test_cr_simple(tmp_path):
         }
         json.dump(config, f)
 
-    db = Database(db_path)
-    reader = DataReader.from_list(TEST_DATA_COURIERS_CR, TEST_DATA_CLAIMS_CR, db=db)
-    sim = Simulator(data_reader=reader, config_path=config_path, db=db)
+    logger = Logger(run_id=-1)
+    reader = DataReader.from_list(TEST_DATA_COURIERS_CR, TEST_DATA_CLAIMS_CR, logger=logger)
+    sim = Simulator(data_reader=reader, config_path=config_path, logger=logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=5)
 
-    assert db.get_metric(Metric.CR) == approx(1/3, 0.000001)
+    db = Database(db_path)
+    db.export_from_logger(logger)
+
+    assert db.get_metric(Metric.CR, run_id=-1) == approx(1/3, 0.000001)
 
 
 def test_cr_100_percent(tmp_path):
@@ -103,14 +108,16 @@ def test_cr_100_percent(tmp_path):
         for i in range(n_iters)
     ]
 
-    db = Database(db_path)
-    reader = DataReader.from_list(couriers, claims, db=db)
-    sim = Simulator(data_reader=reader, config_path=config_path, db=db)
+    logger = Logger(run_id=-1)
+    reader = DataReader.from_list(couriers, claims, logger=logger)
+    sim = Simulator(data_reader=reader, config_path=config_path, logger=logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=n_iters + 5)
 
-    assert db.get_metric(Metric.CR) == approx(1.0, 0.000001)
+    db = Database(db_path)
+    db.export_from_logger(logger)
+    assert db.get_metric(Metric.CR, run_id=-1) == approx(1.0, 0.000001)
 
 
 TEST_DATA_COURIERS_CTD = [
@@ -166,12 +173,14 @@ def test_ctd_simple(tmp_path):
         }
         json.dump(config, f)
 
-    db = Database(db_path)
-    reader = DataReader.from_list(TEST_DATA_COURIERS_CTD, TEST_DATA_CLAIMS_CTD, db=db)
-    sim = Simulator(data_reader=reader, config_path=config_path, db=db)
+    logger = Logger(run_id=-1)
+    reader = DataReader.from_list(TEST_DATA_COURIERS_CTD, TEST_DATA_CLAIMS_CTD, logger=logger)
+    sim = Simulator(data_reader=reader, config_path=config_path, logger=logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=5)
 
+    db = Database(db_path)
+    db.export_from_logger(logger)
     # assert db.get_metric(Metric.CTD) == ((0,), (0,), (0,))
-    assert db.get_metric(Metric.CTD) == approx(16.0, 0.000001)
+    assert db.get_metric(Metric.CTD, run_id=-1) == approx(16.0, 0.000001)

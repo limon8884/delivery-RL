@@ -1,9 +1,10 @@
-import typing as tp
+import typing
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
 
-from src_new.database.database import Database, TableName, Event
+from src_new.database.classes import TableName, Event
+from src_new.database.logger import Logger
 
 
 class Point:
@@ -68,14 +69,14 @@ class Item:
     """
     A base class for Courier, Claim and Order
     """
-    def __init__(self, id: int, db: Database | None) -> None:
+    def __init__(self, id: int, logger: typing.Optional[Logger]) -> None:
         """
         id - id of item
         dttm - creation datetime in the system
         """
         self.id: int = id
-        self._dttm: tp.Optional[datetime] = None
-        self._db: tp.Optional[Database] = db
+        self._dttm: typing.Optional[datetime] = None
+        self._logger: typing.Optional[Logger] = logger
 
     def next(self, current_time: datetime) -> None:
         """
@@ -103,17 +104,17 @@ class Courier(Item):
                  start_dttm: datetime,
                  end_dttm: datetime,
                  courier_type: str,
-                 db: Database | None = None,
+                 logger: typing.Optional[Logger] = None,
                  ) -> None:
-        super().__init__(id, db)
+        super().__init__(id, logger)
         self.position = position
         self.start_dttm = start_dttm
         self.end_dttm = end_dttm
         self.courier_type = courier_type
 
         self.status: Courier.Status = Courier.Status.FREE
-        if self._db is not None:
-            self._db.insert(TableName.COURIER_TABLE, id, start_dttm, Event.COURIER_STARTED)
+        if self._logger is not None:
+            self._logger.insert(TableName.COURIER_TABLE, id, start_dttm, Event.COURIER_STARTED)
 
     def set_position(self, position: Point) -> None:
         self.position = position
@@ -127,8 +128,8 @@ class Courier(Item):
         super().next(current_time)
         if self.is_time_off() and self.status is Courier.Status.FREE:
             self.status = Courier.Status.OFFLINE
-            if self._db is not None:
-                self._db.insert(TableName.COURIER_TABLE, self.id, self._dttm, Event.COURIER_ENDED)
+            if self._logger is not None:
+                self._logger.insert(TableName.COURIER_TABLE, self.id, self._dttm, Event.COURIER_ENDED)
 
     def done(self) -> bool:
         return self.status is Courier.Status.OFFLINE
@@ -158,9 +159,9 @@ class Claim(Item):
                  cancell_if_not_assigned_dttm: datetime,
                  waiting_on_point_source: timedelta,
                  waiting_on_point_destination: timedelta,
-                 db: Database | None = None,
+                 logger: typing.Optional[Logger] = None,
                  ) -> None:
-        super().__init__(id, db)
+        super().__init__(id, logger)
         self.source_point = source_point
         self.destination_point = destination_point
         self.creation_dttm = creation_dttm
@@ -169,8 +170,8 @@ class Claim(Item):
         self.waiting_on_point_destination = waiting_on_point_destination
 
         self.status: Claim.Status = Claim.Status.UNASSIGNED
-        if self._db is not None:
-            self._db.insert(TableName.CLAIM_TABLE, id, creation_dttm, Event.CLAIM_CREATED)
+        if self._logger is not None:
+            self._logger.insert(TableName.CLAIM_TABLE, id, creation_dttm, Event.CLAIM_CREATED)
 
     def next(self, current_time: datetime) -> None:
         if self.done():
@@ -178,8 +179,8 @@ class Claim(Item):
         super().next(current_time)
         if self.cancell_if_not_assigned_dttm < self._dttm and self.status is Claim.Status.UNASSIGNED:
             self.status = Claim.Status.CANCELLED
-            if self._db is not None:
-                self._db.insert(TableName.CLAIM_TABLE, self.id, self._dttm, Event.CLAIM_CANCELLED)
+            if self._logger is not None:
+                self._logger.insert(TableName.CLAIM_TABLE, self.id, self._dttm, Event.CLAIM_CANCELLED)
 
     def assign(self):
         assert self.status is Claim.Status.UNASSIGNED
@@ -188,9 +189,9 @@ class Claim(Item):
     def complete(self, seconds_to_act: int):
         assert self.status is Claim.Status.ASSIGNED
         self.status = Claim.Status.COMPLETED
-        if self._db is not None:
-            self._db.insert(TableName.CLAIM_TABLE, self.id,
-                            self._dttm - timedelta(seconds=seconds_to_act), Event.CLAIM_COMPLETED)
+        if self._logger is not None:
+            self._logger.insert(TableName.CLAIM_TABLE, self.id,
+                                self._dttm - timedelta(seconds=seconds_to_act), Event.CLAIM_COMPLETED)
 
     def done(self) -> bool:
         return self.status in (Claim.Status.COMPLETED, Claim.Status.CANCELLED)
@@ -215,9 +216,9 @@ class Order(Item):
                  courier: Courier,
                  route: Route,
                  claims: list[Claim],
-                 db: Database | None = None,
+                 logger: typing.Optional[Logger] = None,
                  ) -> None:
-        super().__init__(id, db)
+        super().__init__(id, logger)
         self.creation_dttm = creation_dttm
         self.courier = courier
         self.claims = {claim.id: claim for claim in claims}
@@ -228,8 +229,8 @@ class Order(Item):
             claim.assign()
         self.status = Order.Status.IN_ARRIVAL
         self.courier.status = Courier.Status.PROCESS
-        if self._db is not None:
-            self._db.insert(TableName.ORDER_TABLE, id, self.creation_dttm, Event.ORDER_CREATED)
+        if self._logger is not None:
+            self._logger.insert(TableName.ORDER_TABLE, id, self.creation_dttm, Event.ORDER_CREATED)
 
         self._dttm = creation_dttm
         self._next_point_idx = 0
@@ -272,9 +273,9 @@ class Order(Item):
     def _finish_order(self, seconds_to_act: int) -> None:
         self.status = Order.Status.COMPLETED
         self.courier.status = Courier.Status.OFFLINE if self.courier.is_time_off() else Courier.Status.FREE
-        if self._db is not None:
-            self._db.insert(TableName.ORDER_TABLE, self.id,
-                            self._dttm - timedelta(seconds=seconds_to_act), Event.ORDER_FINISHED)
+        if self._logger is not None:
+            self._logger.insert(TableName.ORDER_TABLE, self.id,
+                                self._dttm - timedelta(seconds=seconds_to_act), Event.ORDER_FINISHED)
 
     def _wait_on_point_func(self, seconds_to_act: int) -> int:
         '''

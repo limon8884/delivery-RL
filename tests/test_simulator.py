@@ -5,7 +5,7 @@ import random
 from src_new.simulator.simulator import DataReader, Simulator
 from src_new.dispatchs.hungarian_dispatch import HungarianDispatch
 from src_new.dispatchs.scorers import DistanceScorer
-from src_new.database.database import Database
+from src_new.database.logger import Logger
 # from src_new.utils import get_random_point
 
 
@@ -92,8 +92,8 @@ def test_simulator_step_by_step(tmp_path):
             'courier_speed': 0.1
         }
         json.dump(config, f)
-    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, db=None)
-    sim = Simulator(data_reader=reader, config_path=config_path, db=None)
+    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, logger=None)
+    sim = Simulator(data_reader=reader, config_path=config_path, logger=None)
     dsp = HungarianDispatch(DistanceScorer())
 
     last_gamble = sim.get_state()
@@ -180,8 +180,8 @@ def test_simulator_full_run_wo_db(tmp_path):
         for i in range(n_iters)
     ]
 
-    reader = DataReader.from_list(couriers, claims, db=None)
-    sim = Simulator(data_reader=reader, config_path=config_path, db=None)
+    reader = DataReader.from_list(couriers, claims, logger=None)
+    sim = Simulator(data_reader=reader, config_path=config_path, logger=None)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=n_iters)
@@ -221,9 +221,10 @@ def test_simulator_full_run_with_db(tmp_path):
         for i in range(n_iters)
     ]
 
-    db = Database(db_path)
-    reader = DataReader.from_list(couriers, claims, db=db)
-    sim = Simulator(data_reader=reader, config_path=config_path, db=db)
+    # db = Database(db_path)
+    logger = Logger(run_id=-1)
+    reader = DataReader.from_list(couriers, claims, logger=logger)
+    sim = Simulator(data_reader=reader, config_path=config_path, logger=logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=n_iters)

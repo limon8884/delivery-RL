@@ -9,7 +9,7 @@ from src_new.objects import (
     Claim,
     Courier,
 )
-from src_new.database.database import Database
+from src_new.database.logger import Logger
 from src_new.simulator.utils import CityStamp
 from src_new.simulator.data_sampler import CityStampSampler
 
@@ -38,9 +38,9 @@ class DataReader:
         CONFIG = 'config'
         FILE = 'file'
 
-    def __init__(self, mode: Mode, db: typing.Optional[Database] = None, **kwargs) -> None:
+    def __init__(self, mode: Mode, logger: typing.Optional[Logger] = None, **kwargs) -> None:
         self.mode = mode
-        self._db = db
+        self._logger = logger
         self.last_dttm: datetime = kwargs['start_dttm']
         if mode is self.Mode.LIST:
             self.couriers_data = kwargs['couriers_data']
@@ -55,23 +55,21 @@ class DataReader:
         raise NotImplementedError
 
     @staticmethod
-    def from_config(config_path: Path, db: typing.Optional[Database] = None) -> 'DataReader':
+    def from_config(config_path: Path, logger: typing.Optional[Logger] = None) -> 'DataReader':
         with open(config_path, 'r') as f:
             cfg = json.load(f)
-        sampler = CityStampSampler(db=db, cfg=cfg['sampler'])
-        # num_gambles = cfg['num_gambles']
-        # gamble_interval = timedelta(seconds=cfg['gamble_interval_secs'])
+        sampler = CityStampSampler(logger=logger, cfg=cfg['sampler'])
         start_dttm = datetime.fromisoformat(cfg['start_dttm'])
-        return DataReader(mode=DataReader.Mode.CONFIG, db=db, sampler=sampler, start_dttm=start_dttm)
+        return DataReader(mode=DataReader.Mode.CONFIG, logger=logger, sampler=sampler, start_dttm=start_dttm)
 
     @staticmethod
     def from_list(couriers_data: list[dict[str, typing.Any]],
-                  claims_data: list[dict[str, typing.Any]], db: typing.Optional[Database] = None):
+                  claims_data: list[dict[str, typing.Any]], logger: typing.Optional[Logger] = None):
         """
         Given a table (in a form of list of dicts) with
         """
         start_dttm = min(couriers_data[0]['start_dttm'], claims_data[0]['created_dttm'])
-        return DataReader(mode=DataReader.Mode.LIST, db=db,
+        return DataReader(mode=DataReader.Mode.LIST, logger=logger,
                           couriers_data=couriers_data, claims_data=claims_data, start_dttm=start_dttm)
 
     def get_next_city_stamp(self, timedelta: timedelta) -> CityStamp:
@@ -94,7 +92,7 @@ class DataReader:
                         start_dttm=courier['start_dttm'],
                         end_dttm=courier['end_dttm'],
                         courier_type='auto',
-                        db=self._db
+                        logger=self._logger
                     ))
                     self.courier_idx += 1
                 else:
@@ -111,7 +109,7 @@ class DataReader:
                         cancell_if_not_assigned_dttm=claim['cancelled_dttm'],
                         waiting_on_point_source=claim['waiting_on_point_source'],
                         waiting_on_point_destination=claim['waiting_on_point_destination'],
-                        db=self._db
+                        logger=self._logger
                     ))
                     self.claim_idx += 1
                 else:
@@ -124,7 +122,7 @@ class DataReader:
             )
 
         self.last_dttm = stop_dttm
-        if self._db is not None:
-            self._db.commit()
+        # if self._db is not None:
+        #     self._db.commit()
 
         return city_stamp

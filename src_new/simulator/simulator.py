@@ -15,16 +15,16 @@ from src_new.objects import (
 )
 from src_new.dispatchs.base_dispatch import BaseDispatch
 from src_new.simulator.data_reader import DataReader
-from src_new.database.database import Database
+from src_new.database.logger import Logger
 
 
 class Simulator(object):
     """A simulatior of the environment
     """
-    def __init__(self, data_reader: DataReader, config_path: Path, db: tp.Optional[Database] = None) -> None:
+    def __init__(self, data_reader: DataReader, config_path: Path, logger: tp.Optional[Logger] = None) -> None:
         self.data_reader = data_reader
         self._config_path = config_path
-        self._db = db
+        self._logger = logger
         self.reset()
 
     def reset(self) -> None:
@@ -63,10 +63,6 @@ class Simulator(object):
         self._next_unassigned_claims()
         self._next_active_orders()
 
-        # if self._db is not None:
-        #     self._db.commit()
-        # self._iter += 1
-
     def get_state(self) -> Gamble:
         """Returns current simulator state in Gamble format
 
@@ -92,8 +88,8 @@ class Simulator(object):
             gamble = self.get_state()
             assignments = dispatch(gamble)
             self.next(assignments)
-        if self._db is not None:
-            self._db.commit()
+        # if self._db is not None:
+        #     self._db.commit()
 
     def _get_next_order_id(self) -> int:
         order_id = self._next_order_id
@@ -124,7 +120,7 @@ class Simulator(object):
                     [Route.PointType.SOURCE, Route.PointType.DESTINATION]
                 ),
                 claims=[claim],
-                db=self._db
+                logger=self._logger
             )
             del self.free_couriers[courier_id]
             del self.unassigned_claims[claim_id]

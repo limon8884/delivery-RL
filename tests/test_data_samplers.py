@@ -29,12 +29,12 @@ CFG_DUMMY = {
 
 
 def test_dummy_sampler():
-    smp = CityStampSampler(db=None, cfg=CFG_DUMMY)
+    smp = CityStampSampler(logger=None, cfg=CFG_DUMMY)
     smp.sample_citystamp(BASE_DTTM, BASE_DTTM + timedelta(seconds=30))
 
 
 def test_dummy_sampler_full():
-    smp = CityStampSampler(db=None, cfg=CFG_DUMMY)
+    smp = CityStampSampler(logger=None, cfg=CFG_DUMMY)
     n_stamps = 10
     city_stamps = [
         smp.sample_citystamp(BASE_DTTM + timedelta(seconds=i * 30), BASE_DTTM + timedelta(seconds=30 + i * 30))

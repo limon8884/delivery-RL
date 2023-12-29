@@ -13,7 +13,9 @@ from src_new.objects import (
     Claim,
     Order,
 )
-from src_new.database.database import Database, TableName, Event
+from src_new.database.classes import TableName, Event
+from src_new.database.logger import Logger
+
 
 CREATION_TIME = datetime.utcnow()
 
@@ -99,14 +101,18 @@ def test_order(n_claims: int, wait_secs: int, speed: float):
         # assert ord.done_dttm() == current_time
 
 
-def test_with_db(tmp_path):
-    db = Database(tmp_path / 'testbase.db')
-    crr = Courier(0, Point(0, 0), CREATION_TIME, CREATION_TIME + timedelta(seconds=2), 'auto', db=db)
+def test_with_logger():
+    logger = Logger(run_id=-1)
+    crr = Courier(0, Point(0, 0), CREATION_TIME, CREATION_TIME + timedelta(seconds=2), 'auto', logger=logger)
     crr.next(CREATION_TIME + timedelta(seconds=1))
     crr.next(CREATION_TIME + timedelta(seconds=2))
     assert crr.done()
 
-    res = db.select(f'''select courier_id, event from {TableName.COURIER_TABLE.value}''')
-    assert res[0] == (0, Event.COURIER_STARTED.value)
-    assert res[1] == (0, Event.COURIER_ENDED.value)
-    assert len(res) == 2
+    assert len(logger.data[TableName.COURIER_TABLE.value]) == 2
+    assert logger.data[TableName.COURIER_TABLE.value][0][2] == Event.COURIER_STARTED.value
+    assert logger.data[TableName.COURIER_TABLE.value][1][2] == Event.COURIER_ENDED.value
+
+    # res = db.select(f'''select courier_id, event from {TableName.COURIER_TABLE.value}''')
+    # assert res[0] == (0, Event.COURIER_STARTED.value)
+    # assert res[1] == (0, Event.COURIER_ENDED.value)
+    # assert len(res) == 2

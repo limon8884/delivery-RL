@@ -8,7 +8,7 @@ from src_new.objects import (
     Claim,
     Courier,
 )
-from src_new.database.database import Database
+from src_new.database.logger import Logger
 from src_new.utils import get_random_point
 
 
@@ -73,10 +73,10 @@ class _NumSampler:
 
 
 class CityStampSampler:
-    def __init__(self, db: typing.Optional[Database], cfg: dict[str, typing.Any]) -> None:
+    def __init__(self, logger: typing.Optional[Logger], cfg: dict[str, typing.Any]) -> None:
         self._next_claim_id = 0
         self._next_courier_id = 0
-        self._db = db
+        self._logger = logger
 
         self._num_sampler = _NumSampler(cfg['num_sampler'])
         self._pos_sampler = _PositionSampler(cfg['pos_sampler'])
@@ -105,7 +105,7 @@ class CityStampSampler:
             cancell_if_not_assigned_dttm=self._done_dttm_sampler.sample_claim_cancell_dttm(dttm),
             waiting_on_point_source=self._waiting_time_sampler.sample_waiting_time_on_souce(),
             waiting_on_point_destination=self._waiting_time_sampler.sample_waiting_time_on_destination(),
-            db=self._db
+            logger=self._logger
         )
         self._next_claim_id += 1
         return claim
@@ -117,7 +117,7 @@ class CityStampSampler:
             start_dttm=dttm,
             end_dttm=self._done_dttm_sampler.sample_courier_end_dttm(dttm),
             courier_type='auto',
-            db=self._db
+            logger=self._logger
         )
         self._next_courier_id += 1
         return courier
