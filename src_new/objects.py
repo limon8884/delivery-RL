@@ -44,25 +44,61 @@ class Point:
         return ((first_point.x - second_point.x)**2 + (first_point.y - second_point.y)**2)**0.5
 
 
-@dataclass
 class Route:
-    points: list[Point]
-    claim_ids: list[int]
-    point_types: list['PointType']
-
     class PointType(Enum):
         SOURCE = 1
         DESTINATION = 2
 
+    @dataclass
+    class RoutePoint:
+        point: Point
+        claim_id: int
+        point_type: 'Route.PointType'
+
+    def __init__(self, route_points: list[RoutePoint]) -> None:
+        self.route_points = route_points
+        self._next_point_idx = 0
+
+    @staticmethod
+    def from_points(
+        points: list[Point],
+        claim_ids: list[int],
+        point_types: list['PointType']
+    ) -> 'Route':
+        route = Route([])
+        for point, claim_id, point_type in zip(points, claim_ids, point_types):
+            route.route_points.append(Route.RoutePoint(point, claim_id, point_type))
+        return route
+
+    @staticmethod
+    def from_claim(claim: 'Claim') -> 'Route':
+        return Route([
+            Route.RoutePoint(claim.source_point, claim.id, Route.PointType.SOURCE),
+            Route.RoutePoint(claim.destination_point, claim.id, Route.PointType.DESTINATION),
+        ])
+
+    def next(self) -> None:
+        assert not self.done()
+        self._next_point_idx += 1
+
+    def done(self):
+        return self._next_point_idx == len(self.route_points)
+
+    def next_route_point(self) -> RoutePoint:
+        assert not self.done()
+        return self.route_points[self._next_point_idx]
+
     def distance(self) -> float:
-        if len(self.points) == 0:
-            return 0
+        assert not self.done()
         total_dist: float = 0
-        current_point = self.points[0]
-        for next_point in self.points[1:]:
-            total_dist += Point.distance(current_point, next_point)
+        current_point = self.route_points[self._next_point_idx]
+        for next_point in self.route_points[self._next_point_idx+1:]:
+            total_dist += Point.distance(current_point.point, next_point.point)
             current_point = next_point
         return total_dist
+
+    def distance_with_arrival(self, courier_position: Point):
+        return self.distance() + Point.distance(self.next_route_point().point, courier_position)
 
 
 class Item:
@@ -133,13 +169,6 @@ class Courier(Item):
 
     def done(self) -> bool:
         return self.status is Courier.Status.OFFLINE
-        # if self._dttm is None:
-        #     return False
-        # return self.end_dttm <= self._dttm
-
-    # def done_dttm(self) -> datetime:
-    #     assert self.done()
-    #     return self._dttm
 
 
 class Claim(Item):
@@ -195,13 +224,6 @@ class Claim(Item):
 
     def done(self) -> bool:
         return self.status in (Claim.Status.COMPLETED, Claim.Status.CANCELLED)
-        # if self._dttm is None:
-        #     return False
-        # return self.cancell_if_not_assigned_dttm < self._dttm
-
-    # def done_dttm(self) -> datetime:
-    #     assert self.done()
-    #     return self._dttm
 
 
 class Order(Item):
@@ -223,7 +245,6 @@ class Order(Item):
         self.courier = courier
         self.claims = {claim.id: claim for claim in claims}
         self.route = route
-        # self.wait_on_point_secs = waiting_on_point.total_seconds()
 
         for claim in claims:
             claim.assign()
@@ -233,26 +254,14 @@ class Order(Item):
             self._logger.insert(TableName.ORDER_TABLE, id, self.creation_dttm, Event.ORDER_CREATED)
 
         self._dttm = creation_dttm
-        self._next_point_idx = 0
-        # self._current_claim_id = self.route.claim_ids[0]
+        # self._next_point_idx = 0
         self._seconds_to_wait = None
 
     def done(self) -> bool:
         return self.status is Order.Status.COMPLETED
 
-    # def done_dttm(self) -> datetime:
-    #     assert self.done()
-    #     return self._dttm
-
-    def get_arrival_distance(self) -> float:
-        assert self.status is Order.Status.IN_ARRIVAL, 'courier is not in arrival'
-        return Point.distance(self.courier.position, self.route.points[0])
-
     def get_rest_distance(self) -> float:
-        if self._next_point_idx != len(self.route.points):
-            return Point.distance(self.courier.position, self.route.points[self._next_point_idx]) \
-                + Route(self.route.points[self._next_point_idx:], [], []).distance()
-        return 0
+        return self.route.distance_with_arrival(self.courier.position)
 
     def next(self, current_time: datetime, speed: float) -> None:
         if self.done():
@@ -264,7 +273,7 @@ class Order(Item):
             if not claim.done():
                 claim.next(current_time)
         while seconds_to_act > 0:
-            if self._next_point_idx == len(self.route.points):
+            if self.route.done():
                 self._finish_order(seconds_to_act)
                 return
             seconds_to_act = self._move_courier(seconds_to_act, speed)
@@ -288,9 +297,9 @@ class Order(Item):
             return 0
         seconds_to_act -= self._seconds_to_wait
         self._seconds_to_wait = None
-        if self.route.point_types[self._next_point_idx] is Route.PointType.DESTINATION:
-            self.claims[self.route.claim_ids[self._next_point_idx]].complete(seconds_to_act)
-        self._next_point_idx += 1
+        if self.route.next_route_point().point_type is Route.PointType.DESTINATION:
+            self.claims[self.route.next_route_point().claim_id].complete(seconds_to_act)
+        self.route.next()
         return seconds_to_act
 
     def _move_courier(self, seconds_to_act: int, speed: float) -> int:
@@ -299,7 +308,7 @@ class Order(Item):
         '''
         if self._seconds_to_wait is not None:
             return seconds_to_act
-        next_point = self.route.points[self._next_point_idx]
+        next_point = self.route.next_route_point().point
         dist_to_next_point = Point.distance(self.courier.position, next_point)
         if dist_to_next_point > speed * seconds_to_act:
             new_courier_pos = self.courier.position + \
@@ -308,9 +317,9 @@ class Order(Item):
             return 0
         seconds_to_act -= dist_to_next_point / speed
         self._seconds_to_wait = \
-            self.claims[self.route.claim_ids[self._next_point_idx]].waiting_on_point_source.total_seconds() \
-            if self.route.point_types[self._next_point_idx] is Route.PointType.SOURCE \
-            else self.claims[self.route.claim_ids[self._next_point_idx]].waiting_on_point_destination.total_seconds()
+            self.claims[self.route.next_route_point().claim_id].waiting_on_point_source.total_seconds() \
+            if self.route.next_route_point().point_type is Route.PointType.SOURCE \
+            else self.claims[self.route.next_route_point().claim_id].waiting_on_point_destination.total_seconds()
         self.courier.set_position(next_point)
         self.status = Order.Status.IN_PROCESS
         return seconds_to_act

@@ -41,10 +41,23 @@ def test_route():
     p3 = Point(1, 1)
     p4 = Point(1, 0)
     p5 = Point(0, 0)
-    assert Route([p1, p2, p3, p4, p5], [], []).distance() == 3
-    assert Route([p1, p1], [], []).distance() == 0
-    assert Route([p5, p4, p3, p1, p5], [], []).distance() == 4
-    assert Route([p1, p4], [], []).distance() == approx(2**0.5, 0.001)
+    assert Route.from_points([p1, p2, p3, p4, p5], [0] * 5, [Route.PointType.SOURCE] * 5).distance() == 3
+    assert Route.from_points([p1, p1], [0] * 2, [Route.PointType.SOURCE] * 2).distance() == 0
+    assert Route.from_points([p5, p4, p3, p1, p5], [0] * 5, [Route.PointType.SOURCE] * 5).distance() == 4
+    assert Route.from_points([p1, p4], [0] * 2, [Route.PointType.SOURCE] * 2).distance() == approx(2**0.5, 0.001)
+
+    rt = Route.from_points([p1, p2, p3, p4, p5], [0] * 5, [Route.PointType.SOURCE] * 5)
+    assert rt.distance_with_arrival(Point(0, 0.5)) == 3.5
+    rt.next()
+    assert rt.distance() == 2
+    rt.next()
+    assert rt.distance() == 2
+    rt.next()
+    assert rt.distance() == 1
+    rt.next()
+    assert rt.distance() == 0
+    rt.next()
+    assert rt.done()
 
 
 def test_courier():
@@ -80,13 +93,13 @@ def test_order(n_claims: int, wait_secs: int, speed: float):
                   timedelta(seconds=wait_secs), timedelta(seconds=wait_secs))
             for i in range(n_claims)
             ]
-        rt = Route(
+        rt: Route = Route.from_points(
             [c.source_point for c in claims] + [c.destination_point for c in claims],
             [c.id for c in claims] + [c.id for c in claims],
             [Route.PointType.SOURCE] * n_claims + [Route.PointType.DESTINATION] * n_claims
         )
         # rt = Route([get_random_point() for _ in range(n_points)], [], [])
-        total_dist = Point.distance(crr.position, rt.points[0]) + rt.distance()
+        total_dist = Point.distance(crr.position, rt.next_route_point().point) + rt.distance()
         ord = Order(0, CREATION_TIME, crr, rt, claims)
         assert ord.status is Order.Status.IN_ARRIVAL
         total_time = 2 * n_claims * wait_secs + total_dist / speed

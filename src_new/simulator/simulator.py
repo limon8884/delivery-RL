@@ -114,11 +114,7 @@ class Simulator(object):
                 id=self._get_next_order_id(),
                 creation_dttm=self._current_gamble_begin_dttm,
                 courier=self.free_couriers[courier_id],
-                route=Route(
-                    [claim.source_point, claim.destination_point],
-                    [claim.id, claim.id],
-                    [Route.PointType.SOURCE, Route.PointType.DESTINATION]
-                ),
+                route=Route.from_claim(claim),
                 claims=[claim],
                 logger=self._logger
             )
