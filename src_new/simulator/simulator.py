@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 from datetime import timedelta, datetime
 from tqdm import tqdm
-# from collections import defaultdict
 
 from src_new.objects import (
     Claim,
@@ -15,13 +14,16 @@ from src_new.objects import (
 )
 from src_new.dispatchs.base_dispatch import BaseDispatch
 from src_new.simulator.data_reader import DataReader
+from src_new.router_makers import BaseRouteMaker
 from src_new.database.logger import Logger
 
 
 class Simulator(object):
     """A simulatior of the environment
     """
-    def __init__(self, data_reader: DataReader, config_path: Path, logger: tp.Optional[Logger] = None) -> None:
+    def __init__(self, data_reader: DataReader, route_maker: BaseRouteMaker,
+                 config_path: Path, logger: tp.Optional[Logger] = None) -> None:
+        self.route_maker = route_maker
         self.data_reader = data_reader
         self._config_path = config_path
         self._logger = logger
@@ -36,12 +38,12 @@ class Simulator(object):
         self.active_orders: dict[int, Order] = {}
         self.unassigned_claims: dict[int, Claim] = {}
         self.free_couriers: dict[int, Courier] = {}
+        self.courier_id_to_order_id: dict[int, int] = {}
 
         self.gamble_interval: timedelta = timedelta(seconds=config['gamble_duration_interval_sec'])
         self.speed = config['courier_speed']
 
         self._next_order_id = 0
-        # self._iter = 0
         self._current_gamble_begin_dttm: datetime = datetime.min
         self._current_gamble_end_dttm: datetime = datetime.min
 
@@ -88,8 +90,6 @@ class Simulator(object):
             gamble = self.get_state()
             assignments = dispatch(gamble)
             self.next(assignments)
-        # if self._db is not None:
-        #     self._db.commit()
 
     def _get_next_order_id(self) -> int:
         order_id = self._next_order_id
@@ -101,26 +101,32 @@ class Simulator(object):
             order = self.active_orders[order_id]
             order.next(self._current_gamble_end_dttm, self.speed)
             if order.done():
+                del self.courier_id_to_order_id[order.courier.id]
                 if not order.courier.done():
                     self.free_couriers[order.courier.id] = order.courier
                 del self.active_orders[order_id]
 
     def _assign_active_orders(self, assignments: Assignment) -> None:
         for courier_id, claim_id in assignments.ids:
-            assert courier_id in self.free_couriers
             assert claim_id in self.unassigned_claims
             claim = self.unassigned_claims[claim_id]
-            order = Order(
-                id=self._get_next_order_id(),
-                creation_dttm=self._current_gamble_begin_dttm,
-                courier=self.free_couriers[courier_id],
-                route=Route.from_claim(claim),
-                claims=[claim],
-                logger=self._logger
-            )
-            del self.free_couriers[courier_id]
+            if courier_id in self.free_couriers:
+                order = Order(
+                    id=self._get_next_order_id(),
+                    creation_dttm=self._current_gamble_begin_dttm,
+                    courier=self.free_couriers[courier_id],
+                    route=Route.from_claim(claim),
+                    claims=[claim],
+                    logger=self._logger
+                )
+                del self.free_couriers[courier_id]
+                self.active_orders[order.id] = order
+                self.courier_id_to_order_id[courier_id] = order.id
+            else:
+                assert courier_id in self.courier_id_to_order_id
+                order = self.active_orders[self.courier_id_to_order_id[courier_id]]
+                self.route_maker.add_claim(order.route, order.courier.position, claim)
             del self.unassigned_claims[claim_id]
-            self.active_orders[order.id] = order
 
     def _next_free_couriers(self) -> None:
         for courier_id in list(self.free_couriers.keys()):

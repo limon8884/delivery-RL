@@ -6,6 +6,9 @@ import numpy as np
 from src_new.dispatchs.scorers import DistanceScorer
 from src_new.dispatchs.hungarian_dispatch import HungarianDispatch
 from src_new.dispatchs.greedy_dispatch import GreedyDispatch
+from src_new.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
+from src_new.networks.encoders import GambleEncoder
+from src_new.networks.bodies import SimpleSequentialMLP
 from src_new.objects import (
     Gamble,
     Courier,
@@ -142,3 +145,24 @@ EXPECTED_GREEDY_DISPATCH = [
 def test_greedy_dispatch(idx: int, gamble: Gamble):
     dsp = GreedyDispatch(DistanceScorer())
     assert sorted(dsp(gamble).ids) == sorted(EXPECTED_GREEDY_DISPATCH[idx])
+
+
+@pytest.mark.parametrize(['idx', 'gamble'], TEST_GAMBLES)
+def test_network_dispatch(idx: int, gamble: Gamble):
+    encoder = GambleEncoder(
+        courier_order_embedding_dim=64,
+        claim_embedding_dim=32,
+        courier_embedding_dim=32,
+        route_embedding_dim=128,
+        point_embedding_dim=32,
+        number_embedding_dim=8,
+        max_num_points_in_route=8,
+        device=None,
+    )
+    net = SimpleSequentialMLP(
+        claim_embedding_dim=32,
+        courier_order_embedding_dim=64,
+        device=None,
+    )
+    dsp = NeuralSequantialDispatch(encoder=encoder, network=net)
+    dsp(gamble).ids

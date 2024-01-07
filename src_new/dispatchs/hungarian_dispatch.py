@@ -13,7 +13,7 @@ class HungarianDispatch(BaseDispatch):
     Solves the problem of maximum weight matching in bipaired graph
     """
     def __init__(self, scorer: BaseScorer) -> None:
-        super().__init__(scorer)
+        self.scorer = scorer
 
     def __call__(self, gamble: Gamble) -> Assignment:
         fake_clm_idx = len(gamble.claims)

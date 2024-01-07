@@ -13,13 +13,13 @@ class GreedyDispatch(BaseDispatch):
     Iterate through the couriers and assign the best options in greedy manner
     """
     def __init__(self, scorer: BaseScorer) -> None:
-        super().__init__(scorer)
+        self.scorer = scorer
 
     def __call__(self, gamble: Gamble) -> Assignment:
         if len(gamble.claims) == 0:
             return Assignment([])
         scores = self.scorer.score(gamble)
-        assert scores.shape == (len(gamble.couriers), len(gamble.claims) + 1)        
+        assert scores.shape == (len(gamble.couriers), len(gamble.claims) + 1)
         assigned_claim_idxs: set[int] = set()
         assignments: list[tuple[int, int]] = []
         fake_clm_idx = len(gamble.claims)

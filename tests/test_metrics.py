@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from pytest import approx
 
 from src_new.simulator.simulator import DataReader, Simulator
+from src_new.router_makers import BaseRouteMaker
 from src_new.dispatchs.hungarian_dispatch import HungarianDispatch
 from src_new.dispatchs.scorers import DistanceScorer
 from src_new.database.database import Database, Metric
@@ -63,7 +64,8 @@ def test_cr_simple(tmp_path):
 
     logger = Logger(run_id=-1)
     reader = DataReader.from_list(TEST_DATA_COURIERS_CR, TEST_DATA_CLAIMS_CR, logger=logger)
-    sim = Simulator(data_reader=reader, config_path=config_path, logger=logger)
+    route_maker = BaseRouteMaker(max_points_lenght=0)  # empty route_maker
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=5)
@@ -110,7 +112,8 @@ def test_cr_100_percent(tmp_path):
 
     logger = Logger(run_id=-1)
     reader = DataReader.from_list(couriers, claims, logger=logger)
-    sim = Simulator(data_reader=reader, config_path=config_path, logger=logger)
+    route_maker = BaseRouteMaker(max_points_lenght=0)  # empty route_maker
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=n_iters + 5)
@@ -175,7 +178,8 @@ def test_ctd_simple(tmp_path):
 
     logger = Logger(run_id=-1)
     reader = DataReader.from_list(TEST_DATA_COURIERS_CTD, TEST_DATA_CLAIMS_CTD, logger=logger)
-    sim = Simulator(data_reader=reader, config_path=config_path, logger=logger)
+    route_maker = BaseRouteMaker(max_points_lenght=0)  # empty route_maker
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=5)
