@@ -2,6 +2,7 @@ import typing
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
+from collections import deque
 
 from src_new.database.classes import TableName, Event
 from src_new.database.logger import Logger
@@ -46,8 +47,8 @@ class Point:
 
 class Route:
     class PointType(Enum):
-        SOURCE = 1
-        DESTINATION = 2
+        SOURCE = 0
+        DESTINATION = 1
 
     @dataclass
     class RoutePoint:
@@ -56,8 +57,8 @@ class Route:
         point_type: 'Route.PointType'
 
     def __init__(self, route_points: list[RoutePoint]) -> None:
-        self.route_points = route_points
-        self._next_point_idx = 0
+        self.route_points: deque[Route.RoutePoint] = deque(route_points)
+        # self._next_point_idx = 0
 
     @staticmethod
     def from_points(
@@ -79,20 +80,25 @@ class Route:
 
     def next(self) -> None:
         assert not self.done()
-        self._next_point_idx += 1
+        self.route_points.popleft()
+        # self._next_point_idx += 1
 
     def done(self):
-        return self._next_point_idx == len(self.route_points)
+        return len(self.route_points) == 0
+        # return self._next_point_idx == len(self.route_points)
 
     def next_route_point(self) -> RoutePoint:
         assert not self.done()
-        return self.route_points[self._next_point_idx]
+        return self.route_points[0]
+        # return self.route_points[self._next_point_idx]
 
     def distance(self) -> float:
         assert not self.done()
         total_dist: float = 0
-        current_point = self.route_points[self._next_point_idx]
-        for next_point in self.route_points[self._next_point_idx+1:]:
+        current_point = self.route_points[0]
+        for i, next_point in enumerate(self.route_points):
+            if i == 0:
+                continue
             total_dist += Point.distance(current_point.point, next_point.point)
             current_point = next_point
         return total_dist

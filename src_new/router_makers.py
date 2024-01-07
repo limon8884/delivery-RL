@@ -1,7 +1,7 @@
 from src_new.objects import Route, Point, Claim
 
 
-class BaseRouter:
+class BaseRouteMaker:
     def __init__(self, max_points_lenght: int) -> None:
         self.max_points_lenght = max_points_lenght
 
@@ -12,7 +12,7 @@ class BaseRouter:
         raise NotImplementedError
 
 
-class AppendRouter(BaseRouter):
+class AppendRouteMaker(BaseRouteMaker):
     def add_claim(self, route: Route, courier_position: Point, new_claim: Claim) -> None:
         if len(route.route_points) >= self.max_points_lenght:
             raise RuntimeError("Max points limit reached")
@@ -20,8 +20,7 @@ class AppendRouter(BaseRouter):
         source_route_point = Route.RoutePoint(new_claim.source_point, new_claim.id, Route.PointType.SOURCE)
         destination_route_point = Route.RoutePoint(new_claim.destination_point,
                                                    new_claim.id, Route.PointType.DESTINATION)
-        next_point_idx = route._next_point_idx + 1 \
-            if route.next_route_point().point is courier_position else route._next_point_idx
+        next_point_idx = 1 if route.next_route_point().point is courier_position else 0
 
         best_idxs: tuple[int, int] = (-1, -1)
         best_dist = 1e10

@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 
 from src_new.objects import Claim, Point, Courier, Route
-from src_new.routers import AppendRouter
-from src_new.utils import get_random_point
+from src_new.router_makers import AppendRouteMaker
+# from src_new.utils import get_random_point
 
 
 BASE_DTTM = datetime.utcnow()
@@ -21,7 +21,7 @@ def make_claim(source_point: Point, destination_point: Point) -> Claim:
 
 
 def test_append_router():
-    router = AppendRouter(max_points_lenght=8)
+    router = AppendRouteMaker(max_points_lenght=8)
     crr = Courier(0, Point(1, 0), BASE_DTTM, BASE_DTTM + timedelta(days=1), 'auto')
 
     cl1 = make_claim(Point(0, 0), Point(0, 1))
