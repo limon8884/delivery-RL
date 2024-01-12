@@ -181,8 +181,6 @@ class Claim(Item):
     class Status(Enum):
         UNASSIGNED = 'unassigned'
         ASSIGNED = 'assigned'
-        # IN_ARRIVAL = 'in_arrival'
-        # PICKUPED = 'pickuped'
         COMPLETED = 'completed'
         CANCELLED = 'cancelled'
 
@@ -213,16 +211,21 @@ class Claim(Item):
             raise RuntimeError('Claim next when done')
         super().next(current_time)
         if self.cancell_if_not_assigned_dttm < self._dttm and self.status is Claim.Status.UNASSIGNED:
-            self.status = Claim.Status.CANCELLED
-            if self._logger is not None:
-                self._logger.insert(TableName.CLAIM_TABLE, self.id, self._dttm, Event.CLAIM_CANCELLED)
+            self.cancell()
+
+    def cancell(self):
+        self.status = Claim.Status.CANCELLED
+        if self._logger is not None:
+            self._logger.insert(TableName.CLAIM_TABLE, self.id, self._dttm, Event.CLAIM_CANCELLED)
 
     def assign(self):
         assert self.status is Claim.Status.UNASSIGNED
         self.status = Claim.Status.ASSIGNED
+        if self._logger is not None:
+            self._logger.insert(TableName.CLAIM_TABLE, self.id, self._dttm, Event.CLAIM_ASSIGNED)
 
     def complete(self, seconds_to_act: int):
-        assert self.status is Claim.Status.ASSIGNED
+        assert self.status is Claim.Status.ASSIGNED, (self.status.name, self.id, self._dttm)
         self.status = Claim.Status.COMPLETED
         if self._logger is not None:
             self._logger.insert(TableName.CLAIM_TABLE, self.id,
@@ -260,7 +263,6 @@ class Order(Item):
             self._logger.insert(TableName.ORDER_TABLE, id, self.creation_dttm, Event.ORDER_CREATED)
 
         self._dttm = creation_dttm
-        # self._next_point_idx = 0
         self._seconds_to_wait = None
 
     def done(self) -> bool:

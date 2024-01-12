@@ -8,3 +8,4 @@ pyvenv.cfg
 lib64
 settings.json
 ideas.txt
+launch.json

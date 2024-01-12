@@ -6,7 +6,10 @@ from src_new.database.classes import TableName, Event, Metric
 from src_new.database.logger import Logger
 from src_new.database.sql_metrics_queries import (
     _sql_query_cr,
-    _sql_query_ctd
+    _sql_query_ctd,
+    _sql_query_num_couriers,
+    _sql_query_num_claims,
+    _sql_query_num_orders,
 )
 
 
@@ -20,11 +23,6 @@ class Database:
         cursor.execute(f'CREATE TABLE IF NOT EXISTS {TableName.ORDER_TABLE.value} (run_id, order_id, dttm, event)')
         cursor.close()
 
-    # def commit(self):
-    #     self._connection.commit()
-
-    # def rollback(self):
-    #     self._connection.rollback()
     def clear(self):
         cursor = self._connection.cursor()
         cursor.execute(f'DROP TABLE IF EXISTS {TableName.COURIER_TABLE.value}')
@@ -66,5 +64,11 @@ class Database:
             return self.select(_sql_query_cr(run_id), select_one=True)[0]
         elif metric is Metric.CTD:
             return self.select(_sql_query_ctd(run_id), select_one=True)[0]
+        # elif metric is Metric.NUM_COURIERS:
+        #     return self.select(_sql_query_num_couriers(run_id), select_one=True)[0]
+        # elif metric is Metric.NUM_CLAIMS:
+        #     return self.select(_sql_query_num_claims(run_id), select_one=True)[0]
+        # elif metric is Metric.NUM_ORDERS:
+        #     return self.select(_sql_query_num_orders(run_id), select_one=True)[0]
         else:
             raise RuntimeError('Metric not implemented')

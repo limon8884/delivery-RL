@@ -29,3 +29,39 @@ def _sql_query_ctd(run_id) -> str:
     ) as t
     where t.is_completed = 1
     '''
+
+
+def _sql_query_num_couriers(run_id) -> str:
+    return f'''
+    select avg(t.num)
+    from (
+        select count(*) as num
+        from {TableName.COURIER_TABLE.value}
+        where run_id = {run_id}
+        group by courier_id
+    ) as t
+    '''
+
+
+def _sql_query_num_claims(run_id) -> str:
+    return f'''
+    select avg(t.num)
+    from (
+        select count(*) as num
+        from {TableName.CLAIM_TABLE.value}
+        where run_id = {run_id}
+        group by claim_id
+    ) as t
+    '''
+
+
+def _sql_query_num_orders(run_id) -> str:
+    return f'''
+    select avg(t.num)
+    from (
+        select count(*) as num
+        from {TableName.ORDER_TABLE.value}
+        where run_id = {run_id}
+        group by order_id
+    ) as t
+    '''
