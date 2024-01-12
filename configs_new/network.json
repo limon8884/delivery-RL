@@ -1,0 +1,10 @@
+{
+    "simple": {
+        "number_embedding_dim": 4,
+        "point_embedding_dim": 32,
+        "route_embedding_dim": 128,
+        "claim_embedding_dim":32,
+        "courier_embedding_dim": 32,
+        "courier_order_embedding_dim": 64
+    }
+}

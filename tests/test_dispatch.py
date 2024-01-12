@@ -14,6 +14,8 @@ from src_new.objects import (
     Courier,
     Claim,
     Point,
+    Order,
+    Route,
 )
 from src_new.utils import get_random_point
 
@@ -149,6 +151,17 @@ def test_greedy_dispatch(idx: int, gamble: Gamble):
 
 @pytest.mark.parametrize(['idx', 'gamble'], TEST_GAMBLES)
 def test_network_dispatch(idx: int, gamble: Gamble):
+    ord_clm = Claim(10, Point(2.0, 2.0), Point(3.0, 3.0), 
+                    BASE_DTTM, BASE_DTTM + timedelta(days=1), timedelta(seconds=0), timedelta(seconds=0))
+    gamble.orders = [
+        Order(
+            id=0,
+            creation_dttm=BASE_DTTM,
+            courier=Courier(10, Point(2.0, 2.0), BASE_DTTM, BASE_DTTM + timedelta(days=1), 'auto'),
+            route=Route.from_claim(ord_clm),
+            claims=[ord_clm],
+        )
+    ]
     encoder = GambleEncoder(
         courier_order_embedding_dim=64,
         claim_embedding_dim=32,
@@ -164,5 +177,5 @@ def test_network_dispatch(idx: int, gamble: Gamble):
         courier_order_embedding_dim=64,
         device=None,
     )
-    dsp = NeuralSequantialDispatch(encoder=encoder, network=net)
+    dsp = NeuralSequantialDispatch(encoder=encoder, network=net, max_num_points_in_route=4)
     dsp(gamble).ids

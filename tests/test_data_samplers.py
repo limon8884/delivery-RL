@@ -7,6 +7,7 @@ BASE_DTTM = datetime.utcnow()
 
 
 CFG_DUMMY = {
+    'sampler_mode': 'dummy',
     'num_sampler': {
         'num_couriers': 3,
         'num_claims': 5,

@@ -125,7 +125,10 @@ class Simulator(object):
             else:
                 assert courier_id in self.courier_id_to_order_id
                 order = self.active_orders[self.courier_id_to_order_id[courier_id]]
-                self.route_maker.add_claim(order.route, order.courier.position, claim)
+                if not order.courier.is_time_off():
+                    self.route_maker.add_claim(order.route, order.courier.position, claim)
+                    order.claims[claim_id] = claim
+                    claim.assign()
             del self.unassigned_claims[claim_id]
 
     def _next_free_couriers(self) -> None:

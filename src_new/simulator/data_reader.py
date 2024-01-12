@@ -55,10 +55,10 @@ class DataReader:
         raise NotImplementedError
 
     @staticmethod
-    def from_config(config_path: Path, logger: typing.Optional[Logger] = None) -> 'DataReader':
+    def from_config(config_path: Path, sampler_mode: str, logger: typing.Optional[Logger] = None) -> 'DataReader':
         with open(config_path, 'r') as f:
             cfg = json.load(f)
-        sampler = CityStampSampler(logger=logger, cfg=cfg['sampler'])
+        sampler = CityStampSampler(logger=logger, cfg=cfg[sampler_mode])
         start_dttm = datetime.fromisoformat(cfg['start_dttm'])
         return DataReader(mode=DataReader.Mode.CONFIG, logger=logger, sampler=sampler, start_dttm=start_dttm)
 

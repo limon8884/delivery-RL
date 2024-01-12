@@ -2,8 +2,9 @@ from src_new.objects import Route, Point, Claim
 
 
 class BaseRouteMaker:
-    def __init__(self, max_points_lenght: int) -> None:
+    def __init__(self, max_points_lenght: int, cutoff_radius: float) -> None:
         self.max_points_lenght = max_points_lenght
+        self.cutoff_radius = cutoff_radius
 
     def add_claim(self, route: Route, courier_position: Point, new_claim: Claim) -> None:
         '''
@@ -20,7 +21,9 @@ class AppendRouteMaker(BaseRouteMaker):
         source_route_point = Route.RoutePoint(new_claim.source_point, new_claim.id, Route.PointType.SOURCE)
         destination_route_point = Route.RoutePoint(new_claim.destination_point,
                                                    new_claim.id, Route.PointType.DESTINATION)
-        next_point_idx = 1 if route.next_route_point().point is courier_position else 0
+        next_point_idx = 1 \
+            if Point.distance(route.next_route_point().point, courier_position) < self.cutoff_radius \
+            else 0
 
         best_idxs: tuple[int, int] = (-1, -1)
         best_dist = 1e10

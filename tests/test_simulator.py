@@ -94,7 +94,7 @@ def test_simulator_step_by_step(tmp_path):
         }
         json.dump(config, f)
     reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, logger=None)
-    route_maker = BaseRouteMaker(max_points_lenght=0)  # empty route_maker
+    route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=None)
     dsp = HungarianDispatch(DistanceScorer())
 
@@ -183,7 +183,7 @@ def test_simulator_full_run_wo_db(tmp_path):
     ]
 
     reader = DataReader.from_list(couriers, claims, logger=None)
-    route_maker = BaseRouteMaker(max_points_lenght=0)  # empty route_maker
+    route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=None)
     dsp = HungarianDispatch(DistanceScorer())
 
@@ -227,7 +227,7 @@ def test_simulator_full_run_with_db(tmp_path):
     # db = Database(db_path)
     logger = Logger(run_id=-1)
     reader = DataReader.from_list(couriers, claims, logger=logger)
-    route_maker = BaseRouteMaker(max_points_lenght=0)  # empty route_maker
+    route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
     dsp = HungarianDispatch(DistanceScorer())
 
