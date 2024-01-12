@@ -15,7 +15,7 @@ from src_new.networks.bodies import SimpleSequentialMLP
 
 def run_dsp(dsp: BaseDispatch, config_path: Path, db_path: Path, run_id: int, max_num_points_in_route: int) -> None:
     logger = Logger(run_id=run_id)
-    reader = DataReader.from_config(config_path=config_path, sampler_mode='dummy_sampler', logger=logger)
+    reader = DataReader.from_config(config_path=config_path, sampler_mode='distr_sampler', logger=logger)
     route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
     try:
@@ -61,9 +61,9 @@ def main():
         courier_order_embedding_dim=net_cfg['courier_order_embedding_dim'],
         device=None,
     )
-    run_dsp(NeuralSequantialDispatch(encoder=encoder, network=net, max_num_points_in_route=max_num_points_in_route),
-            simulator_config_path, db_path, run_id=3,
-            max_num_points_in_route=max_num_points_in_route)
+    # run_dsp(NeuralSequantialDispatch(encoder=encoder, network=net, max_num_points_in_route=max_num_points_in_route),
+    #         simulator_config_path, db_path, run_id=3,
+    #         max_num_points_in_route=max_num_points_in_route)
 
 
 def debug():

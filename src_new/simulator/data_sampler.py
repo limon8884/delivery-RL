@@ -2,6 +2,7 @@ import random
 import typing
 from datetime import datetime, timedelta
 from typing import Any
+from scipy import stats
 
 from src_new.simulator.utils import CityStamp
 from src_new.objects import (
@@ -42,10 +43,10 @@ class BaseWaitingTimeSampler():
     def __init__(self, cfg: dict[str, typing.Any]) -> None:
         pass
 
-    def sample_waiting_time_on_souce(self) -> datetime:
+    def sample_waiting_time_on_souce(self) -> timedelta:
         raise NotImplementedError
 
-    def sample_waiting_time_on_destination(self) -> datetime:
+    def sample_waiting_time_on_destination(self) -> timedelta:
         raise NotImplementedError
 
 
@@ -53,10 +54,10 @@ class BaseNumSampler:
     def __init__(self, cfg: dict[str, typing.Any]) -> None:
         pass
 
-    def sample_num_couriers(self, dttm: datetime) -> int:
+    def sample_num_couriers(self, from_dttm: datetime, to_dttm: datetime) -> int:
         raise NotImplementedError
 
-    def sample_num_claims(self, dttm: datetime) -> int:
+    def sample_num_claims(self, from_dttm: datetime, to_dttm: datetime) -> int:
         raise NotImplementedError
 
 
@@ -99,10 +100,10 @@ class DummyWaitingTimeSampler(BaseWaitingTimeSampler):
         self.source_waiting_timedelta = timedelta(seconds=cfg['waiting_time_on_source_secs'])
         self.destination_waiting_timedelta = timedelta(seconds=cfg['waiting_time_on_destination_secs'])
 
-    def sample_waiting_time_on_souce(self) -> datetime:
+    def sample_waiting_time_on_souce(self) -> timedelta:
         return self.source_waiting_timedelta
 
-    def sample_waiting_time_on_destination(self) -> datetime:
+    def sample_waiting_time_on_destination(self) -> timedelta:
         return self.destination_waiting_timedelta
 
 
@@ -111,58 +112,95 @@ class DummyNumSampler(BaseNumSampler):
         self.num_couriers = cfg['num_couriers']
         self.num_claims = cfg['num_claims']
 
-    def sample_num_couriers(self, dttm: datetime) -> int:
+    def sample_num_couriers(self, from_dttm: datetime, to_dttm: datetime) -> int:
         return self.num_couriers
 
-    def sample_num_claims(self, dttm: datetime) -> int:
+    def sample_num_claims(self, from_dttm: datetime, to_dttm: datetime) -> int:
         return self.num_claims
 
 
 class DistributionPositionSampler(BasePositionSampler):
     def __init__(self, cfg: dict[str, Any]) -> None:
-        pass
+        self.squares: list[tuple[Point, Point]] = []
+        self.source_square_probas: list[float] = []
+        self.destination_square_probas: list[float] = []
+        self.left_lower = Point(cfg['bounds']['left'], cfg['bounds']['lower'])
+        self.right_upper = Point(cfg['bounds']['right'], cfg['bounds']['upper'])
+
+        delta_lat = Point(0.0, (cfg['bounds']['upper'] - cfg['bounds']['lower']) / cfg['num_squares_lat'])
+        delta_lon = Point((cfg['bounds']['right'] - cfg['bounds']['left']) / cfg['num_squares_lon'], 0.0)
+        for i in range(cfg['num_squares_lon']):
+            for j in range(cfg['num_squares_lat']):
+                self.squares.append((
+                    self.left_lower + delta_lon * i + delta_lat * j,
+                    self.left_lower + delta_lon * (i + 1) + delta_lat * (j + 1)
+                ))
+                self.source_square_probas.append(cfg['source_squares_probs'][i][j])
+                self.destination_square_probas.append(cfg['destination_squares_probs'][i][j])
 
     def sample_claim_source_point(self) -> Point:
-        pass
+        square_idx = random.randint(0, len(self.source_square_probas) - 1)
+        return get_random_point(self.squares[square_idx])
 
     def sample_claim_destination_point(self) -> Point:
-        pass
+        square_idx = random.randint(0, len(self.destination_square_probas) - 1)
+        return get_random_point(self.squares[square_idx])
 
     def sample_courier_start_position(self) -> Point:
-        pass
+        return get_random_point((self.left_lower, self.right_upper))
 
 
 class DistributionDoneDTTMSampler(BaseDoneDTTMSampler):
     def __init__(self, cfg: dict[str, Any]) -> None:
-        pass
+        self.cfg = cfg
 
     def sample_claim_cancell_dttm(self, dttm: datetime) -> datetime:
-        pass
+        cfg = self.cfg['cancell_claim_time_secs_distrs']
+        distr_idx = random.choices(range(len(cfg)), weights=[d['probability'] for d in cfg])[0]
+        distr = getattr(stats, cfg[distr_idx]['distribution'])
+        secs = distr.rvs(**(cfg[distr_idx]['params']), size=1)[0]
+        return dttm + timedelta(seconds=secs)
 
     def sample_courier_end_dttm(self, dttm: datetime) -> datetime:
-        pass
+        cfg = self.cfg['courier_end_time_secs_distrs']
+        distr_idx = random.choices(range(len(cfg)), weights=[d['probability'] for d in cfg])[0]
+        distr = getattr(stats, cfg[distr_idx]['distribution'])
+        secs = distr.rvs(**(cfg[distr_idx]['params']), size=1)[0]
+        return dttm + timedelta(seconds=secs)
 
 
 class DistributionWaitingTimeSampler(BaseWaitingTimeSampler):
     def __init__(self, cfg: dict[str, Any]) -> None:
-        pass
+        self.cfg = cfg
 
     def sample_waiting_time_on_souce(self) -> datetime:
-        pass
+        cfg = self.cfg['waiting_time_on_source_secs_distr']
+        distr = getattr(stats, cfg['distribution'])
+        secs = distr.rvs(**cfg['params'], size=1)[0]
+        return timedelta(seconds=secs)
 
     def sample_waiting_time_on_destination(self) -> datetime:
-        pass
+        cfg = self.cfg['waiting_time_on_destination_secs']
+        distr = getattr(stats, cfg['distribution'])
+        secs = distr.rvs(**cfg['params'], size=1)[0]
+        return timedelta(seconds=secs)
 
 
 class DistributionNumSampler(BaseNumSampler):
     def __init__(self, cfg: dict[str, Any]) -> None:
-        pass
+        self.cfg = cfg
 
-    def sample_num_claims(self, dttm: datetime) -> int:
-        pass
+    def sample_num_claims(self, from_dttm: datetime, to_dttm: datetime) -> int:
+        cfg = self.cfg['claims']
+        mean_num = cfg['hourly_intensivity'][from_dttm.hour] * cfg['total_daily_num']
+        variation = (2 * random.random() - 1) * cfg['epsilon_variation']
+        return int(mean_num * variation)
 
-    def sample_num_couriers(self, dttm: datetime) -> int:
-        pass
+    def sample_num_couriers(self, from_dttm: datetime, to_dttm: datetime) -> int:
+        cfg = self.cfg['couriers']
+        mean_num = cfg['hourly_intensivity'][from_dttm.hour] * cfg['total_daily_num']
+        variation = (2 * random.random() - 1) * cfg['epsilon_variation']
+        return int(mean_num * variation)
 
 
 class CityStampSampler:
@@ -177,7 +215,7 @@ class CityStampSampler:
             self._done_dttm_sampler = DummyDoneDTTMSampler(cfg['done_dttm_sampler'])
             self._waiting_time_sampler = DummyWaitingTimeSampler(cfg['waiting_time_sampler'])
         elif cfg['sampler_mode'] == 'distribution':
-            self._num_sampler = DistributionPositionSampler(cfg['num_sampler'])
+            self._num_sampler = DistributionNumSampler(cfg['num_sampler'])
             self._pos_sampler = DistributionPositionSampler(cfg['pos_sampler'])
             self._done_dttm_sampler = DistributionDoneDTTMSampler(cfg['done_dttm_sampler'])
             self._waiting_time_sampler = DistributionWaitingTimeSampler(cfg['waiting_time_sampler'])
@@ -185,8 +223,8 @@ class CityStampSampler:
             raise RuntimeError('No such sampler mode')
 
     def sample_citystamp(self, from_dttm: datetime, to_dttm: datetime) -> CityStamp:
-        num_couriers = self._num_sampler.sample_num_couriers(from_dttm)
-        num_claims = self._num_sampler.sample_num_claims(from_dttm)
+        num_couriers = self._num_sampler.sample_num_couriers(from_dttm, to_dttm)
+        num_claims = self._num_sampler.sample_num_claims(from_dttm, to_dttm)
         claims = [self._sample_claim(self._random_dttm(from_dttm, to_dttm)) for _ in range(num_claims)]
         couriers = [self._sample_courier(self._random_dttm(from_dttm, to_dttm)) for _ in range(num_couriers)]
         return CityStamp(from_dttm, to_dttm, couriers, claims)

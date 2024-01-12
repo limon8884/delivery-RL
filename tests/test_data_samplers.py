@@ -29,8 +29,109 @@ CFG_DUMMY = {
 }
 
 
+CFG_DISTR = {
+    "sampler_mode": "distribution",
+    "num_sampler": {
+        "couriers": {
+            "epsilon_variation": 0.2,
+            "total_daily_num": 24 * 60 * 20,
+            "hourly_intensivity": [i / 24 / 23 * 2 for i in range(24)]
+        },
+        "claims": {
+            "epsilon_variation": 0.1,
+            "total_daily_num": 60 * 24 * 10,
+            "hourly_intensivity": [i / 24 / 23 * 2 for i in reversed(range(24))]
+        }
+    },
+    "pos_sampler": {
+        "bounds": {
+            "left": 37.4,
+            "lower": 55.6,
+            "right": 37.8,
+            "upper": 55.9
+        },
+        "num_squares_lat": 5,
+        "num_squares_lon": 5,
+        "source_squares_probs": [
+            [0, 0, 0, 0, 0],
+            [0, 0.1, 0.1, 0.1, 0],
+            [0, 0.1, 0.2, 0.1, 0],
+            [0, 0.1, 0.1, 0.1, 0],
+            [0, 0, 0, 0, 0]
+        ],
+        "destination_squares_probs": [
+            [0, 0, 0, 0, 0],
+            [0, 0.1, 0.1, 0.1, 0],
+            [0, 0.1, 0.2, 0.1, 0],
+            [0, 0.1, 0.1, 0.1, 0],
+            [0, 0, 0, 0, 0]
+        ],
+    },
+    "done_dttm_sampler": {
+        "cancell_claim_time_secs_distrs": [
+            {
+                "distribution": "expon",
+                "probability": 1.0,
+                "params": {
+                    "loc": 1.0,
+                    "scale": 1000.0
+                }
+            }
+        ],
+        "courier_end_time_secs_distrs": [
+            {
+                "distribution": "lognorm",
+                "probability": 0.5,
+                "params": {
+                    "s": 0.9,
+                    "loc": -1800,
+                    "scale": 9000
+                }
+            },
+            {
+                "distribution": "norm",
+                "probability": 0.5,
+                "params": {
+                    "loc": 35000,
+                    "scale": 12000
+                }
+            }
+        ]
+    },
+    "waiting_time_sampler": {
+        "waiting_time_on_source_secs_distr": {
+            "distribution": "gamma",
+            "params": {
+                "a": 0.91,
+                "loc": 1.0,
+                "scale": 492.0
+            }
+        },
+        "waiting_time_on_destination_secs": {
+            "distribution": "gamma",
+            "params": {
+                "a": 1.76,
+                "loc": -8.8,
+                "scale": 127.2
+            }
+        }
+    }
+}
+
+
 def test_dummy_sampler():
     smp = CityStampSampler(logger=None, cfg=CFG_DUMMY)
+    smp.sample_citystamp(BASE_DTTM, BASE_DTTM + timedelta(seconds=30))
+
+    n_stamps = 50
+    _ = [
+        smp.sample_citystamp(BASE_DTTM + timedelta(seconds=i * 30), BASE_DTTM + timedelta(seconds=30 + i * 30))
+        for i in range(n_stamps)
+    ]
+
+
+def test_distribution_sampler():
+    smp = CityStampSampler(logger=None, cfg=CFG_DISTR)
     smp.sample_citystamp(BASE_DTTM, BASE_DTTM + timedelta(seconds=30))
 
 

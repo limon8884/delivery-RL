@@ -13,6 +13,9 @@ from src_new.database.sql_metrics_queries import (
 )
 
 
+BUCKET_QUERY_SQLITE_SIZE = 100
+
+
 class Database:
     def __init__(self, path: Path) -> None:
         self._connection = sqlite3.connect(path)
@@ -41,13 +44,16 @@ class Database:
         if len(logger.data[tablename.value]) == 0:
             return
         cursor = self._connection.cursor()
-        sql = f'INSERT INTO {tablename.value} VALUES ' + '(?, ?, ?, ?), ' * len(logger.data[tablename.value])
-        sql = sql[:-2] + ';\n'
-        args = []
-        for row in logger.data[tablename.value]:
-            args.append(logger.run_id)
-            args.extend(row)
-        cursor.execute(sql, args)
+        for bucket_idx in range(0, len(logger.data[tablename.value]), BUCKET_QUERY_SQLITE_SIZE):
+            data = logger.data[tablename.value][bucket_idx:bucket_idx + BUCKET_QUERY_SQLITE_SIZE]
+            sql = f'INSERT INTO {tablename.value} VALUES ' + '(?, ?, ?, ?), ' * len(data)
+            sql = sql[:-2] + ';\n'
+            args = []
+            for row in data:
+                args.append(logger.run_id)
+                args.extend(row)
+            cursor.execute(sql, args)
+
         cursor.close()
 
     def select(self, sql: str, select_one=False):

@@ -24,6 +24,7 @@
         "sampler_mode": "distribution",
         "num_sampler": {
             "couriers": {
+                "epsilon_variation": 0.1,
                 "total_daily_num": 70000,
                 "hourly_intensivity": [
                     0.01893211875102892, 
@@ -53,6 +54,7 @@
                 ]
             },
             "claims": {
+                "epsilon_variation": 0.1,
                 "total_daily_num": 390000,
                 "hourly_intensivity": [
                     0.002388557720455847, 
