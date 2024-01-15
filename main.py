@@ -8,9 +8,9 @@ from src_new.database.database import Database, Metric, Logger
 from src_new.dispatchs.hungarian_dispatch import HungarianDispatch, BaseDispatch
 from src_new.dispatchs.greedy_dispatch import GreedyDispatch
 from src_new.dispatchs.scorers import DistanceScorer
-from src_new.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
+# from src_new.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src_new.networks.encoders import GambleEncoder
-from src_new.networks.bodies import SimpleSequentialMLP
+from src_new.networks.networks import SimpleSequentialMLP
 
 
 def run_dsp(dsp: BaseDispatch, config_path: Path, db_path: Path, run_id: int, max_num_points_in_route: int) -> None:

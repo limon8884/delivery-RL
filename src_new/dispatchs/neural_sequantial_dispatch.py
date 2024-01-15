@@ -4,12 +4,12 @@ import torch
 from src_new.dispatchs.base_dispatch import BaseDispatch
 # from src_new.dispatchs.scorers import BaseScorer
 from src_new.objects import (
-    Order,
+    # Order,
     Gamble,
     Assignment,
 )
 from src_new.networks.encoders import GambleEncoder
-from src_new.networks.bodies import BaseSequentialDispatchNetwork
+from src_new.networks.networks import BaseSequentialDispatchNetwork
 
 
 class NeuralSequantialDispatch(BaseDispatch):

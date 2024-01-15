@@ -8,7 +8,7 @@ from src_new.dispatchs.hungarian_dispatch import HungarianDispatch
 from src_new.dispatchs.greedy_dispatch import GreedyDispatch
 from src_new.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src_new.networks.encoders import GambleEncoder
-from src_new.networks.bodies import SimpleSequentialMLP
+from src_new.networks.networks import SimpleSequentialMLP
 from src_new.objects import (
     Gamble,
     Courier,

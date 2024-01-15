@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from src_new.objects import Point, Courier, Route, Order, Claim, Gamble
 from src_new.utils import get_random_point
 from src_new.networks.encoders import GambleEncoder
-from src_new.networks.bodies import SimpleSequentialMLP
+from src_new.networks.networks import SimpleSequentialMLP
 
 
 BASE_DTTM = datetime.utcnow()
