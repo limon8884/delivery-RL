@@ -129,3 +129,46 @@ def test_with_logger():
     # assert res[0] == (0, Event.COURIER_STARTED.value)
     # assert res[1] == (0, Event.COURIER_ENDED.value)
     # assert len(res) == 2
+
+
+def test_to_numpy():
+    clm = Claim(0, Point(0, 0), Point(1, 1),
+                CREATION_TIME, CREATION_TIME + timedelta(seconds=10), timedelta(seconds=1), timedelta(seconds=1))
+    assert clm.to_numpy().shape == (6,)
+
+    crr = Courier(0, Point(0, 0), CREATION_TIME, CREATION_TIME + timedelta(seconds=2), 'auto')
+    assert crr.to_numpy().shape == (4,)
+
+    claims = [
+        Claim(i, get_random_point(), get_random_point(),
+              CREATION_TIME, CREATION_TIME + timedelta(days=1),
+              timedelta(seconds=1), timedelta(seconds=1))
+        for i in range(3)
+        ]
+    rt: Route = Route.from_points(
+        [c.source_point for c in claims] + [c.destination_point for c in claims],
+        [c.id for c in claims] + [c.id for c in claims],
+        [Route.PointType.SOURCE] * 3 + [Route.PointType.DESTINATION] * 3
+    )
+    ord = Order(0, CREATION_TIME, crr, rt, claims)
+    assert ord.to_numpy(max_num_points_in_route=10).shape == (26,)
+
+
+def test_numpy_features_type():
+    crr_values = []
+    for (l, r) in Courier.numpy_feature_types().keys():
+        for i in range(l, r):
+            crr_values.append(i)
+    assert sorted(crr_values) == list(range(4))
+
+    clm_values = []
+    for (l, r) in Claim.numpy_feature_types().keys():
+        for i in range(l, r):
+            clm_values.append(i)
+    assert sorted(clm_values) == list(range(6))
+
+    ord_values = []
+    for (l, r) in Order.numpy_feature_types(10).keys():
+        for i in range(l, r):
+            ord_values.append(i)
+    assert sorted(ord_values) == list(range(26))

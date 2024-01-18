@@ -1,8 +1,10 @@
 import typing
+import numpy as np
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
 from collections import deque
+
 
 from src_new.database.classes import TableName, Event
 from src_new.database.logger import Logger
@@ -133,12 +135,26 @@ class Item:
         '''
         raise NotImplementedError
 
+    def to_numpy(self) -> np.ndarray:
+        '''
+        Makes a numpy view of a class
+        '''
+        raise NotImplementedError
+
+    @staticmethod
+    def numpy_feature_types(*args, **kwargs) -> dict[tuple[int, int], str]:
+        '''
+        Describes on which position of numpy view of this class which types of numbers are encoded
+        Returns a dict of elements, where key is [from_idx, to_idx) and value is either `number` or `coord`
+        '''
+        raise NotImplementedError
+
 
 class Courier(Item):
     class Status(Enum):
-        FREE = 'free'
-        PROCESS = 'process'
-        OFFLINE = 'offline'
+        FREE = 0
+        PROCESS = 1
+        OFFLINE = 2
 
     def __init__(self,
                  id: int,
@@ -149,6 +165,7 @@ class Courier(Item):
                  logger: typing.Optional[Logger] = None,
                  ) -> None:
         super().__init__(id, logger)
+        self._dttm = start_dttm
         self.position = position
         self.start_dttm = start_dttm
         self.end_dttm = end_dttm
@@ -176,13 +193,25 @@ class Courier(Item):
     def done(self) -> bool:
         return self.status is Courier.Status.OFFLINE
 
+    def to_numpy(self) -> np.ndarray:
+        status_num = self.status.value
+        online_secs_num = (self._dttm - self.end_dttm).total_seconds()
+        return np.array([self.position.x, self.position.y, status_num, online_secs_num])
+
+    @staticmethod
+    def numpy_feature_types() -> dict[tuple[int, int], str]:
+        return {
+            (0, 2): 'coords',
+            (2, 4): 'numbers',
+        }
+
 
 class Claim(Item):
     class Status(Enum):
-        UNASSIGNED = 'unassigned'
-        ASSIGNED = 'assigned'
-        COMPLETED = 'completed'
-        CANCELLED = 'cancelled'
+        UNASSIGNED = 0
+        ASSIGNED = 1
+        COMPLETED = 2
+        CANCELLED = 3
 
     def __init__(self,
                  id: int,
@@ -195,6 +224,7 @@ class Claim(Item):
                  logger: typing.Optional[Logger] = None,
                  ) -> None:
         super().__init__(id, logger)
+        self._dttm = creation_dttm
         self.source_point = source_point
         self.destination_point = destination_point
         self.creation_dttm = creation_dttm
@@ -234,12 +264,31 @@ class Claim(Item):
     def done(self) -> bool:
         return self.status in (Claim.Status.COMPLETED, Claim.Status.CANCELLED)
 
+    def to_numpy(self) -> np.ndarray:
+        status_num = self.status.value
+        online_secs_num = (self._dttm - self.creation_dttm).total_seconds()
+        return np.array([
+            self.source_point.x,
+            self.source_point.y,
+            self.destination_point.x,
+            self.destination_point.y,
+            status_num,
+            online_secs_num
+        ])
+
+    @staticmethod
+    def numpy_feature_types() -> dict[tuple[int, int], str]:
+        return {
+            (0, 4): 'coords',
+            (4, 6): 'numbers',
+        }
+
 
 class Order(Item):
     class Status(Enum):
-        IN_ARRIVAL = 'in_arrival'
-        IN_PROCESS = 'in_process'
-        COMPLETED = 'completed'
+        IN_ARRIVAL = 0
+        IN_PROCESS = 1
+        COMPLETED = 2
 
     def __init__(self,
                  id: int,
@@ -331,6 +380,31 @@ class Order(Item):
         self.courier.set_position(next_point)
         self.status = Order.Status.IN_PROCESS
         return seconds_to_act
+
+    def to_numpy(self, max_num_points_in_route: int) -> np.ndarray:
+        crr_tens = self.courier.to_numpy()
+        status_num = self.status.value
+        online_secs_num = (self._dttm - self.creation_dttm).total_seconds()
+        assert len(self.route.route_points) <= max_num_points_in_route, len(self.route.route_points)
+        point_coords = []
+        for point_idx in range(max_num_points_in_route):
+            if point_idx < len(self.route.route_points):
+                point_coords.append(self.route.route_points[point_idx].point.x)
+                point_coords.append(self.route.route_points[point_idx].point.y)
+            else:
+                point_coords.append(0)
+                point_coords.append(0)
+
+        pts_tens = np.array([status_num, online_secs_num] + point_coords)
+        return np.concatenate([crr_tens, pts_tens], axis=-1)
+
+    @staticmethod
+    def numpy_feature_types(max_num_points_in_route: int) -> dict[tuple[int, int], str]:
+        crr_np_dim = max(r for _, r in Courier.numpy_feature_types().keys())
+        return Courier.numpy_feature_types() | {
+            (crr_np_dim, crr_np_dim + 2): 'coords',
+            (crr_np_dim + 2, crr_np_dim + 2 + 2 * max_num_points_in_route): 'numbers',
+        }
 
 
 @dataclass

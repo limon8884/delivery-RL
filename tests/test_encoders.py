@@ -1,15 +1,12 @@
-import torch
-import torch.nn as nn
-import random
+# import torch
+# import torch.nn as nn
+import numpy as np
 from datetime import datetime, timedelta
 
 from src_new.networks.encoders import (
-    PointEncoder,
+    CoordEncoder,
     NumberEncoder,
-    CourierEncoder,
-    RouteEncoder,
-    CourierOrderEncoder,
-    ClaimEncoder,
+    ItemEncoder,
     GambleEncoder,
 )
 from src_new.objects import Point, Courier, Route, Order, Claim, Gamble
@@ -20,26 +17,20 @@ BASE_DTTM = datetime.utcnow()
 
 
 def test_point_encoder():
-    enc = PointEncoder(point_embedding_dim=64, device=None)
-    for _ in range(10):
-        p = get_random_point()
-        v = enc(p)
-        assert v.shape == (64,)
+    enc = CoordEncoder(coords_np_dim=10, coords_embedding_dim=64, device=None)
+    coords = np.random.randn(3, 10)
+    assert enc(coords).shape == (3, 64)
 
 
 def test_number_encoder():
-    enc = NumberEncoder(number_embedding_dim=8, device=None)
-    for _ in range(10):
-        x = random.random()
-        v = enc(x)
-        assert v.shape == (8,)
-        x = random.randint(-10, 10)
-        v = enc(x)
-        assert v.shape == (8,)
+    enc = NumberEncoder(numbers_np_dim=2, number_embedding_dim=8, device=None)
+    nums = np.random.randn(3, 2)
+    assert enc(nums).shape == (3, 8)
 
 
 def test_courier_encoder():
-    enc = CourierEncoder(courier_embedding_dim=128, point_embedding_dim=64, number_embedding_dim=8, device=None)
+    enc = ItemEncoder(feature_types=Courier.numpy_feature_types(),
+                      item_embedding_dim=32, point_embedding_dim=16, number_embedding_dim=8, device=None)
     crr = Courier(
         id=0,
         position=Point(0.5, -1.5),
@@ -47,8 +38,8 @@ def test_courier_encoder():
         end_dttm=BASE_DTTM + timedelta(days=1),
         courier_type='auto',
     )
-    emb = enc(crr, BASE_DTTM + timedelta(seconds=10))
-    assert emb.shape == (128,)
+    emb = enc(crr.to_numpy().reshape(1, -1))
+    assert emb.shape == (1, 32)
 
 
 TEST_ROUTE = Route.from_points(
@@ -72,23 +63,15 @@ TEST_ROUTE = Route.from_points(
 )
 
 
-def test_route_encoder():
-    enc = RouteEncoder(route_embedding_dim=64, point_embedding_dim=32,
-                       number_embedding_dim=4, max_num_points_in_route=8, device=None)
-    emb = enc(TEST_ROUTE)
-    assert emb.shape == (64, )
-
-
-def test_courierOrder_encoder():
-    enc = CourierOrderEncoder(
-        embedding_dim=64,
-        courier_embedding_dim=32,
-        route_embedding_dim=64,
+def test_order_encoder():
+    enc = ItemEncoder(
+        feature_types=Order.numpy_feature_types(max_num_points_in_route=8),
+        item_embedding_dim=64,
         point_embedding_dim=32,
         number_embedding_dim=4,
-        max_num_points_in_route=8,
         device=None,
     )
+    
     courier = Courier(
         id=0,
         position=Point(0.0, 1.0),
@@ -96,9 +79,6 @@ def test_courierOrder_encoder():
         end_dttm=BASE_DTTM + timedelta(seconds=10),
         courier_type='auto',
     )
-    crr_emb = enc(courier, BASE_DTTM)
-    assert crr_emb.shape == (64,)
-
     order = Order(
         id=0,
         creation_dttm=BASE_DTTM - timedelta(seconds=10),
@@ -106,12 +86,18 @@ def test_courierOrder_encoder():
         route=TEST_ROUTE,
         claims=[],
     )
-    ord_emb = enc(order, BASE_DTTM)
-    assert ord_emb.shape == (64,)
+    ord_emb = enc(order.to_numpy(max_num_points_in_route=8).reshape(1, -1))
+    assert ord_emb.shape == (1, 64)
 
 
 def test_claim_encoder():
-    enc = ClaimEncoder(64, 32, 4, device=None)
+    enc = ItemEncoder(
+        Claim.numpy_feature_types(),
+        item_embedding_dim=64,
+        point_embedding_dim=32,
+        number_embedding_dim=4,
+        device=None,
+    )
     claim = Claim(
         id=0,
         source_point=Point(0.0, 1.0),
@@ -122,8 +108,8 @@ def test_claim_encoder():
         waiting_on_point_destination=timedelta(seconds=0),
     )
 
-    emb = enc(claim, BASE_DTTM)
-    assert emb.shape == (64,)
+    emb = enc(claim.to_numpy().reshape(1, -1))
+    assert emb.shape == (1, 64)
 
 
 def make_courier(i):
@@ -144,7 +130,15 @@ def make_route(i):
 
 
 def test_gamble_encoder():
-    enc = GambleEncoder(64, 32, 32, 64, 16, 4, 8, device=None)
+    enc = GambleEncoder(
+        order_embedding_dim=64,
+        claim_embedding_dim=32,
+        courier_embedding_dim=32,
+        point_embedding_dim=8,
+        number_embedding_dim=4,
+        max_num_points_in_route=10,
+        device=None,
+        )
     gamble = Gamble(
         couriers=[make_courier(i) for i in range(5)],
         orders=[
@@ -156,11 +150,14 @@ def test_gamble_encoder():
         dttm_start=BASE_DTTM,
         dttm_end=BASE_DTTM + timedelta(seconds=30),
     )
-    emb_dict = enc(gamble)
+
+    d = {
+        'crr': np.stack([crr.to_numpy() for crr in gamble.couriers], axis=0),
+        'clm': np.stack([clm.to_numpy() for clm in gamble.claims], axis=0),
+        'ord': np.stack([ord.to_numpy(max_num_points_in_route=10) for ord in gamble.orders], axis=0),
+    }
+    emb_dict = enc(d)
     assert isinstance(emb_dict, dict)
-    assert isinstance(emb_dict['couriers'], list) and len(emb_dict['couriers']) == 5
-    assert isinstance(emb_dict['orders'], list) and len(emb_dict['orders']) == 3
-    assert isinstance(emb_dict['claims'], list) and len(emb_dict['claims']) == 4
-    assert emb_dict['couriers'][0].shape == (64,)
-    assert emb_dict['orders'][0].shape == (64,)
-    assert emb_dict['claims'][0].shape == (32,)
+    assert emb_dict['crr'].shape == (5, 32)
+    assert emb_dict['clm'].shape == (4, 32)
+    assert emb_dict['ord'].shape == (3, 64)
