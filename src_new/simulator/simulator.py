@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from datetime import timedelta, datetime
 from tqdm import tqdm
+from collections import defaultdict
 
 from src_new.objects import (
     Claim,
@@ -27,6 +28,7 @@ class Simulator(object):
         self.data_reader = data_reader
         self._config_path = config_path
         self._logger = logger
+        self.assignment_statistics: dict[str, float] = defaultdict(float)
         self.reset()
 
     def reset(self) -> None:
@@ -56,6 +58,7 @@ class Simulator(object):
         city_stamp = self.data_reader.get_next_city_stamp(self.gamble_interval)
         self._current_gamble_begin_dttm = city_stamp.from_dttm
         self._current_gamble_end_dttm = city_stamp.to_dttm
+        self.assignment_statistics = defaultdict(float)
 
         self._assign_active_orders(assignments)
         self._set_new_couriers(city_stamp.couriers)
@@ -105,6 +108,7 @@ class Simulator(object):
                 if not order.courier.done():
                     self.free_couriers[order.courier.id] = order.courier
                 del self.active_orders[order_id]
+                self.assignment_statistics['completed_claims'] += len(order.claims)
 
     def _assign_active_orders(self, assignments: Assignment) -> None:
         for courier_id, claim_id in assignments.ids:
@@ -150,6 +154,8 @@ class Simulator(object):
             claim.next(self._current_gamble_end_dttm)
             if claim.done():
                 del self.unassigned_claims[claim_id]
+                self.assignment_statistics['completed_claims'] += 1
+            self.assignment_statistics['assigned_claims'] += 1
 
     def _set_new_claims(self, new_claims: list[Claim]) -> None:
         for claim in new_claims:

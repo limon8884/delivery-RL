@@ -209,16 +209,15 @@ class ItemEncoder(nn.Module):
 
 
 class GambleEncoder(nn.Module):
-    def __init__(self,
-                 order_embedding_dim,
-                 claim_embedding_dim,
-                 courier_embedding_dim,
-                 point_embedding_dim,
-                 number_embedding_dim,
-                 max_num_points_in_route,
-                 device,
-                 ) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__()
+        order_embedding_dim = kwargs['order_embedding_dim']
+        claim_embedding_dim = kwargs['claim_embedding_dim']
+        courier_embedding_dim = kwargs['courier_embedding_dim']
+        point_embedding_dim = kwargs['point_embedding_dim']
+        number_embedding_dim = kwargs['number_embedding_dim']
+        max_num_points_in_route = kwargs['max_num_points_in_route']
+        device = kwargs['device']
         self.claim_encoder = ItemEncoder(
             feature_types=Claim.numpy_feature_types(),
             item_embedding_dim=claim_embedding_dim,
@@ -241,9 +240,9 @@ class GambleEncoder(nn.Module):
             device=device,
         )
 
-    def forward(self, gamble_np_dict: dict[str, np.ndarray]) -> dict[str, list[torch.FloatTensor]]:
+    def forward(self, gamble_np_dict: dict[str, np.ndarray | None]) -> dict[str, torch.FloatTensor | None]:
         return {
-            'crr': self.courier_encoder(gamble_np_dict['crr']),
+            'crr': self.courier_encoder(gamble_np_dict['crr']) if gamble_np_dict['crr'] is not None else None,
             'clm': self.claim_encoder(gamble_np_dict['clm']),
-            'ord': self.order_encoder(gamble_np_dict['ord']),
+            'ord': self.order_encoder(gamble_np_dict['ord']) if gamble_np_dict['ord'] is not None else None,
         }
