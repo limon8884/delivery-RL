@@ -402,8 +402,8 @@ class Order(Item):
     def numpy_feature_types(max_num_points_in_route: int) -> dict[tuple[int, int], str]:
         crr_np_dim = max(r for _, r in Courier.numpy_feature_types().keys())
         return Courier.numpy_feature_types() | {
-            (crr_np_dim, crr_np_dim + 2): 'coords',
-            (crr_np_dim + 2, crr_np_dim + 2 + 2 * max_num_points_in_route): 'numbers',
+            (crr_np_dim, crr_np_dim + 2): 'numbers',
+            (crr_np_dim + 2, crr_np_dim + 2 + 2 * max_num_points_in_route): 'coords',
         }
 
 

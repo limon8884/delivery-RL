@@ -129,6 +129,8 @@ class Simulator(object):
             else:
                 assert courier_id in self.courier_id_to_order_id
                 order = self.active_orders[self.courier_id_to_order_id[courier_id]]
+                if len(order.route.route_points) > self.route_maker.max_points_lenght - 2:
+                    continue
                 if not order.courier.is_time_off():
                     self.route_maker.add_claim(order.route, order.courier.position, claim)
                     order.claims[claim_id] = claim

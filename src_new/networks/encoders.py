@@ -78,7 +78,9 @@ class ItemEncoder(nn.Module):
         )
 
     def forward(self, item_np: np.ndarray) -> torch.FloatTensor:
-        assert item_np.ndim == 2 and item_np.shape[1] == len(self.coords_idxs) + len(self.numbers_idxs)
+        assert item_np.ndim == 2 and item_np.shape[1] == len(self.coords_idxs) + len(self.numbers_idxs), (
+            item_np.ndim, len(self.coords_idxs), len(self.numbers_idxs), item_np.shape[1]
+            )
         coords_emb = self.coord_encoder(item_np[:, self.coords_idxs])
         numbers_emb = self.number_encoder(item_np[:, self.numbers_idxs])
         x = torch.cat([coords_emb, numbers_emb], dim=-1)
@@ -216,7 +218,7 @@ class GambleEncoder(nn.Module):
         courier_embedding_dim = kwargs['courier_embedding_dim']
         point_embedding_dim = kwargs['point_embedding_dim']
         number_embedding_dim = kwargs['number_embedding_dim']
-        max_num_points_in_route = kwargs['max_num_points_in_route']
+        self.max_num_points_in_route = kwargs['max_num_points_in_route']
         device = kwargs['device']
         self.claim_encoder = ItemEncoder(
             feature_types=Claim.numpy_feature_types(),
@@ -233,9 +235,9 @@ class GambleEncoder(nn.Module):
             device=device,
         )
         self.order_encoder = ItemEncoder(
-            feature_types=Order.numpy_feature_types(max_num_points_in_route=max_num_points_in_route),
+            feature_types=Order.numpy_feature_types(max_num_points_in_route=self.max_num_points_in_route),
             item_embedding_dim=order_embedding_dim,
-            point_embedding_dim=point_embedding_dim * (1 + max_num_points_in_route),
+            point_embedding_dim=point_embedding_dim * (1 + self.max_num_points_in_route),
             number_embedding_dim=number_embedding_dim,
             device=device,
         )
