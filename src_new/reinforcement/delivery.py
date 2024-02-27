@@ -48,16 +48,18 @@ class DeliveryAction(Action):
 
 
 class DeliveryState(State):
-    def __init__(self, claim_emb: torch.FloatTensor, co_embs: list[torch.FloatTensor]) -> None:
+    def __init__(self, claim_emb: np.ndarray, couriers_embs: typing.Optional[np.ndarray],
+                 orders_embs: typing.Optional[np.ndarray]) -> None:
         self.claim_emb = claim_emb
-        self.co_embs = co_embs
+        self.couriers_embs = couriers_embs
+        self.orders_embs = orders_embs
 
 
 class DeliveryEnvironment(BaseEnvironment):
-    def __init__(self, simulator: Simulator, gamble_encoder: GambleEncoder, num_gambles: int, device) -> None:
+    def __init__(self, simulator: Simulator, max_num_points_in_route: int, num_gambles: int, device) -> None:
+        self.max_num_points_in_route = max_num_points_in_route
         self.num_gambles = num_gambles
         self.simulator = simulator
-        self.gamble_encoder = gamble_encoder
         self.device = device
         self.rewarder: typing.Callable[[dict[str, float]], float] = \
             lambda d: d['completed_claims'] + 0.1 * d['assigned_claims']
@@ -66,43 +68,32 @@ class DeliveryEnvironment(BaseEnvironment):
     def copy(self) -> 'DeliveryEnvironment':
         return DeliveryEnvironment(
             simulator=deepcopy(self.simulator),
-            gamble_encoder=self.gamble_encoder,
+            max_num_points_in_route=self.max_num_points_in_route,
             num_gambles=self.num_gambles,
             device=self.device,
-        )
-
-    def step(self, action: Action) -> tuple[DeliveryState, float, bool]:
-        self._make_assignment(action)
-        reward = self.rewarder(self.simulator.assignment_statistics)
-        done = False
-        emb_dict = self.gamble_encoder(self.gamble_dict)
-        co_embs, claim_embs = self._make_co_embs_and_clm_tensors(emb_dict)
-        if self._claim_idx == len(claim_embs):
-            self._update_next_gamble()
-            emb_dict = self.gamble_encoder(self.gamble_dict)
-            co_embs, claim_embs = self._make_co_embs_and_clm_tensors(emb_dict)
-        if self._iter == self.num_gambles:
-            done = True
-        return (
-            DeliveryState(claim_emb=claim_embs[self._claim_idx, :], co_embs=co_embs),
-            reward,
-            done
         )
 
     def reset(self) -> DeliveryState:
         self._iter = 0
         self._gamble: typing.Optional[Gamble] = None
-        # self._claim_embs: typing.Optional[torch.FloatTensor] = None
-        self._co_embs: typing.Optional[torch.FloatTensor] = None
         self._claim_idx: int = 0
         self._assignments: Assignment = Assignment([])
         self._base_gamble_reward: float = 0.0
-        self._num_couriers: int = 0
         self.simulator.reset()
         self._update_next_gamble()
-        emb_dict = self.gamble_encoder(self.gamble_dict)
-        co_embs, claim_embs = self._make_co_embs_and_clm_tensors(emb_dict)
-        return DeliveryState(claim_emb=claim_embs[0, :], co_embs=co_embs)
+        state = self._make_state_from_gamble_dict()
+        return state
+
+    def step(self, action: DeliveryAction) -> tuple[DeliveryState, float, bool]:
+        self._update_assignments(action)
+        reward = self.rewarder(self.simulator.assignment_statistics)
+        done = False
+        if self._claim_idx == len(self.embs_dict['clm']):
+            self._update_next_gamble()
+        new_state = self._make_state_from_gamble_dict()
+        if self._iter == self.num_gambles:
+            done = True
+        return new_state, reward, done
 
     def _update_next_gamble(self):
         self.simulator.next(self._assignments)
@@ -110,35 +101,21 @@ class DeliveryEnvironment(BaseEnvironment):
         while len(self._gamble.claims) == 0:
             self.simulator.next(Assignment([]))
             self._gamble = self.simulator.get_state()
-
-        self.gamble_dict = {
+        self.embs_dict = {
             'crr': np.stack([crr.to_numpy() for crr in self._gamble.couriers], axis=0)
             if len(self._gamble.couriers)
             else None,
             'clm': np.stack([clm.to_numpy() for clm in self._gamble.claims], axis=0),
-            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.gamble_encoder.max_num_points_in_route)
+            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.max_num_points_in_route)
                              for ord in self._gamble.orders], axis=0)
             if len(self._gamble.orders) > 0
             else None,
         }
-
-        self._num_couriers = len(self.gamble_dict['crr']) if self.gamble_dict['crr'] is not None else 0
         self._assignments = Assignment([])
         self._claim_idx = 0
         self._iter += 1
 
-    def _make_co_embs_and_clm_tensors(self, emb_dict: dict[str, typing.Optional[torch.FloatTensor]]
-                                      ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
-        claim_embs = emb_dict['clm']
-        fake_crr = torch.zeros(size=(1, self.gamble_encoder.courier_encoder.item_embedding_dim),
-                               device=self.device, dtype=torch.float)
-        co_embs = torch.cat(
-            ([emb_dict['crr']] if emb_dict['crr'] is not None else []) +
-            ([emb_dict['ord']] if emb_dict['ord'] is not None else []) +
-            [fake_crr], dim=-2)
-        return co_embs, claim_embs
-
-    def _make_assignment(self, action: DeliveryAction):
+    def _update_assignments(self, action: DeliveryAction):
         if action.idx < len(self._gamble.couriers):
             self._assignments.ids.append((
                 self._gamble.couriers[action.idx].id,
@@ -151,36 +128,61 @@ class DeliveryEnvironment(BaseEnvironment):
             ))
         self._claim_idx += 1
 
+    def _make_state_from_gamble_dict(self) -> DeliveryState:
+        claim_emb = self.embs_dict['clm'][self._claim_idx]
+        return DeliveryState(
+            claim_emb=claim_emb,
+            couriers_embs=self.embs_dict['crr'],
+            orders_embs=self.embs_dict['ord']
+        )
+
 
 class DeliveryActorCritic(BaseActorCritic):
-    def __init__(self, clm_emb: int, device) -> None:
+    def __init__(self, gamble_encoder: GambleEncoder, clm_emb_size: int, device) -> None:
         super().__init__()
-        self.clm_emb = clm_emb
+        self.gamble_encoder = gamble_encoder
+        self.clm_emb_size = clm_emb_size
         self.device = device
 
     def forward(self, state_list: list[DeliveryState]) -> None:
-        pol_tens, val_tens = self._make_masked_policy_value_tensors([state.co_embs for state in state_list])
-        clm_tens = self._make_clm_tens([state.claim_emb for state in state_list])
-
+        pol_tens, val_tens, clm_tens = self._make_masked_policy_value_claim_tensors(state_list)
         policy = (clm_tens.unsqueeze(1) @ pol_tens.transpose(-1, -2)).squeeze(1)
         self.log_probs = nn.functional.log_softmax(policy, dim=-1)
         self.actions = torch.distributions.categorical.Categorical(logits=self.log_probs).sample()
         self.values = (clm_tens @ torch.mean(val_tens, dim=1).T).diag()
 
-    def _make_masked_policy_value_tensors(self, co_emb_list: list[list[torch.FloatTensor]]
-                                          ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
-        policy_tens_list, value_tens_list = [], []
-        for co_embs in co_emb_list:
-            policy_tens_list.append(
-                torch.stack([co_emb[:self.clm_emb] for co_emb in co_embs], dim=0))
-            value_tens_list.append(
-                torch.stack([co_emb[self.clm_emb:] for co_emb in co_embs], dim=0))
-        policy_tens = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e7)
-        value_tens = pad_sequence(value_tens_list, batch_first=True, padding_value=0.0)
-        return policy_tens, value_tens
+    def _make_masked_policy_value_claim_tensors(self, states: list[DeliveryState]
+                                                ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
+        policy_tens_list, value_tens_list, claim_tens_list = [], [], []
+        for state in states:
+            policy_tens, value_tens, claim_emb = self._make_masked_policy_value_claim_tensors_from_state(state)
+            policy_tens_list.append(policy_tens)
+            value_tens_list.append(value_tens)
+            claim_tens_list.append(claim_emb)
+        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e7)
+        value_tens_result = pad_sequence(value_tens_list, batch_first=True, padding_value=0.0)
+        claim_tens_result = torch.stack(claim_tens_list, dim=0)
+        return policy_tens_result, value_tens_result, claim_tens_result
 
-    def _make_clm_tens(self, clm_emb_list: list[torch.FloatTensor]) -> torch.FloatTensor:
-        return torch.stack(clm_emb_list, dim=0)
+    def _make_masked_policy_value_claim_tensors_from_state(self, state: DeliveryState
+                                                           ) -> tuple[torch.FloatTensor,
+                                                                      torch.FloatTensor, torch.FloatTensor]:
+        embs_dict = {
+            'clm': state.claim_emb.reshape(1, -1),
+            'crr': state.couriers_embs,
+            'ord': state.orders_embs,
+        }
+        encoded_dict = self.gamble_encoder(embs_dict)
+        fake_crr = torch.zeros(size=(1, self.gamble_encoder.courier_encoder.item_embedding_dim))
+        co_embs = torch.cat(
+            ([encoded_dict['crr']] if encoded_dict['crr'] is not None else []) +
+            ([encoded_dict['ord']] if encoded_dict['ord'] is not None else []) +
+            [fake_crr], dim=-2)
+        return co_embs[:, :self.clm_emb_size], co_embs[:, self.clm_emb_size:], encoded_dict['clm'][0]
+
+    def _make_clm_tens(self, clm_emb_list: list[np.ndarray]) -> torch.FloatTensor:
+        clm_embs_tens_list = [torch.FloatTensor(clm_emb, device=self.device) for clm_emb in clm_emb_list]
+        return torch.stack(clm_embs_tens_list, dim=0)
 
     def get_actions_list(self, best_actions=False) -> list[Action]:
         if best_actions:
@@ -204,7 +206,7 @@ class DeliveryActorCritic(BaseActorCritic):
 
 
 def run_ppo():
-    n_envs = 1
+    n_envs = 2
     trajectory_lenght = 128
     batch_size = 64
     num_epochs_per_traj = 10
@@ -228,10 +230,11 @@ def run_ppo():
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=simulator_config_path, logger=db_logger)
 
     train_logger = TrainLogger()
-    env = DeliveryEnvironment(simulator=sim,
-                              gamble_encoder=gamble_encoder, num_gambles=num_gambles_in_day, device=device)
-    ac = DeliveryActorCritic(clm_emb=encoder_cfg['claim_embedding_dim'], device=device)
-    opt = torch.optim.Adam(chain(ac.parameters(), gamble_encoder.parameters()), lr=3e-4, eps=1e-5)
+    env = DeliveryEnvironment(simulator=sim, max_num_points_in_route=max_num_points_in_route,
+                              num_gambles=num_gambles_in_day, device=device)
+    ac = DeliveryActorCritic(gamble_encoder=gamble_encoder,
+                             clm_emb_size=encoder_cfg['claim_embedding_dim'], device=device)
+    opt = torch.optim.Adam(ac.parameters(), lr=3e-4, eps=1e-5)
     ppo = PPO(actor_critic=ac, optimizer=opt, device=device, logger=train_logger)
     runner = Runner(environment=env, actor_critic=ac,
                     n_envs=n_envs, trajectory_lenght=trajectory_lenght)
@@ -245,12 +248,11 @@ def run_ppo():
         ac.train()
         sample = sampler.sample()
         ppo.step(sample)
-        if iteration % 1000 == 0:
+        if iteration % 100 == 0:
             ac.eval()
             inference_logger()
-            train_logger.plot()
+            train_logger.plot(window_size=10)
 
 
 if __name__ == '__main__':
-    torch.autograd.set_detect_anomaly(True)
     run_ppo()
