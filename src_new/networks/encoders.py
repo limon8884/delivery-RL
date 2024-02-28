@@ -75,6 +75,8 @@ class ItemEncoder(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(item_embedding_dim, item_embedding_dim, device=kwargs['device']),
             nn.LeakyReLU(),
+            nn.Linear(item_embedding_dim, item_embedding_dim, device=kwargs['device']),
+            nn.LeakyReLU(),
         )
 
     def forward(self, item_np: np.ndarray) -> torch.FloatTensor:
