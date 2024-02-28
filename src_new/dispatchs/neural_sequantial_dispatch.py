@@ -1,5 +1,5 @@
 import torch
-# import numpy as np
+import numpy as np
 
 from src_new.dispatchs.base_dispatch import BaseDispatch
 # from src_new.dispatchs.scorers import BaseScorer
@@ -8,39 +8,46 @@ from src_new.objects import (
     Gamble,
     Assignment,
 )
-from src_new.networks.encoders import GambleEncoder
-from src_new.networks.networks import BaseSequentialDispatchNetwork
+from src_new.reinforcement.delivery import BaseActorCritic, DeliveryState
 
 
 class NeuralSequantialDispatch(BaseDispatch):
-    def __init__(self, encoder: GambleEncoder, network: BaseSequentialDispatchNetwork, **kwargs) -> None:
+    def __init__(self, actor_critic: BaseActorCritic, **kwargs) -> None:
         super().__init__()
-        self.encoder = encoder
-        self.network = network
+        self.actor_critic = actor_critic
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
 
     def __call__(self, gamble: Gamble) -> Assignment:
+        num_claims = len(gamble.claims)
+        if num_claims == 0:
+            return Assignment([])
         assignment_list = []
-        gamble_embs_dict = self.encoder(gamble)
-        courier_order_embs = gamble_embs_dict['couriers'] + gamble_embs_dict['orders']
-        n_couriers = len(gamble.couriers)
-        n_orders = len(gamble.orders)
-        num_points_list = [0] * n_couriers + [len(order.route.route_points) for order in gamble.orders]
-        for claim_idx, claim_emb in enumerate(gamble_embs_dict['claims']):
-            probas = self.network(claim_emb, courier_order_embs)
-            mask = _make_is_full_mask(num_points_list, self.max_num_points_in_route)
-            choice = int(torch.argmax(probas + mask).item())
-            if choice == n_couriers + n_orders:
-                continue
-            num_points_list[choice] += 2
-            if choice < n_couriers:
+        available_couriers = gamble.couriers
+        available_orders = gamble.orders
+        for claim_idx in range(num_claims):
+            couriers_embs_list = [c.to_numpy() for c in available_couriers]
+            orders_embs_list = [o.to_numpy(max_num_points_in_route=self.max_num_points_in_route)
+                                for o in available_orders]
+            couriers_embs = np.stack(couriers_embs_list, axis=0) if len(couriers_embs_list) > 0 else None
+            orders_embs = np.stack(orders_embs_list, axis=0) if len(orders_embs_list) > 0 else None
+
+            state = DeliveryState(
+                claim_emb=gamble.claims[claim_idx].to_numpy(),
+                couriers_embs=couriers_embs,
+                orders_embs=orders_embs
+            )
+            with torch.no_grad():
+                self.actor_critic([state])
+            assignment = self.actor_critic.get_actions_list(best_actions=True)[0].to_index()
+
+            if assignment < len(available_couriers):
                 assignment_list.append((
-                    gamble.couriers[choice].id,
+                    available_couriers[assignment].id,
                     gamble.claims[claim_idx].id
                 ))
-            else:
+            elif assignment < len(available_couriers) + len(available_orders):
                 assignment_list.append((
-                    gamble.orders[choice - n_couriers].courier.id,
+                    available_orders[assignment - len(available_couriers)].courier.id,
                     gamble.claims[claim_idx].id
                 ))
         return Assignment(assignment_list)
