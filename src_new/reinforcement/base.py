@@ -1,4 +1,5 @@
 import typing
+import wandb
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -365,15 +366,25 @@ class TrajectorySampler:
 
 
 class Logger:
-    def __init__(self) -> None:
+    def __init__(self, use_wandb: bool = False) -> None:
         self.logs = defaultdict(list)
         self.logs_mute = defaultdict(list)
+        self.wandb_logs = {} if use_wandb else None
 
     def log(self, key, value, mute=False):
+        if self.wandb_logs is not None:
+            self.wandb_logs[key] = value
+            return
+
         if not mute:
             self.logs[key].append(value)
         else:
             self.logs_mute[key].append(value)
+
+    def commit(self, step: typing.Optional[int] = None):
+        if self.wandb_logs is not None:
+            wandb.log(self.wandb_logs, step=step)
+            self.wandb_logs = {}
 
     def plot(self, window_size=10, log_scale=False, start=0):
         def moving_average(a, window_size):
@@ -410,6 +421,7 @@ class InferenceMetricsRunner:
     def __init__(self, runner: Runner, logger: Logger) -> None:
         self.runner = runner
         self.logger = logger
+        self.called_counter = 0
 
     def __call__(self) -> None:
         total_reward = 0.0
@@ -426,7 +438,16 @@ class InferenceMetricsRunner:
         self.logger.log('avg episode reward', total_reward / self.runner.n_envs)
         self.logger.log('avg episode length', total_length / self.runner.n_envs)
         self.logger.log('avg step reward', total_reward / total_length)
-        self.logger.log()  # TODO: log from self._statistics
+
+        total_info = defaultdict(float)
+        for info in self.runner._statistics:
+            for k, v in info.items():
+                total_info[k] += v
+        for k, v in total_info.items():
+            self.logger.log('avg ' + k, v / self.runner.trajectory_lenght / self.runner.n_envs)
+
+        self.logger.commit(step=self.called_counter)
+        self.called_counter += 1
 
 
 class PPO:
@@ -485,4 +506,5 @@ class PPO:
         if self.logger:
             self.logger.log('grad norm', grad_norm.item())
             self.logger.log('total loss', loss.item())
+            self.logger.commit()
         self.optimizer.step()

@@ -25,7 +25,7 @@
         "num_sampler": {
             "couriers": {
                 "epsilon_variation": 0.1,
-                "total_daily_num": 70000,
+                "total_daily_num": 700,
                 "hourly_intensivity": [
                     0.01893211875102892, 
                     0.004170553695878834, 
@@ -55,7 +55,7 @@
             },
             "claims": {
                 "epsilon_variation": 0.1,
-                "total_daily_num": 390000,
+                "total_daily_num": 3900,
                 "hourly_intensivity": [
                     0.002388557720455847, 
                     0.0017953042302341668,
@@ -198,5 +198,5 @@
     },
     "courier_speed": 0.000126,
     "gamble_duration_interval_sec": 30,
-    "start_dttm": "2023-12-28T08:41:54.018836"
+    "start_dttm": "2024-01-01T00:00:00.000000"
 }

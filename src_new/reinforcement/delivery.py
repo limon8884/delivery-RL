@@ -1,7 +1,8 @@
 import typing
 import torch
-import numpy as np
 import json
+import wandb
+import numpy as np
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 from pathlib import Path
@@ -86,14 +87,15 @@ class DeliveryEnvironment(BaseEnvironment):
 
     def step(self, action: DeliveryAction) -> tuple[DeliveryState, float, bool, dict[str, float]]:
         self._update_assignments(action)
-        reward = self.rewarder(self.simulator.assignment_statistics)
+        reward = 0
         done = False
         if self._claim_idx == len(self.embs_dict['clm']):
             self._update_next_gamble()
+            reward = self.rewarder(self.simulator.assignment_statistics)
         new_state = self._make_state_from_gamble_dict()
         if self._iter == self.num_gambles:
             done = True
-        return new_state, reward, done, {}
+        return new_state, reward, done, self.simulator.assignment_statistics
 
     def _update_next_gamble(self):
         self.simulator.next(self._assignments)
@@ -205,36 +207,45 @@ class DeliveryActorCritic(BaseActorCritic):
         return self.values
 
 
-def run_ppo():
-    n_envs = 2
-    trajectory_lenght = 128
-    batch_size = 64
-    num_epochs_per_traj = 10
-    total_iters = 250000
-    max_num_points_in_route = 8
-    num_gambles_in_day = 2880
-    device = None
+def run_ppo(**kwargs):
+    if kwargs['use_wandb']:
+        wandb.login()
+        wandb.init(
+            project="delivery-RL-v2",
+            name=f"run_{kwargs['run_id']}",
+            config=kwargs
+        )
 
-    simulator_config_path = Path('configs_new/simulator.json')
-    network_config_path = Path('configs_new/network.json')
-    db_path = Path('history.db')
+    n_envs = kwargs['n_envs']
+    trajectory_lenght = kwargs['trajectory_lenght']
+    batch_size = kwargs['batch_size']
+    num_epochs_per_traj = kwargs['num_epochs_per_traj']
+    total_iters = kwargs['total_iterations']
+    max_num_points_in_route = kwargs['max_num_points_in_route']
+    num_gambles_in_day = kwargs['num_gambles_in_day']
+    device = kwargs['device']
+
+    simulator_config_path = Path(kwargs['simulator_cfg_path'])
+    network_config_path = Path(kwargs['network_cfg_path'])
+    db_path = Path(kwargs['database_logger_path'])
     db = Database(db_path)
     db.clear()
 
     with open(network_config_path) as f:
-        encoder_cfg = json.load(f)['simple']
+        encoder_cfg = json.load(f)['encoder']
     gamble_encoder = GambleEncoder(max_num_points_in_route=max_num_points_in_route, **encoder_cfg, device=device)
-    db_logger = DB_Logger(run_id=0)
-    reader = DataReader.from_config(config_path=simulator_config_path, sampler_mode='dummy_sampler', logger=db_logger)
+    db_logger = DB_Logger(run_id=kwargs['run_id'])
+    reader = DataReader.from_config(config_path=simulator_config_path,
+                                    sampler_mode=kwargs['sampler_mode'], logger=db_logger)
     route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=simulator_config_path, logger=db_logger)
 
-    train_logger = TrainLogger()
+    train_logger = TrainLogger(use_wandb=kwargs['use_wandb'])
     env = DeliveryEnvironment(simulator=sim, max_num_points_in_route=max_num_points_in_route,
                               num_gambles=num_gambles_in_day, device=device)
     ac = DeliveryActorCritic(gamble_encoder=gamble_encoder,
                              clm_emb_size=encoder_cfg['claim_embedding_dim'], device=device)
-    opt = torch.optim.Adam(ac.parameters(), lr=3e-4, eps=1e-5)
+    opt = torch.optim.AdamW(ac.parameters(), lr=kwargs['learning_rate'])
     ppo = PPO(actor_critic=ac, optimizer=opt, device=device, logger=train_logger)
     runner = Runner(environment=env, actor_critic=ac,
                     n_envs=n_envs, trajectory_lenght=trajectory_lenght)
@@ -248,11 +259,9 @@ def run_ppo():
         ac.train()
         sample = sampler.sample()
         ppo.step(sample)
-        if iteration % 100 == 0:
+        if iteration % kwargs['eval_epochs_frequency'] == 0:
             ac.eval()
             inference_logger()
-            train_logger.plot(window_size=10)
-
-
-if __name__ == '__main__':
-    run_ppo()
+            if not kwargs['use_wandb']:
+                train_logger.plot(window_size=10)
+            torch.save(ac.state_dict(), kwargs['checkpoint_path'])

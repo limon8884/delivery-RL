@@ -1,5 +1,5 @@
 {
-    "simple": {
+    "encoder": {
         "number_embedding_dim": 4,
         "point_embedding_dim": 32,
         "route_embedding_dim": 128,

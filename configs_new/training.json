@@ -1,0 +1,19 @@
+{
+    "run_id": 100,
+    "n_envs": 2,
+    "trajectory_lenght": 228,
+    "batch_size": 64,
+    "num_epochs_per_traj": 10,
+    "total_iterations": 250000,
+    "eval_epochs_frequency": 30,
+    "max_num_points_in_route": 8,
+    "learning_rate": 3e-4,
+    "num_gambles_in_day": 2880,
+    "device": "cpu",
+    "sampler_mode": "distr_sampler",
+    "simulator_cfg_path": "configs_new/simulator.json",
+    "network_cfg_path": "configs_new/network.json",
+    "database_logger_path": "history.db",
+    "checkpoint_path": "checkpoint.pt",
+    "use_wandb": true
+}
