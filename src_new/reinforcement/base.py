@@ -33,7 +33,7 @@ class BaseEnvironment:
     '''
     A base class of environment in RL
     '''
-    def step(self, action: Action) -> tuple[State, float, bool]:
+    def step(self, action: Action) -> tuple[State, float, bool, dict[str, float]]:
         '''
         Performs step in the environment
         Input: an action to perform
@@ -41,6 +41,7 @@ class BaseEnvironment:
         * new_state
         * reward
         * done
+        * info - additional information about the interaction
         '''
         raise NotImplementedError
 
@@ -163,6 +164,7 @@ class Runner:
             self._trajectories = [Trajectory(env.reset()) for env in self._environments]
         else:
             self._trajectories = [Trajectory(env.reset(seed)) for env, seed in zip(self._environments, seeds)]
+        self._statistics: list[dict[str, float]] = []
 
     def run(self, best_actions=False) -> list[Trajectory]:
         states = [traj.last_state for traj in self._trajectories]
@@ -173,12 +175,16 @@ class Runner:
             log_probs_list = self.actor_critic.get_log_probs_list()
             values_list = self.actor_critic.get_values_list()
             new_states: list[State] = []
+            total_info = defaultdict(float)
             for idx in range(self.n_envs):
-                new_state, reward, done = self._environments[idx].step(actions[idx])
+                new_state, reward, done, info = self._environments[idx].step(actions[idx])
                 self._trajectories[idx].append(states[idx], actions[idx], reward, done,
                                                log_probs_list[idx], values_list[idx])
                 new_states.append(new_state)
+                for k, v in info.items():
+                    total_info[k] += v
             states = new_states
+            self._statistics.append(total_info)
         with torch.no_grad():
             self.actor_critic(states)
         for state, value, trajectory in zip(states, self.actor_critic.get_values_list(), self._trajectories):
@@ -420,6 +426,7 @@ class InferenceMetricsRunner:
         self.logger.log('avg episode reward', total_reward / self.runner.n_envs)
         self.logger.log('avg episode length', total_length / self.runner.n_envs)
         self.logger.log('avg step reward', total_reward / total_length)
+        self.logger.log()  # TODO: log from self._statistics
 
 
 class PPO:

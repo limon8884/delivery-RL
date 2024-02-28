@@ -37,9 +37,9 @@ class TestEnv(BaseEnvironment):
     def __init__(self) -> None:
         self.env = gym.make("LunarLander-v2")
 
-    def step(self, action: TestAction) -> tuple[TestState, float, bool]:
+    def step(self, action: TestAction) -> tuple[TestState, float, bool, dict[str, float]]:
         state, reward, reset, _, _ = self.env.step(action.value)
-        return TestState(state), float(reward), reset
+        return TestState(state), float(reward), reset, {}
 
     def reset(self) -> State:
         return TestState(self.env.reset()[0])
@@ -52,7 +52,7 @@ def test_interaction():
     env = TestEnv()
     _ = env.reset()
     action = TestAction(0)
-    new_state, rew, done = env.step(action)
+    new_state, rew, done, _ = env.step(action)
     assert len(new_state.value) == 8
 
 

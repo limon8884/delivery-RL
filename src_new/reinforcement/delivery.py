@@ -84,7 +84,7 @@ class DeliveryEnvironment(BaseEnvironment):
         state = self._make_state_from_gamble_dict()
         return state
 
-    def step(self, action: DeliveryAction) -> tuple[DeliveryState, float, bool]:
+    def step(self, action: DeliveryAction) -> tuple[DeliveryState, float, bool, dict[str, float]]:
         self._update_assignments(action)
         reward = self.rewarder(self.simulator.assignment_statistics)
         done = False
@@ -93,7 +93,7 @@ class DeliveryEnvironment(BaseEnvironment):
         new_state = self._make_state_from_gamble_dict()
         if self._iter == self.num_gambles:
             done = True
-        return new_state, reward, done
+        return new_state, reward, done, {}
 
     def _update_next_gamble(self):
         self.simulator.next(self._assignments)

@@ -105,8 +105,11 @@ class Route:
             current_point = next_point
         return total_dist
 
+    def distance_of_courier_arrival(self, courier_position: Point):
+        return Point.distance(self.next_route_point().point, courier_position)
+
     def distance_with_arrival(self, courier_position: Point):
-        return self.distance() + Point.distance(self.next_route_point().point, courier_position)
+        return self.distance() + self.distance_of_courier_arrival(courier_position)
 
 
 class Item:

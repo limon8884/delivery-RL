@@ -42,12 +42,12 @@ class GymEnv(BaseEnvironment):
         assert len(self.env.observation_space.shape) == 1
         self.state_dim = self.env.observation_space.shape[0]
 
-    def step(self, action: GymAction) -> tuple[GymState, float, bool]:
+    def step(self, action: GymAction) -> tuple[GymState, float, bool, dict[str, float]]:
         state, reward, reset, _, _ = self.env.step(action.value)
         state = GymState(state)
         if reset:
             state = self.reset()
-        return state, float(reward), reset
+        return state, float(reward), reset, {}
 
     def reset(self, seed: typing.Optional[int] = None) -> GymState:
         if seed is None:

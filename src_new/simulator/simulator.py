@@ -126,15 +126,22 @@ class Simulator(object):
                 del self.free_couriers[courier_id]
                 self.active_orders[order.id] = order
                 self.courier_id_to_order_id[courier_id] = order.id
+                self.assignment_statistics['assigned_not_batched_orders'] += 1
+                self.assignment_statistics['assigned_not_batched_orders_arrival_distance'] += \
+                    order.route.distance_of_courier_arrival(order.courier.position)
             else:
                 assert courier_id in self.courier_id_to_order_id
                 order = self.active_orders[self.courier_id_to_order_id[courier_id]]
                 if len(order.route.route_points) > self.route_maker.max_points_lenght - 2:
                     continue
                 if not order.courier.is_time_off():
+                    prev_route_dist = order.route.distance_with_arrival(order.courier.position)
                     self.route_maker.add_claim(order.route, order.courier.position, claim)
                     order.claims[claim_id] = claim
                     claim.assign()
+                    self.assignment_statistics['assigned_batched_orders'] += 1
+                    self.assignment_statistics['assigned_batched_orders_distance_increase'] += \
+                        order.route.distance_with_arrival(order.courier.position) - prev_route_dist
             del self.unassigned_claims[claim_id]
 
     def _next_free_couriers(self) -> None:
@@ -148,6 +155,7 @@ class Simulator(object):
     def _set_new_couriers(self, new_couriers: list[Courier]) -> None:
         for courier in new_couriers:
             self.free_couriers[courier.id] = courier
+        self.assignment_statistics['new_couriers'] += len(new_couriers)
 
     def _next_unassigned_claims(self) -> None:
         for claim_id in list(self.unassigned_claims.keys()):
@@ -157,8 +165,9 @@ class Simulator(object):
             if claim.done():
                 del self.unassigned_claims[claim_id]
                 self.assignment_statistics['completed_claims'] += 1
-            self.assignment_statistics['assigned_claims'] += 1
+            self.assignment_statistics['total_assigned_claims'] += 1
 
     def _set_new_claims(self, new_claims: list[Claim]) -> None:
         for claim in new_claims:
             self.unassigned_claims[claim.id] = claim
+        self.assignment_statistics['new_claims'] += len(new_claims)
