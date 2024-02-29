@@ -63,7 +63,7 @@ class DeliveryEnvironment(BaseEnvironment):
         self.simulator = simulator
         self.device = device
         self.rewarder: typing.Callable[[dict[str, float]], float] = \
-            lambda d: d['completed_claims'] + 0.1 * d['assigned_claims']
+            lambda d: d['completed_claims'] + 0.1 * (d['assigned_not_batched_claims'] + d['assigned_batched_claims'])
         self.reset()
 
     def copy(self) -> 'DeliveryEnvironment':

@@ -126,7 +126,7 @@ class Simulator(object):
                 del self.free_couriers[courier_id]
                 self.active_orders[order.id] = order
                 self.courier_id_to_order_id[courier_id] = order.id
-                self.assignment_statistics['assigned_not_batched_orders'] += 1
+                self.assignment_statistics['assigned_not_batched_claims'] += 1
                 self.assignment_statistics['assigned_not_batched_orders_arrival_distance'] += \
                     order.route.distance_of_courier_arrival(order.courier.position)
             else:
@@ -139,7 +139,7 @@ class Simulator(object):
                     self.route_maker.add_claim(order.route, order.courier.position, claim)
                     order.claims[claim_id] = claim
                     claim.assign()
-                    self.assignment_statistics['assigned_batched_orders'] += 1
+                    self.assignment_statistics['assigned_batched_claims'] += 1
                     self.assignment_statistics['assigned_batched_orders_distance_increase'] += \
                         order.route.distance_with_arrival(order.courier.position) - prev_route_dist
             del self.unassigned_claims[claim_id]
@@ -151,6 +151,8 @@ class Simulator(object):
             courier.next(self._current_gamble_end_dttm)
             if courier.done():
                 del self.free_couriers[courier_id]
+            else:
+                self.assignment_statistics['unassigned_couriers'] += 1
 
     def _set_new_couriers(self, new_couriers: list[Courier]) -> None:
         for courier in new_couriers:
@@ -164,8 +166,9 @@ class Simulator(object):
             claim.next(self._current_gamble_end_dttm)
             if claim.done():
                 del self.unassigned_claims[claim_id]
-                self.assignment_statistics['completed_claims'] += 1
-            self.assignment_statistics['total_assigned_claims'] += 1
+                self.assignment_statistics['cancelled_claims'] += 1
+            else:
+                self.assignment_statistics['unassigned_claims'] += 1
 
     def _set_new_claims(self, new_claims: list[Claim]) -> None:
         for claim in new_claims:
