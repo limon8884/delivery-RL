@@ -301,10 +301,14 @@ class Buffer:
             actions.extend([a.to_index() for a in traj.actions])
             self._states.extend(traj.states)
             rewards.extend(traj.rewards)
-        self._actions_chosen = torch.LongTensor(actions).to(device=self.device)
-        self._advantages = torch.FloatTensor(advantages).to(device=self.device)
-        self._log_probs_chosen = torch.FloatTensor(log_probs_chosen).to(device=self.device)
-        self._values = torch.FloatTensor(values).to(device=self.device)
+        # self._actions_chosen = torch.LongTensor(actions).to(device=self.device)
+        # self._advantages = torch.FloatTensor(advantages).to(device=self.device)
+        # self._log_probs_chosen = torch.FloatTensor(log_probs_chosen).to(device=self.device)
+        # self._values = torch.FloatTensor(values).to(device=self.device)
+        self._actions_chosen = torch.tensor(actions, dtype=torch.int64).to(device=self.device)
+        self._advantages = torch.tensor(advantages, dtype=torch.float).to(device=self.device)
+        self._log_probs_chosen = torch.tensor(log_probs_chosen, dtype=torch.float).to(device=self.device)
+        self._values = torch.tensor(values, dtype=torch.float).to(device=self.device)
         self._rewards = np.array(rewards)
 
         self.lenght = len(self._advantages)
@@ -381,9 +385,9 @@ class Logger:
         else:
             self.logs_mute[key].append(value)
 
-    def commit(self, step: typing.Optional[int] = None):
+    def commit(self, step: int):
         if self.wandb_logs is not None:
-            wandb.log(self.wandb_logs, step=step)
+            wandb.log({**self.wandb_logs, 'iter':step})
             self.wandb_logs = {}
 
     def plot(self, window_size=10, log_scale=False, start=0):
@@ -426,6 +430,7 @@ class InferenceMetricsRunner:
     def __call__(self) -> None:
         total_reward = 0.0
         total_length = 0
+        self.runner.actor_critic.eval()
         self.runner.reset()
         trajs = self.runner.run()
         for traj in trajs:
@@ -461,6 +466,8 @@ class PPO:
         # Note that we don't need entropy regularization for this env.
         self.max_grad_norm = 0.5
         self.device = device
+        
+        self._step = 0
 
     def _policy_loss(self, sample: dict[str, torch.FloatTensor | list[State]], new_log_probs: torch.FloatTensor):
         """ Computes and returns policy loss on a given trajectory. """
@@ -500,11 +507,13 @@ class PPO:
         Computes the loss function and performs a single gradient step
         """
         self.optimizer.zero_grad()
+        self.actor_critic.train()
         loss = self._loss(sample)
         loss.backward()
         grad_norm = nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
         if self.logger:
             self.logger.log('grad norm', grad_norm.item())
             self.logger.log('total loss', loss.item())
-            self.logger.commit()
+            self.logger.commit(step=self._step)
+            self._step += 1
         self.optimizer.step()

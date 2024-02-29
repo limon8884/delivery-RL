@@ -11,13 +11,14 @@ class NumberEncoder(nn.Module):
         super().__init__()
         self.numbers_np_dim = numbers_np_dim
         self.number_embedding_dim = number_embedding_dim
-        self.bn = nn.BatchNorm1d(num_features=numbers_np_dim)
+        self.bn = nn.BatchNorm1d(num_features=numbers_np_dim, device=device)
         self.layer = nn.Linear(numbers_np_dim, number_embedding_dim, device=device)
         self.activation_func = nn.LeakyReLU()
         self.device = device
 
     def forward(self, numbers_np: np.ndarray) -> torch.FloatTensor:
-        x = torch.FloatTensor(numbers_np, device=self.device)
+        # x = torch.FloatTensor(numbers_np, device=self.device)
+        x = torch.tensor(numbers_np, device=self.device, dtype=torch.float)
         if numbers_np.shape[0] != 1 or not self.training:
             x = self.bn(x)
         x = self.layer(x)
@@ -31,14 +32,15 @@ class CoordEncoder(nn.Module):
         assert coords_embedding_dim % 2 == 0
         self.coords_np_dim = coords_np_dim
         self.coords_embedding_dim = coords_embedding_dim
-        self.bn = nn.BatchNorm1d(num_features=coords_np_dim)
+        self.bn = nn.BatchNorm1d(num_features=coords_np_dim, device=device)
         self.sin_layer = nn.Linear(coords_np_dim, coords_embedding_dim // 2, device=device)
         self.cos_layer = nn.Linear(coords_np_dim, coords_embedding_dim // 2, device=device)
         self.device = device
 
     def forward(self, coords_np: np.ndarray) -> torch.FloatTensor:
         assert coords_np.ndim == 2 and coords_np.shape[1] == self.coords_np_dim
-        x = torch.FloatTensor(coords_np, device=self.device)
+        # x = torch.FloatTensor(coords_np, device=self.device)
+        x = torch.tensor(coords_np, device=self.device, dtype=torch.float)
         if coords_np.shape[0] != 1 or not self.training:
             x = self.bn(x)
         return torch.cat([

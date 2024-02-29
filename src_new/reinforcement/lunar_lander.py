@@ -83,7 +83,8 @@ class GymActorCritic(BaseActorCritic):
         self.device = device
 
     def forward(self, state_list: list[State]) -> None:
-        inp = torch.stack([torch.FloatTensor(state.value).to(self.device) for state in state_list], dim=0)
+        # inp = torch.stack([torch.FloatTensor(state.value).to(self.device) for state in state_list], dim=0)
+        inp = torch.stack([torch.tensor(state.value, dtype=torch.float).to(self.device) for state in state_list], dim=0)
         policy = self.policy_model(inp)
         self.log_probs = nn.functional.log_softmax(policy, dim=-1)
         self.actions = torch.distributions.categorical.Categorical(logits=self.log_probs).sample()

@@ -82,7 +82,8 @@ class TestActorCritic(BaseActorCritic):
         )
 
     def forward(self, state_list: list[State]) -> None:
-        inp = torch.stack([torch.FloatTensor(state.value) for state in state_list], dim=0)
+        # inp = torch.stack([torch.FloatTensor(state.value) for state in state_list], dim=0)
+        inp = torch.stack([torch.tensor(state.value, dtype=torch.float) for state in state_list], dim=0)
         out = self.net(inp)
         self.log_probs = nn.functional.softmax(out[:, :4], dim=-1)
         self.values = out[:, 4]

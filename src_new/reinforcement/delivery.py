@@ -175,7 +175,7 @@ class DeliveryActorCritic(BaseActorCritic):
             'ord': state.orders_embs,
         }
         encoded_dict = self.gamble_encoder(embs_dict)
-        fake_crr = torch.zeros(size=(1, self.gamble_encoder.courier_encoder.item_embedding_dim))
+        fake_crr = torch.zeros(size=(1, self.gamble_encoder.courier_encoder.item_embedding_dim), device=self.device)
         co_embs = torch.cat(
             ([encoded_dict['crr']] if encoded_dict['crr'] is not None else []) +
             ([encoded_dict['ord']] if encoded_dict['ord'] is not None else []) +
@@ -183,7 +183,8 @@ class DeliveryActorCritic(BaseActorCritic):
         return co_embs[:, :self.clm_emb_size], co_embs[:, self.clm_emb_size:], encoded_dict['clm'][0]
 
     def _make_clm_tens(self, clm_emb_list: list[np.ndarray]) -> torch.FloatTensor:
-        clm_embs_tens_list = [torch.FloatTensor(clm_emb, device=self.device) for clm_emb in clm_emb_list]
+        # clm_embs_tens_list = [torch.FloatTensor(clm_emb, device=self.device) for clm_emb in clm_emb_list]
+        clm_embs_tens_list = [torch.tensor(clm_emb, dtype=torch.float, device=self.device) for clm_emb in clm_emb_list]
         return torch.stack(clm_embs_tens_list, dim=0)
 
     def get_actions_list(self, best_actions=False) -> list[Action]:
@@ -249,11 +250,13 @@ def run_ppo(**kwargs):
     ppo = PPO(actor_critic=ac, optimizer=opt, device=device, logger=train_logger)
     runner = Runner(environment=env, actor_critic=ac,
                     n_envs=n_envs, trajectory_lenght=trajectory_lenght)
+    eval_runner = Runner(environment=env, actor_critic=ac,
+                    n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
     gae = GAE()
     normalizer = RewardNormalizer()
     buffer = Buffer(gae, reward_normalizer=normalizer, device=device)
     sampler = TrajectorySampler(runner, buffer, num_epochs_per_traj=num_epochs_per_traj, batch_size=batch_size)
-    inference_logger = InferenceMetricsRunner(runner=runner, logger=train_logger)
+    inference_logger = InferenceMetricsRunner(runner=eval_runner, logger=train_logger)
 
     for iteration in tqdm(range(total_iters)):
         ac.train()

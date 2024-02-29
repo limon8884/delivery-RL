@@ -55,4 +55,5 @@ class NeuralSequantialDispatch(BaseDispatch):
 
 def _make_is_full_mask(num_points_list: list[int], max_num_points_in_route: int) -> torch.FloatTensor:
     is_full_mask = [n_points >= max_num_points_in_route - 1 for n_points in num_points_list] + [False]
-    return torch.FloatTensor(is_full_mask) * -torch.inf
+    # return torch.FloatTensor(is_full_mask) * -torch.inf
+    return torch.tensor(is_full_mask, dtype=torch.float) * -torch.inf

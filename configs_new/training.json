@@ -1,7 +1,9 @@
 {
-    "run_id": 101,
+    "run_id": 106,
     "n_envs": 8,
     "trajectory_lenght": 1000,
+    "eval_n_envs": 2,
+    "eval_trajectory_lenght": 500,
     "batch_size": 64,
     "num_epochs_per_traj": 10,
     "total_iterations": 250000,
