@@ -3,7 +3,7 @@ scipy
 matplotlib
 numpy
 pandas
-gym==0.21.0
+# gym==0.21.0
 tensordict
 torchrl
 joblib
