@@ -1,11 +1,11 @@
-torch
+# torch
 scipy
 matplotlib
 numpy
 pandas
 # gym==0.21.0
-tensordict
-torchrl
+# tensordict
+# torchrl
 joblib
 wandb==0.15.7
 ipython
