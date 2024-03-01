@@ -1,4 +1,5 @@
 import json
+import torch
 from pathlib import Path
 
 from src_new.simulator.simulator import Simulator
@@ -36,8 +37,8 @@ def main():
     db = Database(db_path)
     db.clear()
 
-    # print('Hungarian')
-    # run_dsp(HungarianDispatch(DistanceScorer()), simulator_config_path, db_path, run_id=0, max_num_points_in_route=0)
+    print('Hungarian')
+    run_dsp(HungarianDispatch(DistanceScorer()), simulator_config_path, db_path, run_id=0, max_num_points_in_route=0)
 
     # print('Greedy')
     # run_dsp(GreedyDispatch(DistanceScorer()), simulator_config_path, db_path, run_id=1, max_num_points_in_route=0)
@@ -45,7 +46,7 @@ def main():
     print('Neural')
     max_num_points_in_route = 8
     with open(network_config_path) as f:
-        net_cfg = json.load(f)['simple']
+        net_cfg = json.load(f)['encoder']
     encoder = GambleEncoder(
         order_embedding_dim=net_cfg['order_embedding_dim'],
         claim_embedding_dim=net_cfg['claim_embedding_dim'],
@@ -57,6 +58,7 @@ def main():
         device=None,
     )
     ac = DeliveryActorCritic(gamble_encoder=encoder, clm_emb_size=net_cfg['claim_embedding_dim'], device=None)
+    ac.load_state_dict(torch.load('checkpoint.pt', map_location='cpu'))
     run_dsp(NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route),
             simulator_config_path, db_path, run_id=3,
             max_num_points_in_route=max_num_points_in_route)
