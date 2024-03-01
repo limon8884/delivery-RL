@@ -246,12 +246,14 @@ def run_ppo(**kwargs):
                               num_gambles=num_gambles_in_day, device=device)
     ac = DeliveryActorCritic(gamble_encoder=gamble_encoder,
                              clm_emb_size=encoder_cfg['claim_embedding_dim'], device=device)
-    opt = torch.optim.AdamW(ac.parameters(), lr=kwargs['learning_rate'])
-    ppo = PPO(actor_critic=ac, optimizer=opt, device=device, logger=train_logger)
+    optimizer = torch.optim.AdamW(ac.parameters(), lr=kwargs['learning_rate'])
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=kwargs['scheduler_step_size'],
+                                                gamma=kwargs['scheduler_decrease_factor'])
+    ppo = PPO(actor_critic=ac, optimizer=optimizer, device=device, scheduler=scheduler, logger=train_logger)
     runner = Runner(environment=env, actor_critic=ac,
                     n_envs=n_envs, trajectory_lenght=trajectory_lenght)
     eval_runner = Runner(environment=env, actor_critic=ac,
-                    n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
+                         n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
     gae = GAE()
     normalizer = RewardNormalizer()
     buffer = Buffer(gae, reward_normalizer=normalizer, device=device)

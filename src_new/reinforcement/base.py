@@ -457,16 +457,17 @@ class InferenceMetricsRunner:
 
 class PPO:
     def __init__(self, actor_critic: BaseActorCritic, optimizer: torch.optim.Optimizer, device,
+                 scheduler: typing.Optional[torch.optim.lr_scheduler._LRScheduler] = None,
                  logger: typing.Optional[Logger] = None):
         self.logger = logger
         self.actor_critic = actor_critic
         self.optimizer = optimizer
+        self.scheduler = scheduler
         self.cliprange = 0.2
         self.value_loss_coef = 0.25
         # Note that we don't need entropy regularization for this env.
         self.max_grad_norm = 0.5
         self.device = device
-        
         self._step = 0
 
     def _policy_loss(self, sample: dict[str, torch.FloatTensor | list[State]], new_log_probs: torch.FloatTensor):
@@ -517,3 +518,4 @@ class PPO:
             self.logger.commit(step=self._step)
             self._step += 1
         self.optimizer.step()
+        self.scheduler.step()

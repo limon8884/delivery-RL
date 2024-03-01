@@ -10,6 +10,8 @@
     "eval_epochs_frequency": 100,
     "max_num_points_in_route": 8,
     "learning_rate": 3e-4,
+    "scheduler_step_size": 1000,
+    "scheduler_decrease_factor": 0.5,
     "num_gambles_in_day": 2880,
     "device": "cuda",
     "sampler_mode": "distr_sampler",
