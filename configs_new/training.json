@@ -1,5 +1,5 @@
 {
-    "run_id": 108,
+    "run_id": 110,
     "n_envs": 8,
     "trajectory_lenght": 1000,
     "eval_n_envs": 2,
@@ -9,8 +9,8 @@
     "total_iterations": 250000,
     "eval_epochs_frequency": 100,
     "max_num_points_in_route": 8,
-    "learning_rate": 3e-4,
-    "scheduler_step_size": 1000,
+    "learning_rate": 3e-5,
+    "scheduler_step_size": 500,
     "scheduler_decrease_factor": 0.5,
     "num_gambles_in_day": 2880,
     "device": "cuda",
