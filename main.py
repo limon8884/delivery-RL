@@ -40,8 +40,8 @@ def main():
     print('Hungarian')
     run_dsp(HungarianDispatch(DistanceScorer()), simulator_config_path, db_path, run_id=0, max_num_points_in_route=0)
 
-    # print('Greedy')
-    # run_dsp(GreedyDispatch(DistanceScorer()), simulator_config_path, db_path, run_id=1, max_num_points_in_route=0)
+    print('Greedy')
+    run_dsp(GreedyDispatch(DistanceScorer()), simulator_config_path, db_path, run_id=1, max_num_points_in_route=0)
 
     print('Neural')
     max_num_points_in_route = 8
