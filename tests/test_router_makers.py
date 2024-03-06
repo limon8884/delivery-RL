@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 
-from src_new.objects import Claim, Point, Courier, Route, Order
-from src_new.router_makers import AppendRouteMaker
-# from src_new.utils import get_random_point
+from src.objects import Claim, Point, Courier, Route, Order
+from src.router_makers import AppendRouteMaker
+# from src.utils import get_random_point
 
 
 BASE_DTTM = datetime.utcnow()

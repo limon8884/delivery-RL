@@ -3,13 +3,13 @@ from datetime import datetime, timedelta
 import random
 import numpy as np
 
-from src_new.dispatchs.scorers import DistanceScorer
-from src_new.dispatchs.hungarian_dispatch import HungarianDispatch
-from src_new.dispatchs.greedy_dispatch import GreedyDispatch
-from src_new.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
-from src_new.networks.encoders import GambleEncoder
-from src_new.networks.networks import SimpleSequentialMLP
-from src_new.objects import (
+from src.dispatchs.scorers import DistanceScorer
+from src.dispatchs.hungarian_dispatch import HungarianDispatch
+from src.dispatchs.greedy_dispatch import GreedyDispatch
+from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
+from src.networks.encoders import GambleEncoder
+from src.networks.networks import SimpleSequentialMLP
+from src.objects import (
     Gamble,
     Courier,
     Claim,
@@ -17,7 +17,7 @@ from src_new.objects import (
     Order,
     Route,
 )
-from src_new.utils import get_random_point
+from src.utils import get_random_point
 
 
 BASE_DTTM = datetime.min

@@ -4,14 +4,14 @@ from pathlib import Path
 from datetime import timedelta, datetime
 from enum import Enum
 
-from src_new.objects import (
+from src.objects import (
     Point,
     Claim,
     Courier,
 )
-from src_new.database.logger import Logger
-from src_new.simulator.utils import CityStamp
-from src_new.simulator.data_sampler import CityStampSampler
+from src.database.logger import Logger
+from src.simulator.utils import CityStamp
+from src.simulator.data_sampler import CityStampSampler
 
 
 class DataReader:

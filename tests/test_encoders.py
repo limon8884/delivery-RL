@@ -3,14 +3,14 @@
 import numpy as np
 from datetime import datetime, timedelta
 
-from src_new.networks.encoders import (
+from src.networks.encoders import (
     CoordEncoder,
     NumberEncoder,
     ItemEncoder,
     GambleEncoder,
 )
-from src_new.objects import Point, Courier, Route, Order, Claim, Gamble
-from src_new.utils import get_random_point
+from src.objects import Point, Courier, Route, Order, Claim, Gamble
+from src.utils import get_random_point
 
 
 BASE_DTTM = datetime.utcnow()

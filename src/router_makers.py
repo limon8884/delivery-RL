@@ -1,4 +1,4 @@
-from src_new.objects import Route, Point, Claim
+from src.objects import Route, Point, Claim
 
 
 class BaseRouteMaker:

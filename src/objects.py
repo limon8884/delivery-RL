@@ -6,8 +6,8 @@ from enum import Enum
 from collections import deque
 
 
-from src_new.database.classes import TableName, Event
-from src_new.database.logger import Logger
+from src.database.classes import TableName, Event
+from src.database.logger import Logger
 
 
 class Point:

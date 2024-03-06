@@ -1,7 +1,7 @@
 from datetime import datetime
 from dataclasses import dataclass
 
-from src_new.objects import (
+from src.objects import (
     Claim,
     Courier,
 )

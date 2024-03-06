@@ -5,7 +5,7 @@ from datetime import timedelta, datetime
 from tqdm import tqdm
 from collections import defaultdict
 
-from src_new.objects import (
+from src.objects import (
     Claim,
     Courier,
     Order,
@@ -13,10 +13,10 @@ from src_new.objects import (
     Route,
     Assignment,
 )
-from src_new.dispatchs.base_dispatch import BaseDispatch
-from src_new.simulator.data_reader import DataReader
-from src_new.router_makers import BaseRouteMaker
-from src_new.database.logger import Logger
+from src.dispatchs.base_dispatch import BaseDispatch
+from src.simulator.data_reader import DataReader
+from src.router_makers import BaseRouteMaker
+from src.database.logger import Logger
 
 
 class Simulator(object):

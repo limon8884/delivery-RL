@@ -3,18 +3,18 @@ import pytest
 from datetime import datetime, timedelta
 
 
-from src_new.utils import (
+from src.utils import (
     get_random_point
 )
-from src_new.objects import (
+from src.objects import (
     Point,
     Route,
     Courier,
     Claim,
     Order,
 )
-from src_new.database.classes import TableName, Event
-from src_new.database.logger import Logger
+from src.database.classes import TableName, Event
+from src.database.logger import Logger
 
 
 CREATION_TIME = datetime.utcnow()

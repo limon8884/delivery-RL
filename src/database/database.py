@@ -2,9 +2,9 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 # from enum import Enum
-from src_new.database.classes import TableName, Event, Metric
-from src_new.database.logger import Logger
-from src_new.database.sql_metrics_queries import (
+from src.database.classes import TableName, Event, Metric
+from src.database.logger import Logger
+from src.database.sql_metrics_queries import (
     _sql_query_cr,
     _sql_query_ctd,
     _sql_query_num_couriers,

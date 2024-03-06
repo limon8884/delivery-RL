@@ -3,12 +3,12 @@ import random
 from datetime import datetime, timedelta
 from pytest import approx
 
-from src_new.simulator.simulator import DataReader, Simulator
-from src_new.router_makers import BaseRouteMaker
-from src_new.dispatchs.hungarian_dispatch import HungarianDispatch
-from src_new.dispatchs.scorers import DistanceScorer
-from src_new.database.database import Database, Metric
-from src_new.database.logger import Logger
+from src.simulator.simulator import DataReader, Simulator
+from src.router_makers import BaseRouteMaker
+from src.dispatchs.hungarian_dispatch import HungarianDispatch
+from src.dispatchs.scorers import DistanceScorer
+from src.database.database import Database, Metric
+from src.database.logger import Logger
 
 
 BASE_DTTM = datetime.utcnow()

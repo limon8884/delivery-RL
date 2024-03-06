@@ -4,14 +4,14 @@ from datetime import datetime, timedelta
 from typing import Any
 from scipy import stats
 
-from src_new.simulator.utils import CityStamp
-from src_new.objects import (
+from src.simulator.utils import CityStamp
+from src.objects import (
     Point,
     Claim,
     Courier,
 )
-from src_new.database.logger import Logger
-from src_new.utils import get_random_point
+from src.database.logger import Logger
+from src.utils import get_random_point
 
 
 class BasePositionSampler():

@@ -5,7 +5,7 @@ import gymnasium as gym
 from tqdm import tqdm
 from copy import deepcopy
 
-from src_new.reinforcement.base import (
+from src.reinforcement.base import (
     Action,
     State,
     BaseEnvironment,

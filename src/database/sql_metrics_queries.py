@@ -1,4 +1,4 @@
-from src_new.database.classes import TableName, Event
+from src.database.classes import TableName, Event
 
 
 def _sql_query_cr(run_id: int) -> str:

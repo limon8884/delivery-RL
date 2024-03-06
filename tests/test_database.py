@@ -1,7 +1,7 @@
 # import pytest
 
-from src_new.database.database import Database, TableName, Metric, Event
-from src_new.database.logger import Logger
+from src.database.database import Database, TableName, Metric, Event
+from src.database.logger import Logger
 from datetime import datetime, timedelta
 
 

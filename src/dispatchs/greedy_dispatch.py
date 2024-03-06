@@ -1,8 +1,8 @@
 import numpy as np
 
-from src_new.dispatchs.base_dispatch import BaseDispatch
-from src_new.dispatchs.scorers import BaseScorer
-from src_new.objects import (
+from src.dispatchs.base_dispatch import BaseDispatch
+from src.dispatchs.scorers import BaseScorer
+from src.objects import (
     Gamble,
     Assignment,
 )

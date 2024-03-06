@@ -2,12 +2,12 @@ import json
 from datetime import datetime, timedelta
 import random
 
-from src_new.simulator.simulator import DataReader, Simulator
-from src_new.router_makers import BaseRouteMaker
-from src_new.dispatchs.hungarian_dispatch import HungarianDispatch
-from src_new.dispatchs.scorers import DistanceScorer
-from src_new.database.logger import Logger
-# from src_new.utils import get_random_point
+from src.simulator.simulator import DataReader, Simulator
+from src.router_makers import BaseRouteMaker
+from src.dispatchs.hungarian_dispatch import HungarianDispatch
+from src.dispatchs.scorers import DistanceScorer
+from src.database.logger import Logger
+# from src.utils import get_random_point
 
 
 BASE_DTTM = datetime.utcnow()

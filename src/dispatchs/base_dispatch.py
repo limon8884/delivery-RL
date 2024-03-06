@@ -1,5 +1,5 @@
-# from src_new.dispatchs.scorers import BaseScorer
-from src_new.objects import (
+# from src.dispatchs.scorers import BaseScorer
+from src.objects import (
     Gamble,
     Assignment,
 )

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src_new.database.classes import Event, TableName
+from src.database.classes import Event, TableName
 
 
 class Logger:

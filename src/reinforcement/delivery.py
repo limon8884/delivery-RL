@@ -10,21 +10,21 @@ from tqdm import tqdm
 from itertools import chain
 from copy import deepcopy
 
-from src_new.objects import (
+from src.objects import (
     Claim,
     Courier,
     Order,
     Gamble,
     Assignment,
 )
-from src_new.simulator.simulator import Simulator
-from src_new.simulator.data_reader import DataReader
-from src_new.router_makers import AppendRouteMaker
-from src_new.database.database import Database, Metric, Logger as DB_Logger
-from src_new.networks.encoders import GambleEncoder
+from src.simulator.simulator import Simulator
+from src.simulator.data_reader import DataReader
+from src.router_makers import AppendRouteMaker
+from src.database.database import Database, Metric, Logger as DB_Logger
+from src.networks.encoders import GambleEncoder
 
 
-from src_new.reinforcement.base import (
+from src.reinforcement.base import (
     Action,
     State,
     BaseEnvironment,

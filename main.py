@@ -2,16 +2,16 @@ import json
 import torch
 from pathlib import Path
 
-from src_new.simulator.simulator import Simulator
-from src_new.simulator.data_reader import DataReader
-from src_new.router_makers import AppendRouteMaker
-from src_new.database.database import Database, Metric, Logger
-from src_new.dispatchs.hungarian_dispatch import HungarianDispatch, BaseDispatch
-from src_new.dispatchs.greedy_dispatch import GreedyDispatch
-from src_new.dispatchs.scorers import DistanceScorer
-from src_new.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
-from src_new.networks.encoders import GambleEncoder
-from src_new.reinforcement.delivery import DeliveryActorCritic
+from src.simulator.simulator import Simulator
+from src.simulator.data_reader import DataReader
+from src.router_makers import AppendRouteMaker
+from src.database.database import Database, Metric, Logger
+from src.dispatchs.hungarian_dispatch import HungarianDispatch, BaseDispatch
+from src.dispatchs.greedy_dispatch import GreedyDispatch
+from src.dispatchs.scorers import DistanceScorer
+from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
+from src.networks.encoders import GambleEncoder
+from src.reinforcement.delivery import DeliveryActorCritic
 
 
 def run_dsp(dsp: BaseDispatch, config_path: Path, db_path: Path, run_id: int, max_num_points_in_route: int) -> None:
@@ -31,8 +31,8 @@ def run_dsp(dsp: BaseDispatch, config_path: Path, db_path: Path, run_id: int, ma
 
 
 def main():
-    simulator_config_path = Path('configs_new/simulator.json')
-    network_config_path = Path('configs_new/network.json')
+    simulator_config_path = Path('configs/simulator.json')
+    network_config_path = Path('configs/network.json')
     db_path = Path('history.db')
     db = Database(db_path)
     db.clear()

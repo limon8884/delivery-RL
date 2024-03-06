@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from src_new.simulator.data_sampler import CityStampSampler
+from src.simulator.data_sampler import CityStampSampler
 
 
 BASE_DTTM = datetime.utcnow()
