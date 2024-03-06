@@ -12,7 +12,7 @@ from src.reinforcement.delivery import run_ppo
 @click.option('--eval_trajectory_lenght', required=False, type=int)
 @click.option('--batch_size', required=False, type=int)
 @click.option('--num_epochs_per_traj', required=False, type=int)
-@click.option('--total_iterations', required=False, type=int)
+@click.option('--total_iters', required=False, type=int)
 @click.option('--eval_epochs_frequency', required=False, type=int)
 @click.option('--max_num_points_in_route', required=False, type=int)
 @click.option('--learning_rate', required=False, type=float)

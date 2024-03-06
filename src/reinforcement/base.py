@@ -456,17 +456,24 @@ class InferenceMetricsRunner:
 
 
 class PPO:
-    def __init__(self, actor_critic: BaseActorCritic, optimizer: torch.optim.Optimizer, device,
+    def __init__(self,
+                 actor_critic: BaseActorCritic,
+                 optimizer: torch.optim.Optimizer,
+                 device,
                  scheduler: typing.Optional[torch.optim.lr_scheduler._LRScheduler] = None,
-                 logger: typing.Optional[Logger] = None):
+                 logger: typing.Optional[Logger] = None,
+                 cliprange=0.2,
+                 value_loss_coef=0.25,
+                 max_grad_norm=1.0,
+                 ):
         self.logger = logger
         self.actor_critic = actor_critic
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.cliprange = 0.2
-        self.value_loss_coef = 0.25
+        self.cliprange = cliprange
+        self.value_loss_coef = value_loss_coef
         # Note that we don't need entropy regularization for this env.
-        self.max_grad_norm = 0.5
+        self.max_grad_norm = max_grad_norm
         self.device = device
         self._step = 0
 

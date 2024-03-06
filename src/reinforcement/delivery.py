@@ -141,16 +141,17 @@ class DeliveryEnvironment(BaseEnvironment):
 
 
 class DeliveryActorCritic(BaseActorCritic):
-    def __init__(self, gamble_encoder: GambleEncoder, clm_emb_size: int, device) -> None:
+    def __init__(self, gamble_encoder: GambleEncoder, clm_emb_size: int, temperature: float, device) -> None:
         super().__init__()
         self.gamble_encoder = gamble_encoder
         self.clm_emb_size = clm_emb_size
+        self.temperature = temperature
         self.device = device
 
     def forward(self, state_list: list[DeliveryState]) -> None:
         pol_tens, val_tens, clm_tens = self._make_masked_policy_value_claim_tensors(state_list)
         policy = (clm_tens.unsqueeze(1) @ pol_tens.transpose(-1, -2)).squeeze(1)
-        self.log_probs = nn.functional.log_softmax(policy, dim=-1)
+        self.log_probs = nn.functional.log_softmax(policy / self.temperature, dim=-1)
         self.actions = torch.distributions.categorical.Categorical(logits=self.log_probs).sample()
         self.values = (clm_tens @ torch.mean(val_tens, dim=1).T).diag()
 
@@ -218,13 +219,8 @@ def run_ppo(**kwargs):
             config=kwargs
         )
 
-    n_envs = kwargs['n_envs']
-    trajectory_lenght = kwargs['trajectory_lenght']
     batch_size = kwargs['batch_size']
-    num_epochs_per_traj = kwargs['num_epochs_per_traj']
-    total_iters = kwargs['total_iterations']
     max_num_points_in_route = kwargs['max_num_points_in_route']
-    num_gambles_in_day = kwargs['num_gambles_in_day']
     device = kwargs['device']
 
     simulator_config_path = Path(kwargs['simulator_cfg_path'])
@@ -244,25 +240,28 @@ def run_ppo(**kwargs):
 
     train_logger = TrainLogger(use_wandb=kwargs['use_wandb'])
     env = DeliveryEnvironment(simulator=sim, max_num_points_in_route=max_num_points_in_route,
-                              num_gambles=num_gambles_in_day, device=device)
-    ac = DeliveryActorCritic(gamble_encoder=gamble_encoder,
-                             clm_emb_size=encoder_cfg['claim_embedding_dim'], device=device)
+                              num_gambles=kwargs['num_gambles_in_day'], device=device)
+    ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, clm_emb_size=encoder_cfg['claim_embedding_dim'],
+                             temperature=kwargs['exploration_temperature'], device=device)
     optimizer = make_optimizer(ac.parameters(), **kwargs)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=kwargs['scheduler_max_lr'],
-                                                    total_steps=kwargs['total_iterations'],
+                                                    total_steps=kwargs['total_iters'],
                                                     pct_start=kwargs['scheduler_pct_start'])
-    ppo = PPO(actor_critic=ac, optimizer=optimizer, device=device, scheduler=scheduler, logger=train_logger)
+    ppo = PPO(actor_critic=ac, optimizer=optimizer, device=device, scheduler=scheduler, logger=train_logger,
+              cliprange=kwargs['ppo_cliprange'], value_loss_coef=kwargs['ppo_value_loss_coef'],
+              max_grad_norm=kwargs['max_grad_norm'])
     runner = Runner(environment=env, actor_critic=ac,
-                    n_envs=n_envs, trajectory_lenght=trajectory_lenght)
+                    n_envs=kwargs['n_envs'], trajectory_lenght=kwargs['trajectory_lenght'])
     eval_runner = Runner(environment=env, actor_critic=ac,
                          n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
-    gae = GAE()
+    gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
     normalizer = RewardNormalizer()
     buffer = Buffer(gae, reward_normalizer=normalizer, device=device)
-    sampler = TrajectorySampler(runner, buffer, num_epochs_per_traj=num_epochs_per_traj, batch_size=batch_size)
+    sampler = TrajectorySampler(runner, buffer, num_epochs_per_traj=kwargs['num_epochs_per_traj'],
+                                batch_size=batch_size)
     inference_logger = InferenceMetricsRunner(runner=eval_runner, logger=train_logger)
 
-    for iteration in tqdm(range(total_iters)):
+    for iteration in tqdm(range(kwargs['total_iters'])):
         ac.train()
         sample = sampler.sample()
         ppo.step(sample)
