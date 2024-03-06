@@ -37,6 +37,7 @@ from src.reinforcement.base import (
     TrajectorySampler,
     RewardNormalizer,
     InferenceMetricsRunner,
+    make_optimizer,
 )
 
 
@@ -246,9 +247,10 @@ def run_ppo(**kwargs):
                               num_gambles=num_gambles_in_day, device=device)
     ac = DeliveryActorCritic(gamble_encoder=gamble_encoder,
                              clm_emb_size=encoder_cfg['claim_embedding_dim'], device=device)
-    optimizer = torch.optim.AdamW(ac.parameters(), lr=kwargs['learning_rate'])
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=kwargs['scheduler_step_size'],
-                                                gamma=kwargs['scheduler_decrease_factor'])
+    optimizer = make_optimizer(ac.parameters(), **kwargs)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=kwargs['scheduler_max_lr'],
+                                                    total_steps=kwargs['total_iterations'],
+                                                    pct_start=kwargs['scheduler_pct_start'])
     ppo = PPO(actor_critic=ac, optimizer=optimizer, device=device, scheduler=scheduler, logger=train_logger)
     runner = Runner(environment=env, actor_critic=ac,
                     n_envs=n_envs, trajectory_lenght=trajectory_lenght)

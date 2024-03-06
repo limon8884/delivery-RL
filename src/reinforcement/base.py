@@ -519,3 +519,14 @@ class PPO:
             self._step += 1
         self.optimizer.step()
         self.scheduler.step()
+
+
+def make_optimizer(parameters: typing.Iterable, **kwargs):
+    optimizer = kwargs['optimizer']
+    assert optimizer in ['adam', 'rmsprop', 'sgd'], f'Optimizer {optimizer} is not available'
+    if optimizer == 'adam':
+        return torch.optim.AdamW(parameters, lr=kwargs['learning_rate'])
+    if optimizer == 'rmsprop':
+        return torch.optim.RMSprop(parameters, lr=kwargs['learning_rate'], alpha=kwargs['rmsprop_alpha'])
+    if optimizer == 'sgd':
+        return torch.optim.SGD(parameters, lr=kwargs['learning_rate'], momentum=kwargs['sgd_momentum'])
