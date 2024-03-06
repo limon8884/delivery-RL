@@ -24,7 +24,7 @@ from src.reinforcement.delivery import run_ppo
 @click.option('--scheduler_max_lr', required=False, type=float)
 @click.option('--scheduler_pct_start', required=False, type=float)
 @click.option('--use_wandb', required=False, type=bool)
-@click.option('--checkpoint_path', required=False, type=str, default='checkpoint.pt')
+@click.option('--checkpoint_path', required=False, type=str, default='checkpoints/')
 @click.option('--database_logger_path', required=False, type=str, default='history.db')
 @click.option('--simulator_cfg_path', required=False, type=str, default='configs/simulator.json')
 @click.option('--network_cfg_path', required=False, type=str, default='configs/network.json')
@@ -38,6 +38,7 @@ def get_kwargs(**kwargs):
         if v is None:
             continue
         cfg[k] = v
+    cfg['checkpoint_path'] += str(cfg['run_id']) + '.pt'
     return cfg
 
 
