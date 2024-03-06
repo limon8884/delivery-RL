@@ -15,9 +15,10 @@
     "num_gambles_in_day": 2880,
     "device": "cuda",
     "sampler_mode": "distr_sampler",
-    "simulator_cfg_path": "configs/simulator.json",
-    "network_cfg_path": "configs/network.json",
-    "database_logger_path": "history.db",
-    "checkpoint_path": "checkpoint.pt",
+    "checkpoint_path": "",
+    "database_logger_path": "",
+    "simulator_cfg_path": "",
+    "network_cfg_path": "",
+    "training_cfg_path": "",
     "use_wandb": true
 }
