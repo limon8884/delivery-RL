@@ -1,5 +1,0 @@
-{
-    "pretrained_net": "pretrained_models/RL/net.pt",
-    "pretrained_encoder": "pretrained_models/RL/encoder.pt",
-    "temporary": "pretrained_models/tmp/"
-}
