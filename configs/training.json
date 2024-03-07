@@ -1,5 +1,6 @@
 {
     "run_id": 110,
+    "description": "no info",
     "n_envs": 8,
     "trajectory_lenght": 1000,
     "eval_n_envs": 2,

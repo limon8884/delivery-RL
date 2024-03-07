@@ -164,7 +164,7 @@ class DeliveryActorCritic(BaseActorCritic):
             policy_tens_list.append(policy_tens)
             value_tens_list.append(value_tens)
             claim_tens_list.append(claim_emb)
-        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e7)
+        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e11)
         value_tens_result = pad_sequence(value_tens_list, batch_first=True, padding_value=0.0)
         claim_tens_result = torch.stack(claim_tens_list, dim=0)
         return policy_tens_result, value_tens_result, claim_tens_result
