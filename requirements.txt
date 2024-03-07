@@ -12,4 +12,5 @@ ipython
 tqdm
 flake8
 mypy
+uuid
 # gym['InvertedDoublePendulum-v2']

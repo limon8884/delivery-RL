@@ -37,11 +37,11 @@ def main():
     db = Database(db_path)
     db.clear()
 
-    print('Hungarian')
-    run_dsp(HungarianDispatch(DistanceScorer()), simulator_config_path, db_path, run_id=0, max_num_points_in_route=0)
+    # print('Hungarian')
+    # run_dsp(HungarianDispatch(DistanceScorer()), simulator_config_path, db_path, run_id=0, max_num_points_in_route=0)
 
-    print('Greedy')
-    run_dsp(GreedyDispatch(DistanceScorer()), simulator_config_path, db_path, run_id=1, max_num_points_in_route=0)
+    # print('Greedy')
+    # run_dsp(GreedyDispatch(DistanceScorer()), simulator_config_path, db_path, run_id=1, max_num_points_in_route=0)
 
     print('Neural')
     max_num_points_in_route = 8
@@ -57,8 +57,9 @@ def main():
         max_num_points_in_route=max_num_points_in_route,
         device=None,
     )
-    ac = DeliveryActorCritic(gamble_encoder=encoder, clm_emb_size=net_cfg['claim_embedding_dim'], device=None)
-    ac.load_state_dict(torch.load('checkpoint.pt', map_location='cpu'))
+    ac = DeliveryActorCritic(gamble_encoder=encoder, clm_emb_size=net_cfg['claim_embedding_dim'], device=None,
+                             temperature=1.0)
+    ac.load_state_dict(torch.load('checkpoints/234.pt', map_location='cpu'))
     run_dsp(NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route),
             simulator_config_path, db_path, run_id=3,
             max_num_points_in_route=max_num_points_in_route)

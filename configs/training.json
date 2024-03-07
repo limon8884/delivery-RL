@@ -1,5 +1,5 @@
 {
-    "run_id": 110,
+    "group_run": "no group run",
     "description": "no info",
     "n_envs": 8,
     "trajectory_lenght": 1000,

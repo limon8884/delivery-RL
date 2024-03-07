@@ -1,12 +1,14 @@
 import json
 import click
+import uuid
 
 from src.reinforcement.delivery import run_ppo
 
 
 @click.command()
-@click.argument('run_id', nargs=1)
+# @click.argument('run_id', nargs=1)
 @click.option('--description', '-d', 'description', type=str)
+@click.option('--group_run', '-g', 'group_run', type=str)
 @click.option('--n_envs', required=False, type=int)
 @click.option('--trajectory_lenght', required=False, type=int)
 @click.option('--eval_n_envs', required=False, type=int)
@@ -45,7 +47,10 @@ def get_kwargs(**kwargs):
         if v is None:
             continue
         cfg[k] = v
-    cfg['checkpoint_path'] += str(cfg['run_id']) + '.pt'
+
+    run_id = str(uuid.uuid4().hex)
+    cfg['run_id'] = run_id
+    cfg['checkpoint_path'] += run_id + '.pt'
     return cfg
 
 
