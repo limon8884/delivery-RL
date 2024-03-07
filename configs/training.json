@@ -14,10 +14,10 @@
     "device": "cuda",
 
     "learning_rate": 3e-5,
-    "optimizer": "adam",
+    "optimizer": "rmsprop",
     "rmsprop_alpha": 0.99,
     "sgd_momentum": 0.9,
-    "scheduler_max_lr": 1e-2,
+    "scheduler_max_lr": 1e-4,
     "scheduler_pct_start": 0.3,
 
     "exploration_temperature": 1.0,
