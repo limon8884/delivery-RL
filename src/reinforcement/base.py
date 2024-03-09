@@ -387,7 +387,7 @@ class Logger:
 
     def commit(self, step: int):
         if self.wandb_logs is not None:
-            wandb.log({**self.wandb_logs, 'iter':step})
+            wandb.log({**self.wandb_logs, 'iter': step})
             self.wandb_logs = {}
 
     def plot(self, window_size=10, log_scale=False, start=0):

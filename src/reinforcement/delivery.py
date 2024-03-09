@@ -10,9 +10,6 @@ from pathlib import Path
 from copy import deepcopy
 
 from src.objects import (
-    Claim,
-    Courier,
-    Order,
     Gamble,
     Assignment,
 )
