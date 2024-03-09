@@ -528,6 +528,31 @@ class PPO:
         self.scheduler.step()
 
 
+class BaseMaker:
+    def __init__(self, **kwargs) -> None:
+        raise NotImplementedError
+
+    @property
+    def ppo(self) -> PPO:
+        raise NotImplementedError
+
+    @property
+    def sampler(self) -> TrajectorySampler:
+        raise NotImplementedError
+
+    @property
+    def actor_critic(self) -> BaseActorCritic:
+        raise NotImplementedError
+
+    @property
+    def environment(self) -> BaseEnvironment:
+        raise NotImplementedError
+
+    @property
+    def logger(self) -> Logger:
+        raise NotImplementedError
+
+
 def make_optimizer(parameters: typing.Iterable, **kwargs):
     optimizer = kwargs['optimizer']
     assert optimizer in ['adam', 'rmsprop', 'sgd'], f'Optimizer {optimizer} is not available'

@@ -6,6 +6,9 @@ from src.database.classes import Event, TableName
 class Logger:
     def __init__(self, run_id: int) -> None:
         self.run_id = run_id
+        self.reset()
+
+    def reset(self) -> None:
         self.data: dict[str, list[tuple[int, datetime, str]]] = {
             TableName.COURIER_TABLE.value: [],
             TableName.CLAIM_TABLE.value: [],

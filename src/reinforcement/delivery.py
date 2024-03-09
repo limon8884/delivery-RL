@@ -1,13 +1,12 @@
 import typing
 import torch
 import json
-import wandb
 import numpy as np
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 from pathlib import Path
-from tqdm import tqdm
-from itertools import chain
+# from tqdm import tqdm
+# from itertools import chain
 from copy import deepcopy
 
 from src.objects import (
@@ -20,7 +19,6 @@ from src.objects import (
 from src.simulator.simulator import Simulator
 from src.simulator.data_reader import DataReader
 from src.router_makers import AppendRouteMaker
-from src.database.database import Database, Metric, Logger as DB_Logger
 from src.networks.encoders import GambleEncoder
 
 
@@ -33,11 +31,12 @@ from src.reinforcement.base import (
     GAE,
     Buffer,
     PPO,
-    Logger as TrainLogger,
+    Logger,
     TrajectorySampler,
     RewardNormalizer,
-    InferenceMetricsRunner,
+    # InferenceMetricsRunner,
     make_optimizer,
+    BaseMaker,
 )
 
 
@@ -153,7 +152,7 @@ class DeliveryActorCritic(BaseActorCritic):
         pol_tens, val_tens, clm_tens = self._make_masked_policy_value_claim_tensors(state_list)
         policy = (clm_tens.unsqueeze(1) @ pol_tens.transpose(-1, -2)).squeeze(1)
         self.log_probs = nn.functional.log_softmax(policy / self.temperature, dim=-1)
-        self.actions = torch.distributions.categorical.Categorical(logits=self.log_probs).sample()
+        self._actions = torch.distributions.categorical.Categorical(logits=self.log_probs).sample()
         self.values = (clm_tens @ torch.mean(val_tens, dim=1).T).diag()
 
     def _make_masked_policy_value_claim_tensors(self, states: list[DeliveryState]
@@ -193,12 +192,12 @@ class DeliveryActorCritic(BaseActorCritic):
     def get_actions_list(self, best_actions=False) -> list[Action]:
         if best_actions:
             return [DeliveryAction(a.item()) for a in torch.argmax(self.log_probs, dim=-1)]
-        return [DeliveryAction(a.item()) for a in self.actions]
+        return [DeliveryAction(a.item()) for a in self._actions]
 
     def get_log_probs_list(self) -> list[float]:
         return [
             a.item()
-            for a in torch.gather(self.log_probs, dim=-1, index=self.actions.unsqueeze(-1)).to(self.device).squeeze(-1)
+            for a in torch.gather(self.log_probs, dim=-1, index=self._actions.unsqueeze(-1)).to(self.device).squeeze(-1)
         ]
 
     def get_values_list(self) -> list[float]:
@@ -211,64 +210,66 @@ class DeliveryActorCritic(BaseActorCritic):
         return self.values
 
 
-def run_ppo(**kwargs):
-    if kwargs['use_wandb']:
-        wandb.login()
-        wandb.init(
-            project="delivery-RL-v2",
-            name=f"run_{kwargs['run_id']}",
-            config=kwargs
-        )
+class DeliveryMaker(BaseMaker):
+    def __init__(self, **kwargs) -> None:
+        batch_size = kwargs['batch_size']
+        max_num_points_in_route = kwargs['max_num_points_in_route']
+        device = kwargs['device']
 
-    batch_size = kwargs['batch_size']
-    max_num_points_in_route = kwargs['max_num_points_in_route']
-    device = kwargs['device']
+        simulator_config_path = Path(kwargs['simulator_cfg_path'])
+        network_config_path = Path(kwargs['network_cfg_path'])
+        with open(network_config_path) as f:
+            encoder_cfg = json.load(f)['encoder']
 
-    simulator_config_path = Path(kwargs['simulator_cfg_path'])
-    network_config_path = Path(kwargs['network_cfg_path'])
-    db_path = Path(kwargs['database_logger_path'])
-    db = Database(db_path)
-    db.clear()
+        gamble_encoder = GambleEncoder(max_num_points_in_route=max_num_points_in_route, **encoder_cfg, device=device)
+        reader = DataReader.from_config(config_path=simulator_config_path,
+                                        sampler_mode=kwargs['sampler_mode'], logger=None)
+        route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
+        sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=simulator_config_path, logger=None)
 
-    with open(network_config_path) as f:
-        encoder_cfg = json.load(f)['encoder']
-    gamble_encoder = GambleEncoder(max_num_points_in_route=max_num_points_in_route, **encoder_cfg, device=device)
-    db_logger = DB_Logger(run_id=kwargs['run_id'])
-    reader = DataReader.from_config(config_path=simulator_config_path,
-                                    sampler_mode=kwargs['sampler_mode'], logger=db_logger)
-    route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=simulator_config_path, logger=db_logger)
+        self._train_logger = Logger(use_wandb=kwargs['use_wandb'])
+        self._env = DeliveryEnvironment(simulator=sim, max_num_points_in_route=max_num_points_in_route,
+                                        num_gambles=kwargs['num_gambles_in_day'], device=device)
+        self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, clm_emb_size=encoder_cfg['claim_embedding_dim'],
+                                       temperature=kwargs['exploration_temperature'], device=device)
+        optimizer = make_optimizer(self._ac.parameters(), **kwargs)
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=kwargs['scheduler_max_lr'],
+                                                        total_steps=kwargs['total_iters'],
+                                                        pct_start=kwargs['scheduler_pct_start'])
+        self._ppo = PPO(
+            actor_critic=self._ac,
+            optimizer=optimizer,
+            device=device,
+            scheduler=scheduler,
+            logger=self._train_logger,
+            cliprange=kwargs['ppo_cliprange'],
+            value_loss_coef=kwargs['ppo_value_loss_coef'],
+            max_grad_norm=kwargs['max_grad_norm']
+            )
+        runner = Runner(environment=self._env, actor_critic=self._ac,
+                        n_envs=kwargs['n_envs'], trajectory_lenght=kwargs['trajectory_lenght'])
+        gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
+        normalizer = RewardNormalizer()
+        buffer = Buffer(gae, reward_normalizer=normalizer, device=device)
+        self._sampler = TrajectorySampler(runner, buffer, num_epochs_per_traj=kwargs['num_epochs_per_traj'],
+                                          batch_size=batch_size)
 
-    train_logger = TrainLogger(use_wandb=kwargs['use_wandb'])
-    env = DeliveryEnvironment(simulator=sim, max_num_points_in_route=max_num_points_in_route,
-                              num_gambles=kwargs['num_gambles_in_day'], device=device)
-    ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, clm_emb_size=encoder_cfg['claim_embedding_dim'],
-                             temperature=kwargs['exploration_temperature'], device=device)
-    optimizer = make_optimizer(ac.parameters(), **kwargs)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=kwargs['scheduler_max_lr'],
-                                                    total_steps=kwargs['total_iters'],
-                                                    pct_start=kwargs['scheduler_pct_start'])
-    ppo = PPO(actor_critic=ac, optimizer=optimizer, device=device, scheduler=scheduler, logger=train_logger,
-              cliprange=kwargs['ppo_cliprange'], value_loss_coef=kwargs['ppo_value_loss_coef'],
-              max_grad_norm=kwargs['max_grad_norm'])
-    runner = Runner(environment=env, actor_critic=ac,
-                    n_envs=kwargs['n_envs'], trajectory_lenght=kwargs['trajectory_lenght'])
-    eval_runner = Runner(environment=env, actor_critic=ac,
-                         n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
-    gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
-    normalizer = RewardNormalizer()
-    buffer = Buffer(gae, reward_normalizer=normalizer, device=device)
-    sampler = TrajectorySampler(runner, buffer, num_epochs_per_traj=kwargs['num_epochs_per_traj'],
-                                batch_size=batch_size)
-    inference_logger = InferenceMetricsRunner(runner=eval_runner, logger=train_logger)
+    @property
+    def ppo(self) -> PPO:
+        return self._ppo
 
-    for iteration in tqdm(range(kwargs['total_iters'])):
-        ac.train()
-        sample = sampler.sample()
-        ppo.step(sample)
-        if iteration % kwargs['eval_epochs_frequency'] == 0:
-            ac.eval()
-            inference_logger()
-            if not kwargs['use_wandb']:
-                train_logger.plot(window_size=10)
-            torch.save(ac.state_dict(), kwargs['checkpoint_path'])
+    @property
+    def sampler(self) -> TrajectorySampler:
+        return self._sampler
+
+    @property
+    def actor_critic(self) -> BaseActorCritic:
+        return self._ac
+
+    @property
+    def environment(self) -> BaseEnvironment:
+        return self._env
+
+    @property
+    def logger(self) -> Logger:
+        return self._train_logger

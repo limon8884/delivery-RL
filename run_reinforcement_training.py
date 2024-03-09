@@ -1,12 +1,19 @@
 import json
 import click
 import uuid
+import torch
+import numpy
+import random
+import wandb
+from tqdm import tqdm
 
-from src.reinforcement.delivery import run_ppo
+from src.reinforcement.base import Runner, InferenceMetricsRunner
+from src.reinforcement.delivery import DeliveryMaker
+from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
+from src.evaluation import evaluate
 
 
 @click.command()
-# @click.argument('run_id', nargs=1)
 @click.option('--description', '-d', 'description', type=str)
 @click.option('--group_run', '-g', 'group_run', type=str)
 @click.option('--n_envs', required=False, type=int)
@@ -34,11 +41,11 @@ from src.reinforcement.delivery import run_ppo
 @click.option('--gae_lambda', required=False, type=float)
 @click.option('--use_wandb', required=False, type=bool)
 @click.option('--checkpoint_path', required=False, type=str, default='checkpoints/')
-@click.option('--database_logger_path', required=False, type=str, default='history.db')
+@click.option('--history_db_path', required=False, type=str, default='histories/')
 @click.option('--simulator_cfg_path', required=False, type=str, default='configs/simulator.json')
 @click.option('--network_cfg_path', required=False, type=str, default='configs/network.json')
 @click.option('--training_cfg_path', required=False, type=str, default='configs/training.json')
-def get_kwargs(**kwargs):
+def make_kwargs(**kwargs):
     training_cfg_path = kwargs['training_cfg_path']
     with open(training_cfg_path) as f:
         cfg = dict(json.load(f))
@@ -48,12 +55,49 @@ def get_kwargs(**kwargs):
             continue
         cfg[k] = v
 
-    run_id = str(uuid.uuid4().hex)
-    cfg['run_id'] = run_id
-    cfg['checkpoint_path'] += run_id + '.pt'
+    train_id = str(uuid.uuid4().hex)
+    cfg['train_id'] = train_id
+    cfg['checkpoint_path'] += train_id + '.pt'
+    cfg['history_db_path'] += train_id + '.db'
     return cfg
 
 
+def run_ppo(**kwargs):
+    if kwargs['use_wandb']:
+        wandb.login()
+        wandb.init(
+            project="delivery-RL-v2",
+            name=kwargs['train_id'],
+            config=kwargs
+        )
+
+    maker = DeliveryMaker(**kwargs)
+
+    eval_runner = Runner(environment=maker.environment, actor_critic=maker.actor_critic,
+                         n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
+    inference_logger = InferenceMetricsRunner(runner=eval_runner, logger=maker.logger)
+    dsp = NeuralSequantialDispatch(actor_critic=maker.actor_critic,
+                                   max_num_points_in_route=kwargs['max_num_points_in_route'])
+
+    for iteration in tqdm(range(kwargs['total_iters'])):
+        maker.actor_critic.train()
+        sample = maker.sampler.sample()
+        maker.ppo.step(sample)
+        if iteration % kwargs['eval_epochs_frequency'] == 0:
+            maker.actor_critic.eval()
+            inference_logger()
+            metrics = evaluate(dispatch=dsp, run_id=iteration, **kwargs)
+            for k, v in metrics.items():
+                maker.logger.log(k, v)
+            if not kwargs['use_wandb']:
+                maker.logger.plot(window_size=10)
+            torch.save(maker.actor_critic.state_dict(), kwargs['checkpoint_path'])
+
+
 if __name__ == '__main__':
-    cfg = get_kwargs(standalone_mode=False)
-    run_ppo(**cfg)
+    torch.manual_seed(seed=0)
+    numpy.random.seed(seed=0)
+    random.seed(0)
+    kwargs = make_kwargs(standalone_mode=False)
+    print('Start training with id ' + kwargs['train_id'])
+    run_ppo(**kwargs)

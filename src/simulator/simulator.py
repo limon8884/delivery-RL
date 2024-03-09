@@ -34,6 +34,9 @@ class Simulator(object):
     def reset(self) -> None:
         """Resets simulator. Does not reset data_reader!
         """
+        if self._logger is not None:
+            self._logger.reset()
+
         with open(self._config_path, 'r') as f:
             config = json.load(f)
 

@@ -15,7 +15,7 @@
 
     "learning_rate": 3e-5,
     "optimizer": "rmsprop",
-    "rmsprop_alpha": 0.99,
+    "rmsprop_alpha": 0.9,
     "sgd_momentum": 0.9,
     "scheduler_max_lr": 1e-4,
     "scheduler_pct_start": 0.3,
@@ -29,9 +29,11 @@
 
     "sampler_mode": "distr_sampler",
     "checkpoint_path": "",
-    "database_logger_path": "",
+    "history_db_path": "",
     "simulator_cfg_path": "",
     "network_cfg_path": "",
     "training_cfg_path": "",
-    "use_wandb": true
+    "use_wandb": true,
+
+    "eval_num_simulator_steps": 500
 }
