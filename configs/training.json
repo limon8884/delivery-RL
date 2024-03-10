@@ -35,5 +35,5 @@
     "training_cfg_path": "",
     "use_wandb": true,
 
-    "eval_num_simulator_steps": 5
+    "eval_num_simulator_steps": 500
 }
