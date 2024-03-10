@@ -8,7 +8,7 @@
     "batch_size": 64,
     "num_epochs_per_traj": 10,
     "total_iters": 20000,
-    "eval_epochs_frequency": 100,
+    "eval_epochs_frequency": 500,
     "max_num_points_in_route": 8,
     "num_gambles_in_day": 2880,
     "device": "cuda",
@@ -35,5 +35,5 @@
     "training_cfg_path": "",
     "use_wandb": true,
 
-    "eval_num_simulator_steps": 500
+    "eval_num_simulator_steps": 200
 }
