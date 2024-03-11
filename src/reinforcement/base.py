@@ -481,22 +481,17 @@ class PPO:
         """ Computes and returns policy loss on a given trajectory. """
         a = sample['advantages']
         old_log_probs_chosen = sample['log_probs_chosen']
-        try:
-            new_log_probs_chosen = torch.gather(
-                new_log_probs, dim=-1, index=sample['actions_chosen'].unsqueeze(-1)
-            ).squeeze(-1)
-        except:
-            print('new_log_probs', new_log_probs.shape, new_log_probs)
-            print('actions_chosen', sample['actions_chosen'].shape, sample['actions_chosen'])
-            print('states_nums:')
+        
+        torch.save(new_log_probs, 'new_log_probs.pt')
+        torch.save(sample['actions_chosen'], 'actions_chosen.pt')
+        new_log_probs_chosen = torch.gather(
+            new_log_probs, dim=-1, index=sample['actions_chosen'].unsqueeze(-1)
+        ).squeeze(-1)
+        with open('nums.txt', 'w') as f:
+            f.write(f"{new_log_probs.shape}, {sample['actions_chosen'].shape}\n")
             for i, st in enumerate(sample['states']):
-                assert isinstance(st, State)
-                print('state:', i)
-                print('crr', st.couriers_embs.shape if st.couriers_embs is not None else 'none')
-                print('ord', st.orders_embs.shape if st.orders_embs is not None else 'none')
-                print('clm', st.claim_emb.shape)
-                print()
-            raise RuntimeError
+                f.write(f"{i}) {st.couriers_embs.shape if st.couriers_embs is not None else 'none'}, \
+                        {st.orders_embs.shape if st.orders_embs is not None else 'none'}, {st.claim_emb.shape}\n")
         r = torch.exp(new_log_probs_chosen - old_log_probs_chosen)
         loss = -torch.minimum(r * a, torch.clamp(r, 1 - self.cliprange, 1 + self.cliprange) * a).mean()
         if self.logger:
