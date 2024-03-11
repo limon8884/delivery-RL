@@ -331,7 +331,7 @@ class Buffer:
         Input: size - a size of batch
         '''
         assert self.lenght > 0
-        assert self._iter < self.lenght
+        assert self._iter + size < self.lenght, 'can not sample, buffer ended('
         choices = self._perm[self._iter: self._iter + size]
         self._iter += size
         return {
@@ -481,17 +481,21 @@ class PPO:
         """ Computes and returns policy loss on a given trajectory. """
         a = sample['advantages']
         old_log_probs_chosen = sample['log_probs_chosen']
-        
-        torch.save(new_log_probs, 'new_log_probs.pt')
-        torch.save(sample['actions_chosen'], 'actions_chosen.pt')
+        actions_chosen = sample['actions_chosen']
+
+        ### BUG AREA
+        n_choices = new_log_probs.size(1)
+        if (actions_chosen >= n_choices).any():
+            print('NUM BUG CHOICES:', (actions_chosen >= n_choices).sum().item())
+            torch.save(new_log_probs, 'debug_new_log_probs.pt')
+            torch.save(actions_chosen, 'debug_actions_chosen.pt')
+            actions_chosen = torch.minimum(actions_chosen, torch.tensor(n_choices - 1,
+                                                                        dtype=torch.int64, device=self.device))
+        ###
+
         new_log_probs_chosen = torch.gather(
-            new_log_probs, dim=-1, index=sample['actions_chosen'].unsqueeze(-1)
+            new_log_probs, dim=-1, index=actions_chosen.unsqueeze(-1)
         ).squeeze(-1)
-        with open('nums.txt', 'w') as f:
-            f.write(f"{new_log_probs.shape}, {sample['actions_chosen'].shape}\n")
-            for i, st in enumerate(sample['states']):
-                f.write(f"{i}) {st.couriers_embs.shape if st.couriers_embs is not None else 'none'}, \
-                        {st.orders_embs.shape if st.orders_embs is not None else 'none'}, {st.claim_emb.shape}\n")
         r = torch.exp(new_log_probs_chosen - old_log_probs_chosen)
         loss = -torch.minimum(r * a, torch.clamp(r, 1 - self.cliprange, 1 + self.cliprange) * a).mean()
         if self.logger:
