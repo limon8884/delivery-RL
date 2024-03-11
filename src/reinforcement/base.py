@@ -331,7 +331,7 @@ class Buffer:
         Input: size - a size of batch
         '''
         assert self.lenght > 0
-        assert self._iter + size < self.lenght, 'can not sample, buffer ended('
+        assert self._iter + size <= self.lenght, 'can not sample, buffer ended('
         choices = self._perm[self._iter: self._iter + size]
         self._iter += size
         return {
