@@ -229,19 +229,16 @@ class DeliveryMaker(BaseMaker):
                                         num_gambles=kwargs['num_gambles_in_day'], device=device)
         self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, clm_emb_size=encoder_cfg['claim_embedding_dim'],
                                        temperature=kwargs['exploration_temperature'], device=device)
-        optimizer = make_optimizer(self._ac.parameters(), **kwargs)
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=kwargs['scheduler_max_lr'],
+        opt = make_optimizer(self._ac.parameters(), **kwargs)
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=kwargs['scheduler_max_lr'],
                                                         total_steps=kwargs['total_iters'],
                                                         pct_start=kwargs['scheduler_pct_start'])
         self._ppo = PPO(
             actor_critic=self._ac,
-            optimizer=optimizer,
-            device=device,
+            opt=opt,
             scheduler=scheduler,
             logger=self._train_logger,
-            cliprange=kwargs['ppo_cliprange'],
-            value_loss_coef=kwargs['ppo_value_loss_coef'],
-            max_grad_norm=kwargs['max_grad_norm']
+            **kwargs
             )
         runner = Runner(environment=self._env, actor_critic=self._ac,
                         n_envs=kwargs['n_envs'], trajectory_lenght=kwargs['trajectory_lenght'])

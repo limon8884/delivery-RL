@@ -11,3 +11,9 @@ def get_random_point(corner_bounds: tuple[Point, Point] = (Point(0.0, 0.0), Poin
     y = random.random() * (right_upper_bound.y - left_lower_bound.y) + left_lower_bound.y
 
     return Point(x, y)
+
+
+def write_in_txt_file(path: str, content: str) -> None:
+    with open(path, 'a') as f:
+        f.write(content)
+        f.write('\n')

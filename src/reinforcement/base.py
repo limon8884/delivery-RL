@@ -7,6 +7,8 @@ from torch import nn
 from IPython.display import clear_output
 from collections import defaultdict
 
+from src.utils import write_in_txt_file
+
 
 class Action:
     '''
@@ -458,23 +460,21 @@ class InferenceMetricsRunner:
 class PPO:
     def __init__(self,
                  actor_critic: BaseActorCritic,
-                 optimizer: torch.optim.Optimizer,
-                 device,
+                 opt: torch.optim.Optimizer,
                  scheduler: typing.Optional[torch.optim.lr_scheduler._LRScheduler] = None,
                  logger: typing.Optional[Logger] = None,
-                 cliprange=0.2,
-                 value_loss_coef=0.25,
-                 max_grad_norm=1.0,
+                 **kwargs,
                  ):
         self.logger = logger
         self.actor_critic = actor_critic
-        self.optimizer = optimizer
+        self.opt = opt
         self.scheduler = scheduler
-        self.cliprange = cliprange
-        self.value_loss_coef = value_loss_coef
+        self.cliprange = kwargs['ppo_cliprange']
+        self.value_loss_coef = kwargs['ppo_value_loss_coef']
         # Note that we don't need entropy regularization for this env.
-        self.max_grad_norm = max_grad_norm
-        self.device = device
+        self.max_grad_norm = kwargs['max_grad_norm']
+        self.device = kwargs['device']
+        self.debug_file_path = kwargs['debug_info_path']
         self._step = 0
 
     def _policy_loss(self, sample: dict[str, torch.FloatTensor | list[State]], new_log_probs: torch.FloatTensor):
@@ -486,9 +486,10 @@ class PPO:
         ### BUG AREA
         n_choices = new_log_probs.size(1)
         if (actions_chosen >= n_choices).any():
-            print('NUM BUG CHOICES:', (actions_chosen >= n_choices).sum().item())
-            torch.save(new_log_probs, 'debug_new_log_probs.pt')
-            torch.save(actions_chosen, 'debug_actions_chosen.pt')
+            info = f'num bug choices: {(actions_chosen >= n_choices).sum().item()}, '\
+                f'log_probs shape: {new_log_probs.shape}, '\
+                f'max chosen action idx: {actions_chosen.max().item()}'
+            write_in_txt_file(self.debug_file_path, info)
             actions_chosen = torch.minimum(actions_chosen, torch.tensor(n_choices - 1,
                                                                         dtype=torch.int64, device=self.device))
         ###
@@ -526,7 +527,7 @@ class PPO:
         """
         Computes the loss function and performs a single gradient step
         """
-        self.optimizer.zero_grad()
+        self.opt.zero_grad()
         self.actor_critic.train()
         loss = self._loss(sample)
         loss.backward()
@@ -536,7 +537,7 @@ class PPO:
             self.logger.log('total loss', loss.item())
             self.logger.commit(step=self._step)
             self._step += 1
-        self.optimizer.step()
+        self.opt.step()
         self.scheduler.step()
 
 

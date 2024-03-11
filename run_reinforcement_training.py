@@ -14,19 +14,17 @@ from src.evaluation import evaluate
 
 
 @click.command()
-@click.option('--description', '-d', 'description', type=str)
 @click.option('--group_run', '-g', 'group_run', type=str)
+@click.option('--description', '-d', 'description', type=str)
+@click.option('--total_iters', required=False, type=int)
+@click.option('--device', required=False, type=str)
+@click.option('--use_wandb', required=False, type=bool)
 @click.option('--n_envs', required=False, type=int)
 @click.option('--trajectory_lenght', required=False, type=int)
-@click.option('--eval_n_envs', required=False, type=int)
-@click.option('--eval_trajectory_lenght', required=False, type=int)
 @click.option('--batch_size', required=False, type=int)
 @click.option('--num_epochs_per_traj', required=False, type=int)
-@click.option('--total_iters', required=False, type=int)
-@click.option('--eval_epochs_frequency', required=False, type=int)
 @click.option('--max_num_points_in_route', required=False, type=int)
 @click.option('--sampler_mode', required=False, type=str)
-@click.option('--device', required=False, type=str)
 @click.option('--learning_rate', required=False, type=float)
 @click.option('--optimizer', required=False, type=str)
 @click.option('--rmsprop_alpha', required=False, type=float)
@@ -39,12 +37,16 @@ from src.evaluation import evaluate
 @click.option('--max_grad_norm', required=False, type=float)
 @click.option('--gae_gamma', required=False, type=float)
 @click.option('--gae_lambda', required=False, type=float)
-@click.option('--use_wandb', required=False, type=bool)
 @click.option('--checkpoint_path', required=False, type=str, default='checkpoints/')
 @click.option('--history_db_path', required=False, type=str, default='histories/')
 @click.option('--simulator_cfg_path', required=False, type=str, default='configs/simulator.json')
 @click.option('--network_cfg_path', required=False, type=str, default='configs/network.json')
 @click.option('--training_cfg_path', required=False, type=str, default='configs/training.json')
+@click.option('--debug_info_path', required=False, type=str, default='debug_info/')
+@click.option('--eval_num_simulator_steps', required=False, type=int)
+@click.option('--eval_n_envs', required=False, type=int)
+@click.option('--eval_trajectory_lenght', required=False, type=int)
+@click.option('--eval_epochs_frequency', required=False, type=int)
 def make_kwargs(**kwargs):
     training_cfg_path = kwargs['training_cfg_path']
     with open(training_cfg_path) as f:
@@ -59,6 +61,7 @@ def make_kwargs(**kwargs):
     cfg['train_id'] = train_id
     cfg['checkpoint_path'] += train_id + '.pt'
     cfg['history_db_path'] += train_id + '.db'
+    cfg['debug_info_path'] += train_id + '.txt'
     return cfg
 
 

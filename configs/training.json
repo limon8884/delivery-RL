@@ -1,18 +1,18 @@
 {
     "group_run": "no group run",
     "description": "no info",
-    "n_envs": 8,
-    "trajectory_lenght": 1000,
-    "eval_n_envs": 2,
-    "eval_trajectory_lenght": 500,
+
+    "total_iters": 25000,
+    "device": "cuda",
+    "use_wandb": true,
+
+    "n_envs": 32,
+    "trajectory_lenght": 250,
     "batch_size": 64,
     "num_epochs_per_traj": 10,
-    "total_iters": 30000,
-    "eval_epochs_frequency": 500,
-    "max_num_points_in_route": 8,
-    "num_gambles_in_day": 2880,
-    "device": "cuda",
-
+    "max_num_points_in_route": 2,
+    "sampler_mode": "distr_sampler",
+    
     "learning_rate": 3e-5,
     "optimizer": "rmsprop",
     "rmsprop_alpha": 0.9,
@@ -27,13 +27,16 @@
     "gae_gamma": 0.99,
     "gae_lambda": 0.95,
 
-    "sampler_mode": "distr_sampler",
     "checkpoint_path": "",
     "history_db_path": "",
     "simulator_cfg_path": "",
     "network_cfg_path": "",
     "training_cfg_path": "",
-    "use_wandb": true,
-
-    "eval_num_simulator_steps": 200
+    "debug_info_path": "",
+    
+    "num_gambles_in_day": 2880,
+    "eval_num_simulator_steps": 200,
+    "eval_n_envs": 2,
+    "eval_trajectory_lenght": 500,
+    "eval_epochs_frequency": 1000
 }
