@@ -192,7 +192,7 @@ class DeliveryActorCritic(BaseActorCritic):
         else:
             self._actions = torch.distributions.categorical.Categorical(logits=self.log_probs).sample()
         # return [DeliveryAction(a.item()) for a in self._actions]
-        return self._actions.tolist()
+        return [DeliveryAction(a) for a in self._actions.tolist()]
 
     def get_log_probs_list(self) -> list[float]:
         # return [
