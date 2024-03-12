@@ -131,9 +131,9 @@ class DeliveryEnvironment(BaseEnvironment):
     def _make_state_from_gamble_dict(self) -> DeliveryState:
         claim_emb = self.embs_dict['clm'][self._claim_idx]
         return DeliveryState(
-            claim_emb=claim_emb.copy(),
-            couriers_embs=self.embs_dict['crr'].copy(),
-            orders_embs=self.embs_dict['ord'].copy()
+            claim_emb=claim_emb,
+            couriers_embs=self.embs_dict['crr'],
+            orders_embs=self.embs_dict['ord']
         )
 
 
