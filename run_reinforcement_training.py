@@ -65,14 +65,6 @@ def make_kwargs(**kwargs):
 
 
 def run_ppo(**kwargs):
-    if kwargs['use_wandb']:
-        wandb.login()
-        wandb.init(
-            project="delivery-RL-v2",
-            name=kwargs['train_id'],
-            config=kwargs
-        )
-
     maker = DeliveryMaker(**kwargs)
     maker.ppo.logger = None
 
@@ -102,7 +94,17 @@ def main():
     # numpy.random.seed(seed=0)
     # random.seed(0)
     kwargs = make_kwargs(standalone_mode=False)
+    if kwargs['use_wandb']:
+        #     wandb.login()
+        wandb.init(
+            project="delivery-RL-v2",
+            name=kwargs['train_id'],
+            config=kwargs
+        )
+        for k in kwargs:
+            kwargs[k] = getattr(wandb.config, k, kwargs[k])
     print('Start training with id ' + kwargs['train_id'])
+    print('kwargs: ', kwargs)
     run_ppo(**kwargs)
 
 
