@@ -37,20 +37,19 @@ from src.evaluation import evaluate
 @click.option('--max_grad_norm', required=False, type=float)
 @click.option('--gae_gamma', required=False, type=float)
 @click.option('--gae_lambda', required=False, type=float)
-@click.option('--checkpoint_path', required=False, type=str, default='checkpoints/')
-@click.option('--history_db_path', required=False, type=str, default='histories/')
-@click.option('--simulator_cfg_path', required=False, type=str, default='configs/simulator.json')
-@click.option('--network_cfg_path', required=False, type=str, default='configs/network.json')
-@click.option('--training_cfg_path', required=False, type=str, default='configs/training.json')
-@click.option('--debug_info_path', required=False, type=str, default='debug_info/')
 @click.option('--eval_num_simulator_steps', required=False, type=int)
 @click.option('--eval_n_envs', required=False, type=int)
 @click.option('--eval_trajectory_lenght', required=False, type=int)
 @click.option('--eval_epochs_frequency', required=False, type=int)
 def make_kwargs(**kwargs):
-    training_cfg_path = kwargs['training_cfg_path']
-    with open(training_cfg_path) as f:
+    with open('configs/paths.json') as f:
+        paths = dict(json.load(f))
+    with open(paths['training_cfg_path']) as f:
         cfg = dict(json.load(f))
+    with open(paths['eval_cfg_path']) as f:
+        cfg.update(json.load(f))
+    cfg.update(paths)
+
     for k, v in kwargs.items():
         assert k in cfg.keys(), f'Not found argument {k} in config!'
         if v is None:
@@ -75,6 +74,7 @@ def run_ppo(**kwargs):
         )
 
     maker = DeliveryMaker(**kwargs)
+    maker.ppo.logger = None
 
     eval_runner = Runner(environment=maker.environment, actor_critic=maker.actor_critic,
                          n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
@@ -86,21 +86,25 @@ def run_ppo(**kwargs):
         maker.actor_critic.train()
         sample = maker.sampler.sample()
         maker.ppo.step(sample)
-        if iteration % kwargs['eval_epochs_frequency'] == 0:
+        if (iteration + 1) % kwargs['eval_epochs_frequency'] == 0:
             maker.actor_critic.eval()
-            inference_logger()
             metrics = evaluate(dispatch=dsp, run_id=iteration, **kwargs)
             for k, v in metrics.items():
                 maker.logger.log(k, v)
+            inference_logger()
             if not kwargs['use_wandb']:
                 maker.logger.plot(window_size=10)
             torch.save(maker.actor_critic.state_dict(), kwargs['checkpoint_path'])
 
 
-if __name__ == '__main__':
-    torch.manual_seed(seed=0)
-    numpy.random.seed(seed=0)
-    random.seed(0)
+def main():
+    # torch.manual_seed(seed=0)
+    # numpy.random.seed(seed=0)
+    # random.seed(0)
     kwargs = make_kwargs(standalone_mode=False)
     print('Start training with id ' + kwargs['train_id'])
     run_ppo(**kwargs)
+
+
+if __name__ == '__main__':
+    main()

@@ -21,7 +21,6 @@ def evaluate(
     sim.run(dispatch, num_iters=kwargs['eval_num_simulator_steps'])
 
     db = Database(Path(kwargs['history_db_path']))
-    # db.clear()  # ATTENTION!
     db.export_from_logger(logger)
     cr, ctd = db.get_metric(Metric.CR, run_id), db.get_metric(Metric.CTD, run_id)
     return {

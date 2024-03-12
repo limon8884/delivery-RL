@@ -26,17 +26,6 @@
     "max_grad_norm": 1.0,
     "gae_gamma": 0.99,
     "gae_lambda": 0.95,
-
-    "checkpoint_path": "",
-    "history_db_path": "",
-    "simulator_cfg_path": "",
-    "network_cfg_path": "",
-    "training_cfg_path": "",
-    "debug_info_path": "",
     
-    "num_gambles_in_day": 2880,
-    "eval_num_simulator_steps": 200,
-    "eval_n_envs": 2,
-    "eval_trajectory_lenght": 500,
-    "eval_epochs_frequency": 1000
+    "num_gambles_in_day": 2880
 }

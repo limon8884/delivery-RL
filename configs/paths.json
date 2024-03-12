@@ -1,0 +1,9 @@
+{
+    "checkpoint_path": "checkpoints/",
+    "history_db_path": "histories/",
+    "debug_info_path": "debug_info/",
+    "simulator_cfg_path": "configs/simulator.json",
+    "network_cfg_path": "configs/network.json",
+    "eval_cfg_path": "configs/evaluation.json",
+    "training_cfg_path": "configs/training.json"
+}
