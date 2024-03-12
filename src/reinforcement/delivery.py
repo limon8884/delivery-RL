@@ -131,9 +131,9 @@ class DeliveryEnvironment(BaseEnvironment):
     def _make_state_from_gamble_dict(self) -> DeliveryState:
         claim_emb = self.embs_dict['clm'][self._claim_idx]
         return DeliveryState(
-            claim_emb=claim_emb,
-            couriers_embs=self.embs_dict['crr'],
-            orders_embs=self.embs_dict['ord']
+            claim_emb=claim_emb.copy(),
+            couriers_embs=self.embs_dict['crr'].copy(),
+            orders_embs=self.embs_dict['ord'].copy()
         )
 
 
@@ -149,8 +149,8 @@ class DeliveryActorCritic(BaseActorCritic):
         pol_tens, val_tens, clm_tens = self._make_masked_policy_value_claim_tensors(state_list)
         policy = (clm_tens.unsqueeze(1) @ pol_tens.transpose(-1, -2)).squeeze(1)
         self.log_probs = nn.functional.log_softmax(policy / self.temperature, dim=-1)
-        self._actions = torch.distributions.categorical.Categorical(logits=self.log_probs).sample()
         self.values = (clm_tens @ torch.mean(val_tens, dim=1).T).diag()
+        self._actions = None
 
     def _make_masked_policy_value_claim_tensors(self, states: list[DeliveryState]
                                                 ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
@@ -188,17 +188,22 @@ class DeliveryActorCritic(BaseActorCritic):
 
     def get_actions_list(self, best_actions=False) -> list[Action]:
         if best_actions:
-            return [DeliveryAction(a.item()) for a in torch.argmax(self.log_probs, dim=-1)]
-        return [DeliveryAction(a.item()) for a in self._actions]
+            self._actions = torch.argmax(self.log_probs, dim=-1)
+        else:
+            self._actions = torch.distributions.categorical.Categorical(logits=self.log_probs).sample()
+        # return [DeliveryAction(a.item()) for a in self._actions]
+        return self._actions.tolist()
 
     def get_log_probs_list(self) -> list[float]:
-        return [
-            a.item()
-            for a in torch.gather(self.log_probs, dim=-1, index=self._actions.unsqueeze(-1)).to(self.device).squeeze(-1)
-        ]
+        # return [
+        #     a.item()
+        #     for a in torch.gather(self.log_probs, dim=-1, index=self._actions.unsqueeze(-1)).to(self.device).squeeze(-1)
+        # ]
+        return self.log_probs[torch.arange(len(self._actions), device=self.device), self._actions].tolist()
 
     def get_values_list(self) -> list[float]:
-        return [e.item() for e in self.values]
+        # return [e.item() for e in self.values]
+        return self.values.tolist()
 
     def get_log_probs_tensor(self) -> torch.FloatTensor:
         return self.log_probs
