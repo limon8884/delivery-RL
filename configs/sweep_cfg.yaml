@@ -1,0 +1,57 @@
+name: first_sweep
+method: random
+metric:
+  goal: maximize
+  name: CR
+parameters:
+  n_envs: 
+    value: 16
+  trajectory_lenght: 
+    values: [250, 1000]
+  batch_size: 
+    values: [32, 64, 128]
+  num_epochs_per_traj:
+    min: 2
+    max: 20
+  max_num_points_in_route:
+    value: 4
+  sampler_mode:
+    value: "distr_sampler"
+  learning_rate:
+    value: 0.0003
+  optimizer: 
+    values: ["adam", "rmsprop", "sgd"]
+  rmsprop_alpha:
+    values: [0.9, 0.99, 0.999]
+  sgd_momentum: 
+    value: 0.8
+  scheduler_max_lr: 
+    distribution: "log_uniform"
+    min: -14.0
+    max: -7.0
+  scheduler_pct_start: 
+    min: 0.1
+    max: 0.4
+  exploration_temperature: 
+    min: 0.5
+    max: 2.0
+  ppo_cliprange: 
+    min: 0.05
+    max: 0.3
+  ppo_value_loss_coef:
+    distribution: "log_uniform"
+    min: -4.5
+    max: 4.5
+  max_grad_norm:
+    values: [0.5, 1.0, 5.0]
+  gae_gamma: 
+    values: [0.9, 0.95, 0.99, 0.995, 0.999]
+  gae_lambda:
+    values: [0.9, 0.95, 0.99, 0.995, 0.999]
+
+  total_iters: 
+    value: 25000
+  device: 
+    value: "cuda"
+  use_wandb: 
+    value: true
