@@ -5,6 +5,7 @@
     "total_iters": 25000,
     "device": "cuda",
     "use_wandb": true,
+    "fix_zero_seed": false,
 
     "n_envs": 32,
     "trajectory_lenght": 250,

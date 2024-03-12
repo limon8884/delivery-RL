@@ -19,6 +19,7 @@ from src.evaluation import evaluate
 @click.option('--total_iters', required=False, type=int)
 @click.option('--device', required=False, type=str)
 @click.option('--use_wandb', required=False, type=bool)
+@click.option('--fix_zero_seed', required=False, type=bool)
 @click.option('--n_envs', required=False, type=int)
 @click.option('--trajectory_lenght', required=False, type=int)
 @click.option('--batch_size', required=False, type=int)
@@ -90,12 +91,12 @@ def run_ppo(**kwargs):
 
 
 def main():
-    # torch.manual_seed(seed=0)
-    # numpy.random.seed(seed=0)
-    # random.seed(0)
     kwargs = make_kwargs(standalone_mode=False)
+    if kwargs['fix_zero_seed']:
+        torch.manual_seed(seed=0)
+        numpy.random.seed(seed=0)
+        random.seed(0)
     if kwargs['use_wandb']:
-        #     wandb.login()
         wandb.init(
             project="delivery-RL-v2",
             name=kwargs['train_id'],
