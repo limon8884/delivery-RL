@@ -168,7 +168,7 @@ class DeliveryActorCritic(BaseActorCritic):
             value_tens = claim_emb @ value_half_tens.mean(dim=0)
             value_tens_list.append(value_tens)
         policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e11)
-        value_tens_result = torch.tensor(value_tens_list)
+        value_tens_result = torch.tensor(value_tens_list, device=self.device)
         return policy_tens_result, value_tens_result
 
     def _make_three_tensors_from_state(self, state: DeliveryState
