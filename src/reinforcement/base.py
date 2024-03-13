@@ -75,13 +75,13 @@ class Trajectory:
         self.resets: list[bool] = []
         self.log_probs_chosen: list[float] = []
         self.values: list[float] = []
-        self.old_probs_tensor: list[torch.FloatTensor] = []
+        # self.old_probs_tensor: list[torch.FloatTensor] = []
 
         self.last_state: State = state
         self.last_state_value: typing.Optional[float] = None
 
     def append(self, state: State, action: Action, reward: float, done: bool,
-               log_probs_chosen: float, value: float, old_probs_tens):
+               log_probs_chosen: float, value: float):
         '''
         Add an information about new step in trajectory
         '''
@@ -92,7 +92,7 @@ class Trajectory:
         self.resets.append(done)
         self.log_probs_chosen.append(log_probs_chosen)
         self.values.append(value)
-        self.old_probs_tensor.append(old_probs_tens)
+        # self.old_probs_tensor.append(old_probs_tens)
 
 
 class BaseActorCritic(nn.Module):
@@ -182,13 +182,13 @@ class Runner:
             actions = self.actor_critic.get_actions_list(best_actions=best_actions)
             log_probs_list = self.actor_critic.get_log_probs_list()
             values_list = self.actor_critic.get_values_list()
-            old_probs_tens = self.actor_critic.get_log_probs_tensor()
+            # old_probs_tens = self.actor_critic.get_log_probs_tensor()
             new_states: list[State] = []
             total_info = defaultdict(float)
             for idx in range(self.n_envs):
                 new_state, reward, done, info = self._environments[idx].step(actions[idx])
                 self._trajectories[idx].append(states[idx], actions[idx], reward, done,
-                                               log_probs_list[idx], values_list[idx], old_probs_tens[idx])
+                                               log_probs_list[idx], values_list[idx])
                 new_states.append(new_state)
                 for k, v in info.items():
                     total_info[k] += v
@@ -301,7 +301,7 @@ class Buffer:
         values = []
         actions = []
         rewards = []
-        old_probs = []
+        # old_probs = []
         self._states = []
         for traj in trajectories:
             advantages.extend(self.gae(traj))
@@ -310,7 +310,7 @@ class Buffer:
             actions.extend([a.to_index() for a in traj.actions])
             self._states.extend(traj.states)
             rewards.extend(traj.rewards)
-            old_probs.extend(traj.old_probs_tensor)
+            # old_probs.extend(traj.old_probs_tensor)
         # self._actions_chosen = torch.LongTensor(actions).to(device=self.device)
         # self._advantages = torch.FloatTensor(advantages).to(device=self.device)
         # self._log_probs_chosen = torch.FloatTensor(log_probs_chosen).to(device=self.device)
@@ -320,7 +320,7 @@ class Buffer:
         self._log_probs_chosen = torch.tensor(log_probs_chosen, dtype=torch.float).to(device=self.device)
         self._values = torch.tensor(values, dtype=torch.float).to(device=self.device)
         self._rewards = np.array(rewards)
-        self._old_probs_tens = old_probs
+        # self._old_probs_tens = old_probs
 
         self.lenght = len(self._advantages)
         self.shuffle()
@@ -351,7 +351,7 @@ class Buffer:
             'values': self._values[choices],
             'states': [self._states[i.item()] for i in choices],
             'actions_chosen': self._actions_chosen[choices],
-            'old_probs': [self._old_probs_tens[i.item()] for i in choices],
+            # 'old_probs': [self._old_probs_tens[i.item()] for i in choices],
         }
 
     @staticmethod
@@ -499,12 +499,12 @@ class PPO:
             info = f'num bug choices: {(actions_chosen >= n_choices).sum().item()}, '\
                 f'log_probs shape: {new_log_probs.shape}, '\
                 f'max chosen action idx: {actions_chosen.max().item()}\n'
-            for bug_idx in range(len(actions_chosen)):
-                if (actions_chosen < n_choices)[bug_idx]:
-                    continue
-                info += 'old probs: ' + str(sample['old_probs'][bug_idx]) + '\n'
-                info += 'old probs chosen: ' + str(actions_chosen[bug_idx]) + '\n'
-                info += 'new probs: ' + str(new_log_probs[bug_idx]) + '\n'
+            # for bug_idx in range(len(actions_chosen)):
+            #     if (actions_chosen < n_choices)[bug_idx]:
+            #         continue
+            #     info += 'old probs: ' + str(sample['old_probs'][bug_idx]) + '\n'
+            #     info += 'old probs chosen: ' + str(actions_chosen[bug_idx]) + '\n'
+            #     info += 'new probs: ' + str(new_log_probs[bug_idx]) + '\n'
             write_in_txt_file(self.debug_file_path, info)
             actions_chosen = torch.minimum(actions_chosen, torch.tensor(n_choices - 1,
                                                                         dtype=torch.int64, device=self.device))

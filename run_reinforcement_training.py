@@ -67,7 +67,7 @@ def make_kwargs(**kwargs):
 
 def run_ppo(**kwargs):
     maker = DeliveryMaker(**kwargs)
-    maker.ppo.logger = None
+    # maker.ppo.logger = None
 
     eval_runner = Runner(environment=maker.environment, actor_critic=maker.actor_critic,
                          n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
