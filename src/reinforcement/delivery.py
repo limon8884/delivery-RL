@@ -52,6 +52,13 @@ class DeliveryState(State):
         self.couriers_embs = couriers_embs
         self.orders_embs = orders_embs
 
+    def __hash__(self) -> int:
+        return hash(
+            hash(tuple(self.claim_emb)) +
+            (hash(tuple(map(tuple, self.couriers_embs))) if self.couriers_embs is not None else 0) +
+            (hash(tuple(map(tuple, self.orders_embs))) if self.orders_embs is not None else 0)
+        )
+
 
 class DeliveryEnvironment(BaseEnvironment):
     def __init__(self, simulator: Simulator, max_num_points_in_route: int, num_gambles: int, device) -> None:

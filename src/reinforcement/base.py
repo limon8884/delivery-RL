@@ -31,6 +31,9 @@ class State:
     def __init__(self, *args, **kwargs) -> None:
         raise NotImplementedError
 
+    def __hash__(self) -> int:
+        raise NotImplementedError
+
 
 class BaseEnvironment:
     '''
@@ -72,6 +75,7 @@ class Trajectory:
         self.resets: list[bool] = []
         self.log_probs_chosen: list[float] = []
         self.values: list[float] = []
+        self.state_hashes: list[int] = []
 
         self.last_state: State = state
         self.last_state_value: typing.Optional[float] = None
@@ -88,6 +92,7 @@ class Trajectory:
         self.resets.append(done)
         self.log_probs_chosen.append(log_probs_chosen)
         self.values.append(value)
+        self.state_hashes.append(hash(state))
 
 
 class BaseActorCritic(nn.Module):
@@ -295,6 +300,7 @@ class Buffer:
         values = []
         actions = []
         rewards = []
+        state_hashes = []
         self._states = []
         for traj in trajectories:
             advantages.extend(self.gae(traj))
@@ -303,6 +309,7 @@ class Buffer:
             actions.extend([a.to_index() for a in traj.actions])
             self._states.extend(traj.states)
             rewards.extend(traj.rewards)
+            state_hashes.extend(traj.state_hashes)
         # self._actions_chosen = torch.LongTensor(actions).to(device=self.device)
         # self._advantages = torch.FloatTensor(advantages).to(device=self.device)
         # self._log_probs_chosen = torch.FloatTensor(log_probs_chosen).to(device=self.device)
@@ -312,6 +319,7 @@ class Buffer:
         self._log_probs_chosen = torch.tensor(log_probs_chosen, dtype=torch.float).to(device=self.device)
         self._values = torch.tensor(values, dtype=torch.float).to(device=self.device)
         self._rewards = np.array(rewards)
+        self._state_hashes = torch.tensor(state_hashes, dtype=torch.int64).to(device=self.device)
 
         self.lenght = len(self._advantages)
         self.shuffle()
@@ -319,6 +327,7 @@ class Buffer:
         assert len(self._values) == self.lenght
         assert len(self._states) == self.lenght
         assert len(self._actions_chosen) == self.lenght
+        assert len(self._state_hashes) == self.lenght
 
     def shuffle(self) -> None:
         '''
@@ -342,6 +351,7 @@ class Buffer:
             'values': self._values[choices],
             'states': [self._states[i.item()] for i in choices],
             'actions_chosen': self._actions_chosen[choices],
+            'state_hashes': self._state_hashes[choices],
         }
 
     @staticmethod
@@ -492,6 +502,9 @@ class PPO:
             write_in_txt_file(self.debug_file_path, info)
             actions_chosen = torch.minimum(actions_chosen, torch.tensor(n_choices - 1,
                                                                         dtype=torch.int64, device=self.device))
+        state_hashes = torch.tensor([hash(s) for s in sample['states']], dtype=torch.int64).to(device=self.device)
+        state_hashes_gt = sample['state_hashes']
+        assert (state_hashes == state_hashes_gt).all(), 'Hashes do not match!'
         ###
 
         new_log_probs_chosen = torch.gather(
