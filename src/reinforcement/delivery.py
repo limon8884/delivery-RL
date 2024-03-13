@@ -153,28 +153,26 @@ class DeliveryActorCritic(BaseActorCritic):
         self.device = device
 
     def forward(self, state_list: list[DeliveryState]) -> None:
-        pol_tens, val_tens, clm_tens = self._make_masked_policy_value_claim_tensors(state_list)
-        policy = (clm_tens.unsqueeze(1) @ pol_tens.transpose(-1, -2)).squeeze(1)
-        self.log_probs = nn.functional.log_softmax(policy / self.temperature, dim=-1)
-        self.values = (clm_tens @ torch.mean(val_tens, dim=1).T).diag()
+        policy_tens, val_tens = self._make_masked_policy_value_tensors(state_list)
+        self.log_probs = nn.functional.log_softmax(policy_tens / self.temperature, dim=-1)
+        self.values = val_tens
         self._actions = None
 
-    def _make_masked_policy_value_claim_tensors(self, states: list[DeliveryState]
-                                                ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
-        policy_tens_list, value_tens_list, claim_tens_list = [], [], []
+    def _make_masked_policy_value_tensors(self, states: list[DeliveryState]
+                                          ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
+        policy_tens_list, value_tens_list = [], []
         for state in states:
-            policy_tens, value_tens, claim_emb = self._make_masked_policy_value_claim_tensors_from_state(state)
+            policy_half_tens, value_half_tens, claim_emb = self._make_three_tensors_from_state(state)
+            policy_tens = claim_emb @ policy_half_tens.T
             policy_tens_list.append(policy_tens)
+            value_tens = claim_emb @ value_half_tens.mean(dim=0)
             value_tens_list.append(value_tens)
-            claim_tens_list.append(claim_emb)
         policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e11)
-        value_tens_result = pad_sequence(value_tens_list, batch_first=True, padding_value=0.0)
-        claim_tens_result = torch.stack(claim_tens_list, dim=0)
-        return policy_tens_result, value_tens_result, claim_tens_result
+        value_tens_result = torch.tensor(value_tens_list)
+        return policy_tens_result, value_tens_result
 
-    def _make_masked_policy_value_claim_tensors_from_state(self, state: DeliveryState
-                                                           ) -> tuple[torch.FloatTensor,
-                                                                      torch.FloatTensor, torch.FloatTensor]:
+    def _make_three_tensors_from_state(self, state: DeliveryState
+                                       ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
         embs_dict = {
             'clm': state.claim_emb.reshape(1, -1),
             'crr': state.couriers_embs,
@@ -185,7 +183,7 @@ class DeliveryActorCritic(BaseActorCritic):
         co_embs = torch.cat(
             ([encoded_dict['crr']] if encoded_dict['crr'] is not None else []) +
             ([encoded_dict['ord']] if encoded_dict['ord'] is not None else []) +
-            [fake_crr], dim=-2)
+            [fake_crr], dim=0)
         return co_embs[:, :self.clm_emb_size], co_embs[:, self.clm_emb_size:], encoded_dict['clm'][0]
 
     def _make_clm_tens(self, clm_emb_list: list[np.ndarray]) -> torch.FloatTensor:
