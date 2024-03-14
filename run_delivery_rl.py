@@ -20,6 +20,7 @@ from src.evaluation import evaluate
 @click.option('--device', required=False, type=str)
 @click.option('--use_wandb', required=False, type=bool)
 @click.option('--fix_zero_seed', required=False, type=bool)
+@click.option('--use_train_logs', required=False, type=bool)
 @click.option('--n_envs', required=False, type=int)
 @click.option('--trajectory_lenght', required=False, type=int)
 @click.option('--batch_size', required=False, type=int)
@@ -69,8 +70,9 @@ def make_kwargs(**kwargs):
 
 def run_ppo(**kwargs):
     maker = DeliveryMaker(**kwargs)
-    # maker.ppo.logger = None
 
+    if not kwargs['use_train_logs']:
+        maker.ppo.logger = None
     eval_runner = Runner(environment=maker.environment, actor_critic=maker.actor_critic,
                          n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
     inference_logger = InferenceMetricsRunner(runner=eval_runner, logger=maker.logger)

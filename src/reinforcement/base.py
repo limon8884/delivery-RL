@@ -517,6 +517,7 @@ class PPO:
         loss = -torch.minimum(r * a, torch.clamp(r, 1 - self.cliprange, 1 + self.cliprange) * a).mean()
         if self.logger:
             self.logger.log('policy_loss', loss.item())
+            self.logger.log('mean_log_prob_chosen', new_log_probs_chosen.mean().item())
         return loss
 
     def _value_loss(self, sample: dict[str, torch.FloatTensor | list[State]], new_values: torch.FloatTensor):
@@ -530,6 +531,7 @@ class PPO:
         loss = torch.maximum(l_simple, l_clipped).mean()
         if self.logger:
             self.logger.log('value_loss', loss.item())
+            self.logger.log('mean_value', new_values.mean().item())
         return loss
 
     def _loss(self, sample):
