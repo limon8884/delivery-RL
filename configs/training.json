@@ -28,5 +28,7 @@
     "gae_gamma": 0.99,
     "gae_lambda": 0.95,
     
-    "num_gambles_in_day": 2880
+    "num_gambles_in_day": 2880,
+    "sweep_id": "",
+    "sweep_count": 1
 }

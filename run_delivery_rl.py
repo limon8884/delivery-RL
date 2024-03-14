@@ -42,6 +42,8 @@ from src.evaluation import evaluate
 @click.option('--eval_n_envs', required=False, type=int)
 @click.option('--eval_trajectory_lenght', required=False, type=int)
 @click.option('--eval_epochs_frequency', required=False, type=int)
+@click.option('--sweep_id', type=str)
+@click.option('--sweep_count', type=int)
 def make_kwargs(**kwargs):
     with open('configs/paths.json') as f:
         paths = dict(json.load(f))
