@@ -18,6 +18,8 @@ from src.reinforcement.base import (
     TrajectorySampler,
     RewardNormalizer,
     InferenceMetricsRunner,
+    BaseMaker,
+    make_optimizer,
 )
 
 
@@ -112,54 +114,45 @@ class GymActorCritic(BaseActorCritic):
         return self.values
 
 
-# def avg_traj_reward_length(ac: GymActorCritic, env: GymEnv, n_envs=8):
-#     total_rew = 0.0
-#     total_length = 0
-#     for _ in range(n_envs):
-#         env_this = env.copy()
-#         state = env_this.reset()
-#         for t in range(2048):
-#             ac([state])
-#             act = ac.get_actions_list(best_actions=True)[0]
-#             state, rew, done = env_this.step(act)
-#             total_rew += rew
-#             total_length += 1
-#             if done:
-#                 break
-#     return total_rew / n_envs, total_length / n_envs
+class GymMaker(BaseMaker):
+    def __init__(self, **kwargs) -> None:
+        batch_size = kwargs['batch_size']
+        device = kwargs['device']
 
+        self._train_logger = Logger(use_wandb=kwargs['use_wandb'])
+        self._env = GymEnv(gym_name=kwargs['env_name'])
+        self._ac = GymActorCritic(input_dim=self._env.state_dim, action_dim=self._env.action_dim, device=device)
+        opt = make_optimizer(self._ac.parameters(), **kwargs)
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=kwargs['scheduler_max_lr'],
+                                                        total_steps=kwargs['total_iters'],
+                                                        pct_start=kwargs['scheduler_pct_start'])
+        self._ppo = PPO(actor_critic=self._ac, opt=opt, scheduler=scheduler,
+                        logger=self._train_logger, **kwargs)
+        runner = Runner(environment=self._env, actor_critic=self._ac,
+                        n_envs=kwargs['n_envs'], trajectory_lenght=kwargs['trajectory_lenght'])
+        # inference_logger = InferenceMetricsRunner(runner=runner, logger=self._train_logger)
+        gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
+        normalizer = RewardNormalizer()
+        buffer = Buffer(gae=gae, reward_normalizer=normalizer, device=device)
+        self._sampler = TrajectorySampler(runner, buffer, num_epochs_per_traj=kwargs['num_epochs_per_traj'],
+                                          batch_size=batch_size)
 
-def run_ppo():
-    n_envs = 1
-    trajectory_lenght = 2048
-    batch_size = 64
-    num_epochs_per_traj = 10
-    total_iters = 250000
-    device = None
-    env_name = 'LunarLander-v2'
+    @property
+    def ppo(self) -> PPO:
+        return self._ppo
 
-    logger = Logger()
-    env = GymEnv(gym_name=env_name)
-    ac = GymActorCritic(input_dim=env.state_dim, action_dim=env.action_dim, device=device)
-    opt = torch.optim.Adam(ac.parameters(), lr=3e-4, eps=1e-5)
-    ppo = PPO(actor_critic=ac, optimizer=opt, device=device, logger=logger)
-    runner = Runner(environment=env, actor_critic=ac,
-                    n_envs=n_envs, trajectory_lenght=trajectory_lenght)
-    inference_logger = InferenceMetricsRunner(runner=runner, logger=logger)
-    gae = GAE()
-    normalizer = RewardNormalizer()
-    buffer = Buffer(gae=gae, reward_normalizer=normalizer, device=device)
-    sampler = TrajectorySampler(runner, buffer, num_epochs_per_traj=num_epochs_per_traj, batch_size=batch_size)
+    @property
+    def sampler(self) -> TrajectorySampler:
+        return self._sampler
 
-    for iteration in tqdm(range(total_iters)):
-        ac.train()
-        sample = sampler.sample()
-        ppo.step(sample)
-        if iteration % 1000 == 0:
-            ac.eval()
-            inference_logger()
-            logger.plot()
+    @property
+    def actor_critic(self) -> GymActorCritic:
+        return self._ac
 
+    @property
+    def environment(self) -> GymEnv:
+        return self._env
 
-if __name__ == '__main__':
-    run_ppo()
+    @property
+    def logger(self) -> Logger:
+        return self._train_logger
