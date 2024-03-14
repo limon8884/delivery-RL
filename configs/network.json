@@ -1,11 +1,11 @@
 {
     "encoder": {
         "number_embedding_dim": 4,
-        "point_embedding_dim": 32,
-        "route_embedding_dim": 256,
-        "claim_embedding_dim": 64,
-        "courier_embedding_dim": 128,
-        "order_embedding_dim": 128,
-        "courier_order_embedding_dim": 128
+        "point_embedding_dim": 16,
+        "route_embedding_dim": 64,
+        "claim_embedding_dim": 16,
+        "courier_embedding_dim": 32,
+        "order_embedding_dim": 32,
+        "courier_order_embedding_dim": 32
     }
 }
