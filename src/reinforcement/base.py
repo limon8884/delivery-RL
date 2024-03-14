@@ -442,19 +442,23 @@ class InferenceMetricsRunner:
     def __call__(self) -> None:
         total_reward = 0.0
         total_length = 0
+        action_probs = []
         self.runner.actor_critic.eval()
         self.runner.reset()
         trajs = self.runner.run()
         for traj in trajs:
-            for reward, reset in zip(traj.rewards, traj.resets):
+            for reward, reset, log_prob_chosen in zip(traj.rewards, traj.resets, traj.log_probs_chosen):
                 total_length += 1
                 total_reward += reward
+                action_probs.append(np.exp(log_prob_chosen))
                 if reset:
                     break
 
         self.logger.log('avg episode reward', total_reward / self.runner.n_envs)
         self.logger.log('avg episode length', total_length / self.runner.n_envs)
         self.logger.log('avg step reward', total_reward / total_length)
+        self.logger.log('avg chosen prob', np.mean(action_probs))
+        self.logger.log('std chosen prob', np.std(action_probs))
 
         total_info = defaultdict(float)
         for info in self.runner._statistics:
