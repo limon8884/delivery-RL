@@ -1,6 +1,6 @@
 {
     "eval_num_simulator_steps": 200,
     "eval_n_envs": 2,
-    "eval_trajectory_lenght": 500,
+    "eval_trajectory_lenght": 1000,
     "eval_epochs_frequency": 1000
 }
