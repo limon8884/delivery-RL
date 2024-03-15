@@ -6,7 +6,7 @@
     "device": "cuda",
     "use_wandb": true,
     "fix_zero_seed": false,
-    "use_train_logs": true,
+    "use_train_logs": false,
 
     "n_envs": 32,
     "trajectory_lenght": 250,

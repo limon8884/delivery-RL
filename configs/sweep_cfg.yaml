@@ -1,5 +1,5 @@
 name: third_sweep
-method: random
+method: bayes
 metric:
   goal: maximize
   name: CR
