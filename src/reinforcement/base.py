@@ -560,7 +560,8 @@ class PPO:
             self.logger.commit(step=self._step)
             self._step += 1
         self.opt.step()
-        self.scheduler.step()
+        if self.scheduler is not None:
+            self.scheduler.step()
 
 
 class BaseMaker:

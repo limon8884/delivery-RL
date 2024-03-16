@@ -171,7 +171,8 @@ def test_ppo():
     ac = TestActorCritic()
     ac.train()
     opt = torch.optim.SGD(ac.parameters(), lr=3e-4)
-    ppo = PPO(actor_critic=ac, optimizer=opt, device=None)
+    ppo = PPO(actor_critic=ac, opt=opt, device=None, ppo_cliprange=0.2, ppo_value_loss_coef=0.25, max_grad_norm=1.0,
+              debug_info_path='')
     runner = Runner(environment=TestEnv(), actor_critic=ac,
                     n_envs=4, trajectory_lenght=10)
     runner.reset()
