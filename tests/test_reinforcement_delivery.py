@@ -135,6 +135,7 @@ def test_delivery_environment(tmp_path):
     assert state1.couriers_embs.shape == (3, 4)
     assert np.isclose(state1.couriers_embs, [[1.0, 0.0, 0.0, 30.0], [0.5, 1.0, 0.0, 20.0], [0.0, 0.0, 0.0, 30.0]]).all()
     assert state1.orders_embs is None, state1.orders_embs
+    assert state1.prev_idxs == []
 
     state2, reward, done, info = env.step(DeliveryAction(2))
     assert env._iter == 1, env._iter
@@ -142,6 +143,7 @@ def test_delivery_environment(tmp_path):
     assert np.isclose(state2.claim_emb, [1.0, 0.2, 1.0, 1.0, 0.0, 30.0]).all(), (state2.claim_emb)
     assert np.isclose(state2.couriers_embs, [[1.0, 0.0, 0.0, 30.0], [0.5, 1.0, 0.0, 20.0], [0.0, 0.0, 0.0, 30.0]]).all()
     assert state2.orders_embs is None, state2.orders_embs
+    assert state2.prev_idxs == [2]
 
     state3, reward, done, info = env.step(DeliveryAction(0))
     assert env._iter == 3, env._iter
@@ -149,6 +151,7 @@ def test_delivery_environment(tmp_path):
     assert np.isclose(state3.claim_emb, [0.5, 0.0, 0.5, 1.0, 0.0, 20.0]).all(), (state3.claim_emb)
     assert state3.orders_embs is None, state3.orders_embs
     assert np.isclose(state3.couriers_embs, [[0.5, 1.0, 0.0, 80.0], [0.0, 1.0, 0.0, 90.0], [1.0, 1.0, 0.0, 90.0]]).all()
+    assert state3.prev_idxs == []
 
     state4, reward, done, info = env.step(DeliveryAction(0))
     assert env._iter == 5, env._iter
@@ -157,6 +160,7 @@ def test_delivery_environment(tmp_path):
     assert np.isclose(state4.couriers_embs, [[0.0, 1.0, 0.0, 150.0], [1.0, 1.0, 0.0, 150.0]]).all()
     assert len(state4.orders_embs) == 1
     assert np.isclose(state4.orders_embs[0], [0.5, 0.2, 1.0, 140.0, 1.0, 60.0, 0.5, 1.0] + [0.0] * 6).all()
+    assert state4.prev_idxs == []
 
     state5, reward, done, info = env.step(DeliveryAction(2))
     assert done, env._iter
@@ -234,21 +238,24 @@ def test_delivery_actor_critic():
         claim_emb=np.zeros((1, 10)),
         couriers_embs=np.zeros((5, 8)),
         orders_embs=None,
+        prev_idxs=[2, 3],
     )
     state2 = DeliveryState(
         claim_emb=np.zeros((1, 10)),
         couriers_embs=np.zeros((2, 8)),
         orders_embs=np.zeros((1, 6)),
+        prev_idxs=[],
     )
     pol_tens, val_tens = ac._make_padded_policy_value_tensors([state1, state2])
     assert pol_tens.shape == (2, 6)
     crr_ord_val = (torch.arange(16, dtype=torch.float)**2).sum()
     fake_crr_val = torch.arange(16, dtype=torch.float).sum()
-    pad_val = -1e11
-    assert torch.isclose(pol_tens[0, :], torch.tensor([crr_ord_val] * 5 + [fake_crr_val])).all()
+    pad_val = -1e9
+    assert torch.isclose(pol_tens[0, :],
+                         torch.tensor([crr_ord_val] * 2 + [pad_val] * 2 + [crr_ord_val, fake_crr_val])).all()
     assert torch.isclose(pol_tens[1, :], torch.tensor([crr_ord_val] * 3 + [fake_crr_val] + [pad_val] * 2)).all()
 
     crr_ord_val = (torch.arange(16, dtype=torch.float) * torch.arange(16, 32)).sum()
     assert val_tens.shape == (2,)
-    assert torch.isclose(val_tens[0], torch.tensor(crr_ord_val * 5 / 6 + fake_crr_val / 6)).all()
+    assert torch.isclose(val_tens[0], torch.tensor(crr_ord_val * 3 / 6 + fake_crr_val / 6)).all()
     assert torch.isclose(val_tens[1], torch.tensor(crr_ord_val * 3 / 4 + fake_crr_val / 4)).all()

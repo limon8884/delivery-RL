@@ -47,10 +47,11 @@ class DeliveryAction(Action):
 
 class DeliveryState(State):
     def __init__(self, claim_emb: np.ndarray, couriers_embs: typing.Optional[np.ndarray],
-                 orders_embs: typing.Optional[np.ndarray]) -> None:
+                 orders_embs: typing.Optional[np.ndarray], prev_idxs: list[int]) -> None:
         self.claim_emb = claim_emb
         self.couriers_embs = couriers_embs
         self.orders_embs = orders_embs
+        self.prev_idxs = prev_idxs
 
     def __hash__(self) -> int:
         return hash(
@@ -83,6 +84,7 @@ class DeliveryEnvironment(BaseEnvironment):
         self._iter = 0
         self._gamble: typing.Optional[Gamble] = None
         self._claim_idx: int = 0
+        self._prev_idxs: list[int] = []
         self._assignments: Assignment = Assignment([])
         self._base_gamble_reward: float = 0.0
         self.simulator.reset()
@@ -123,6 +125,7 @@ class DeliveryEnvironment(BaseEnvironment):
         }
         self._assignments = Assignment([])
         self._claim_idx = 0
+        self._prev_idxs = []
         self._iter += 1
 
     def _update_assignments(self, action: DeliveryAction):
@@ -131,11 +134,13 @@ class DeliveryEnvironment(BaseEnvironment):
                 self._gamble.couriers[action.idx].id,
                 self._gamble.claims[self._claim_idx].id
             ))
+            self._prev_idxs.append(action.idx)
         elif action.idx - len(self._gamble.couriers) < len(self._gamble.orders):
             self._assignments.ids.append((
                 self._gamble.orders[action.idx - len(self._gamble.couriers)].courier.id,
                 self._gamble.claims[self._claim_idx].id
             ))
+            self._prev_idxs.append(action.idx)
         self._claim_idx += 1
 
     def _make_state_from_gamble_dict(self) -> DeliveryState:
@@ -143,7 +148,8 @@ class DeliveryEnvironment(BaseEnvironment):
         return DeliveryState(
             claim_emb=claim_emb,
             couriers_embs=self.embs_dict['crr'],
-            orders_embs=self.embs_dict['ord']
+            orders_embs=self.embs_dict['ord'],
+            prev_idxs=self._prev_idxs,
         )
 
 
@@ -165,12 +171,15 @@ class DeliveryActorCritic(BaseActorCritic):
                                           ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         policy_tens_list, value_tens_list = [], []
         for state in states:
+            prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
             policy_half_tens, value_half_tens, claim_emb = self._make_three_tensors_from_state(state)
             policy_tens = claim_emb @ policy_half_tens.T
+            policy_tens[prev_idxs] = -1e9
             policy_tens_list.append(policy_tens)
-            value_tens = claim_emb @ value_half_tens.mean(dim=0)
-            value_tens_list.append(value_tens)
-        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e11)
+            value_tens = claim_emb @ value_half_tens.T
+            value_tens[prev_idxs] = 0.0
+            value_tens_list.append(value_tens.mean())
+        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e9)
         value_tens_result = torch.tensor(value_tens_list, device=self.device)
         return policy_tens_result, value_tens_result
 
