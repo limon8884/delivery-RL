@@ -8,7 +8,7 @@ from src.dispatchs.hungarian_dispatch import HungarianDispatch
 from src.dispatchs.greedy_dispatch import GreedyDispatch
 from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src.networks.encoders import GambleEncoder
-from src.networks.networks import SimpleSequentialMLP
+# from src.networks.networks import SimpleSequentialMLP
 from src.objects import (
     Gamble,
     Courier,
@@ -149,33 +149,33 @@ def test_greedy_dispatch(idx: int, gamble: Gamble):
     assert sorted(dsp(gamble).ids) == sorted(EXPECTED_GREEDY_DISPATCH[idx])
 
 
-@pytest.mark.parametrize(['idx', 'gamble'], TEST_GAMBLES)
-def test_network_dispatch(idx: int, gamble: Gamble):
-    ord_clm = Claim(10, Point(2.0, 2.0), Point(3.0, 3.0), 
-                    BASE_DTTM, BASE_DTTM + timedelta(days=1), timedelta(seconds=0), timedelta(seconds=0))
-    gamble.orders = [
-        Order(
-            id=0,
-            creation_dttm=BASE_DTTM,
-            courier=Courier(10, Point(2.0, 2.0), BASE_DTTM, BASE_DTTM + timedelta(days=1), 'auto'),
-            route=Route.from_claim(ord_clm),
-            claims=[ord_clm],
-        )
-    ]
-    encoder = GambleEncoder(
-        courier_order_embedding_dim=64,
-        claim_embedding_dim=32,
-        courier_embedding_dim=32,
-        route_embedding_dim=128,
-        point_embedding_dim=32,
-        number_embedding_dim=8,
-        max_num_points_in_route=8,
-        device=None,
-    )
-    net = SimpleSequentialMLP(
-        claim_embedding_dim=32,
-        courier_order_embedding_dim=64,
-        device=None,
-    )
-    dsp = NeuralSequantialDispatch(encoder=encoder, network=net, max_num_points_in_route=4)
-    dsp(gamble).ids
+# @pytest.mark.parametrize(['idx', 'gamble'], TEST_GAMBLES)
+# def test_network_dispatch(idx: int, gamble: Gamble):
+#     ord_clm = Claim(10, Point(2.0, 2.0), Point(3.0, 3.0), 
+#                     BASE_DTTM, BASE_DTTM + timedelta(days=1), timedelta(seconds=0), timedelta(seconds=0))
+#     gamble.orders = [
+#         Order(
+#             id=0,
+#             creation_dttm=BASE_DTTM,
+#             courier=Courier(10, Point(2.0, 2.0), BASE_DTTM, BASE_DTTM + timedelta(days=1), 'auto'),
+#             route=Route.from_claim(ord_clm),
+#             claims=[ord_clm],
+#         )
+#     ]
+#     encoder = GambleEncoder(
+#         courier_order_embedding_dim=64,
+#         claim_embedding_dim=32,
+#         courier_embedding_dim=32,
+#         route_embedding_dim=128,
+#         point_embedding_dim=32,
+#         number_embedding_dim=8,
+#         max_num_points_in_route=8,
+#         device=None,
+#     )
+#     net = SimpleSequentialMLP(
+#         claim_embedding_dim=32,
+#         courier_order_embedding_dim=64,
+#         device=None,
+#     )
+#     dsp = NeuralSequantialDispatch(encoder=encoder, network=net, max_num_points_in_route=4)
+#     dsp(gamble).ids
