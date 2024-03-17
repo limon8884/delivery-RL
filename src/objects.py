@@ -198,7 +198,7 @@ class Courier(Item):
 
     def to_numpy(self) -> np.ndarray:
         status_num = self.status.value
-        online_secs_num = (self._dttm - self.end_dttm).total_seconds()
+        online_secs_num = (self._dttm - self.start_dttm).total_seconds()
         return np.array([self.position.x, self.position.y, status_num, online_secs_num])
 
     @staticmethod
