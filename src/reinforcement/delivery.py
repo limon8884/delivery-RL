@@ -61,22 +61,33 @@ class DeliveryState(State):
         )
 
 
+class DeliveryRewarder:
+    def __init__(self, **kwargs) -> None:
+        self.coef_reward_assigned = kwargs['coef_reward_assigned']
+        self.coef_reward_cancelled = kwargs['coef_reward_cancelled']
+
+    def __call__(self, assignment_statistics: dict[str, float]) -> float:
+        completed = assignment_statistics['completed_claims']
+        assigned = assignment_statistics['assigned_not_batched_claims'] \
+            + assignment_statistics['assigned_batched_claims']
+        cancelled = assignment_statistics['cancelled_claims']
+        return completed + self.coef_reward_assigned * assigned - self.coef_reward_cancelled * cancelled
+
+
 class DeliveryEnvironment(BaseEnvironment):
-    def __init__(self, simulator: Simulator, max_num_points_in_route: int, num_gambles: int, device) -> None:
-        self.max_num_points_in_route = max_num_points_in_route
-        self.num_gambles = num_gambles
+    def __init__(self, simulator: Simulator, rewarder: DeliveryRewarder, **kwargs) -> None:
+        self.max_num_points_in_route = kwargs['max_num_points_in_route']
+        self.num_gambles = kwargs['num_gambles_in_day']
         self.simulator = simulator
-        self.device = device
-        self.rewarder: typing.Callable[[dict[str, float]], float] = \
-            lambda d: d['completed_claims'] + 0.1 * (d['assigned_not_batched_claims'] + d['assigned_batched_claims']) \
-            - d['cancelled_claims']
-        # self.reset()
+        self.device = kwargs['device']
+        self.rewarder = rewarder
 
     def copy(self) -> 'DeliveryEnvironment':
         return DeliveryEnvironment(
             simulator=deepcopy(self.simulator),
+            rewarder=self.rewarder,
             max_num_points_in_route=self.max_num_points_in_route,
-            num_gambles=self.num_gambles,
+            num_gambles_in_day=self.num_gambles,
             device=self.device,
         )
 
@@ -87,6 +98,7 @@ class DeliveryEnvironment(BaseEnvironment):
         self._prev_idxs: list[int] = []
         self._assignments: Assignment = Assignment([])
         self._base_gamble_reward: float = 0.0
+        self._assignment_statistics = dict[str, float]
         self.simulator.reset()
         self._update_next_gamble()
         state = self._make_state_from_gamble_dict()
@@ -100,17 +112,20 @@ class DeliveryEnvironment(BaseEnvironment):
         done = False
         if self._claim_idx == len(self.embs_dict['clm']):
             self._update_next_gamble()
-            reward = self.rewarder(self.simulator.assignment_statistics)
+            reward = self.rewarder(self._assignment_statistics)
         new_state = self._make_state_from_gamble_dict()
         if self._iter == self.num_gambles:
             done = True
-        return new_state, reward, done, self.simulator.assignment_statistics
+        return new_state, reward, done, self._assignment_statistics
 
     def _update_next_gamble(self):
         self.simulator.next(self._assignments)
+        self._assignment_statistics = self.simulator.assignment_statistics
         self._gamble = self.simulator.get_state()
         while len(self._gamble.claims) == 0:
             self.simulator.next(Assignment([]))
+            for k in self._assignment_statistics:
+                self._assignment_statistics[k] += self.simulator.assignment_statistics[k]
             self._gamble = self.simulator.get_state()
             self._iter += 1
         self.embs_dict = {
@@ -234,10 +249,9 @@ class DeliveryMaker(BaseMaker):
                                         sampler_mode=kwargs['sampler_mode'], logger=None)
         route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
         sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=simulator_config_path, logger=None)
-
+        rewarder = DeliveryRewarder(**kwargs)
         self._train_logger = Logger(use_wandb=kwargs['use_wandb'])
-        self._env = DeliveryEnvironment(simulator=sim, max_num_points_in_route=max_num_points_in_route,
-                                        num_gambles=kwargs['num_gambles_in_day'], device=device)
+        self._env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, **kwargs)
         self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, clm_emb_size=encoder_cfg['claim_embedding_dim'],
                                        temperature=kwargs['exploration_temperature'], device=device)
         opt = make_optimizer(self._ac.parameters(), **kwargs)

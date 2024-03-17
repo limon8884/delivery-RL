@@ -9,6 +9,7 @@ from src.reinforcement.delivery import (
     DeliveryAction,
     DeliveryEnvironment,
     DeliveryActorCritic,
+    DeliveryRewarder,
 )
 from src.simulator.simulator import Simulator, DataReader
 from src.router_makers import BaseRouteMaker
@@ -128,7 +129,9 @@ def test_delivery_environment(tmp_path):
     reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, logger=None)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=None)
-    env = DeliveryEnvironment(simulator=sim, max_num_points_in_route=4, num_gambles=6, device=None)
+    rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0)
+    env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4,
+                              num_gambles_in_day=6, device=None)
     state1 = env.reset()
     assert env._iter == 1, env._iter
     assert np.isclose(state1.claim_emb, [0.0, 0.2, 0.0, 1.0, 0.0, 20.0]).all(), (state1.claim_emb)
@@ -177,7 +180,9 @@ def test_delivery_actor_critic_shape(tmp_path):
     reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, logger=None)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=None)
-    env = DeliveryEnvironment(simulator=sim, max_num_points_in_route=4, num_gambles=6, device=None)
+    rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0)
+    env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4,
+                              num_gambles_in_day=6, device=None)
     gamble_encoder = GambleEncoder(
         order_embedding_dim=32,
         claim_embedding_dim=16,

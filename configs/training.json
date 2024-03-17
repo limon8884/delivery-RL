@@ -25,10 +25,14 @@
     "exploration_temperature": 1.0,
     "ppo_cliprange": 0.2,
     "ppo_value_loss_coef": 0.25,
+    "ppo_entropy_loss_coef": 0.01,
     "max_grad_norm": 1.0,
     "gae_gamma": 0.99,
     "gae_lambda": 0.95,
-    
+
+    "coef_reward_assigned": 0.1,
+    "coef_reward_cancelled": 1.0,
+
     "num_gambles_in_day": 2880,
     "sweep_id": "",
     "sweep_count": 1

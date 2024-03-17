@@ -485,7 +485,7 @@ class PPO:
         self.scheduler = scheduler
         self.cliprange = kwargs['ppo_cliprange']
         self.value_loss_coef = kwargs['ppo_value_loss_coef']
-        # Note that we don't need entropy regularization for this env.
+        self.entropy_loss_coef = kwargs['ppo_entropy_loss_coef']
         self.max_grad_norm = kwargs['max_grad_norm']
         self.device = kwargs['device']
         self.debug_file_path = kwargs['debug_info_path']
@@ -496,23 +496,6 @@ class PPO:
         a = sample['advantages']
         old_log_probs_chosen = sample['log_probs_chosen']
         actions_chosen = sample['actions_chosen']
-
-        ### BUG AREA
-        n_choices = new_log_probs.size(1)
-        if (actions_chosen >= n_choices).any():
-            info = f'num bug choices: {(actions_chosen >= n_choices).sum().item()}, '\
-                f'log_probs shape: {new_log_probs.shape}, '\
-                f'max chosen action idx: {actions_chosen.max().item()}\n'
-            # for bug_idx in range(len(actions_chosen)):
-            #     if (actions_chosen < n_choices)[bug_idx]:
-            #         continue
-            #     info += 'old probs: ' + str(sample['old_probs'][bug_idx]) + '\n'
-            #     info += 'old probs chosen: ' + str(actions_chosen[bug_idx]) + '\n'
-            #     info += 'new probs: ' + str(new_log_probs[bug_idx]) + '\n'
-            write_in_txt_file(self.debug_file_path, info)
-            actions_chosen = torch.minimum(actions_chosen, torch.tensor(n_choices - 1,
-                                                                        dtype=torch.int64, device=self.device))
-        ###
 
         new_log_probs_chosen = torch.gather(
             new_log_probs, dim=-1, index=actions_chosen.unsqueeze(-1)
@@ -538,12 +521,16 @@ class PPO:
             self.logger.log('mean_value', new_values.mean().item())
         return loss
 
-    def _loss(self, sample):
+    def _entropy_loss(self, new_log_probs: torch.FloatTensor):
+        return -(torch.exp(new_log_probs) * new_log_probs).sum(dim=-1).mean()
+
+    def _loss(self, sample: dict[str, torch.FloatTensor | list[State]]):
         self.actor_critic(sample['states'])
         policy_loss = self._policy_loss(sample, self.actor_critic.get_log_probs_tensor())
         value_loss = self._value_loss(sample, self.actor_critic.get_values_tensor())
+        entropy_loss = self._entropy_loss(self.actor_critic.get_log_probs_tensor())
 
-        return policy_loss + self.value_loss_coef * value_loss
+        return policy_loss + self.value_loss_coef * value_loss + self.entropy_loss_coef * entropy_loss
 
     def step(self, sample):
         """
