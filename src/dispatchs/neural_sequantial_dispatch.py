@@ -24,6 +24,7 @@ class NeuralSequantialDispatch(BaseDispatch):
         assignment_list = []
         available_couriers = gamble.couriers
         available_orders = gamble.orders
+        prev_idxs = []
         for claim_idx in range(num_claims):
             couriers_embs_list = [c.to_numpy() for c in available_couriers]
             orders_embs_list = [o.to_numpy(max_num_points_in_route=self.max_num_points_in_route)
@@ -34,7 +35,8 @@ class NeuralSequantialDispatch(BaseDispatch):
             state = DeliveryState(
                 claim_emb=gamble.claims[claim_idx].to_numpy(),
                 couriers_embs=couriers_embs,
-                orders_embs=orders_embs
+                orders_embs=orders_embs,
+                prev_idxs=prev_idxs
             )
             with torch.no_grad():
                 self.actor_critic([state])
@@ -45,11 +47,13 @@ class NeuralSequantialDispatch(BaseDispatch):
                     available_couriers[assignment].id,
                     gamble.claims[claim_idx].id
                 ))
+                prev_idxs.append(prev_idxs)
             elif assignment < len(available_couriers) + len(available_orders):
                 assignment_list.append((
                     available_orders[assignment - len(available_couriers)].courier.id,
                     gamble.claims[claim_idx].id
                 ))
+                prev_idxs.append(prev_idxs)
         return Assignment(assignment_list)
 
 
