@@ -189,28 +189,17 @@ class DeliveryActorCritic(BaseActorCritic):
             [fake_crr], dim=0)
         return co_embs[:, :self.clm_emb_size], co_embs[:, self.clm_emb_size:], encoded_dict['clm'][0]
 
-    # def _make_clm_tens(self, clm_emb_list: list[np.ndarray]) -> torch.FloatTensor:
-    #     # clm_embs_tens_list = [torch.FloatTensor(clm_emb, device=self.device) for clm_emb in clm_emb_list]
-    #     clm_embs_tens_list = [torch.tensor(clm_emb, dtype=torch.float, device=self.device) for clm_emb in clm_emb_list]
-    #     return torch.stack(clm_embs_tens_list, dim=0)
-
     def get_actions_list(self, best_actions=False) -> list[Action]:
         if best_actions:
             self._actions = torch.argmax(self.log_probs, dim=-1)
         else:
             self._actions = torch.distributions.categorical.Categorical(logits=self.log_probs).sample()
-        # return [DeliveryAction(a.item()) for a in self._actions]
         return [DeliveryAction(a) for a in self._actions.tolist()]
 
     def get_log_probs_list(self) -> list[float]:
-        # return [
-        #     a.item()
-        #     for a in torch.gather(self.log_probs, dim=-1, index=self._actions.unsqueeze(-1)).to(self.device).squeeze(-1)
-        # ]
         return self.log_probs[torch.arange(len(self._actions), device=self.device), self._actions].tolist()
 
     def get_values_list(self) -> list[float]:
-        # return [e.item() for e in self.values]
         return self.values.tolist()
 
     def get_log_probs_tensor(self) -> torch.FloatTensor:
