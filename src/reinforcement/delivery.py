@@ -69,7 +69,7 @@ class DeliveryEnvironment(BaseEnvironment):
         self.rewarder: typing.Callable[[dict[str, float]], float] = \
             lambda d: d['completed_claims'] + 0.1 * (d['assigned_not_batched_claims'] + d['assigned_batched_claims']) \
             - d['cancelled_claims']
-        self.reset()
+        # self.reset()
 
     def copy(self) -> 'DeliveryEnvironment':
         return DeliveryEnvironment(
@@ -91,6 +91,8 @@ class DeliveryEnvironment(BaseEnvironment):
         return state
 
     def step(self, action: DeliveryAction) -> tuple[DeliveryState, float, bool, dict[str, float]]:
+        if self.__getattribute__('_iter') is None:
+            raise RuntimeError('Call reset before doing steps')
         self._update_assignments(action)
         reward = 0
         done = False
@@ -108,6 +110,7 @@ class DeliveryEnvironment(BaseEnvironment):
         while len(self._gamble.claims) == 0:
             self.simulator.next(Assignment([]))
             self._gamble = self.simulator.get_state()
+            self._iter += 1
         self.embs_dict = {
             'crr': np.stack([crr.to_numpy() for crr in self._gamble.couriers], axis=0)
             if len(self._gamble.couriers)
@@ -153,12 +156,12 @@ class DeliveryActorCritic(BaseActorCritic):
         self.device = device
 
     def forward(self, state_list: list[DeliveryState]) -> None:
-        policy_tens, val_tens = self._make_masked_policy_value_tensors(state_list)
+        policy_tens, val_tens = self._make_padded_policy_value_tensors(state_list)
         self.log_probs = nn.functional.log_softmax(policy_tens / self.temperature, dim=-1)
         self.values = val_tens
         self._actions = None
 
-    def _make_masked_policy_value_tensors(self, states: list[DeliveryState]
+    def _make_padded_policy_value_tensors(self, states: list[DeliveryState]
                                           ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         policy_tens_list, value_tens_list = [], []
         for state in states:
@@ -179,17 +182,17 @@ class DeliveryActorCritic(BaseActorCritic):
             'ord': state.orders_embs,
         }
         encoded_dict = self.gamble_encoder(embs_dict)
-        fake_crr = torch.zeros(size=(1, self.gamble_encoder.courier_encoder.item_embedding_dim), device=self.device)
+        fake_crr = torch.ones(size=(1, self.gamble_encoder.courier_encoder.item_embedding_dim), device=self.device)
         co_embs = torch.cat(
             ([encoded_dict['crr']] if encoded_dict['crr'] is not None else []) +
             ([encoded_dict['ord']] if encoded_dict['ord'] is not None else []) +
             [fake_crr], dim=0)
         return co_embs[:, :self.clm_emb_size], co_embs[:, self.clm_emb_size:], encoded_dict['clm'][0]
 
-    def _make_clm_tens(self, clm_emb_list: list[np.ndarray]) -> torch.FloatTensor:
-        # clm_embs_tens_list = [torch.FloatTensor(clm_emb, device=self.device) for clm_emb in clm_emb_list]
-        clm_embs_tens_list = [torch.tensor(clm_emb, dtype=torch.float, device=self.device) for clm_emb in clm_emb_list]
-        return torch.stack(clm_embs_tens_list, dim=0)
+    # def _make_clm_tens(self, clm_emb_list: list[np.ndarray]) -> torch.FloatTensor:
+    #     # clm_embs_tens_list = [torch.FloatTensor(clm_emb, device=self.device) for clm_emb in clm_emb_list]
+    #     clm_embs_tens_list = [torch.tensor(clm_emb, dtype=torch.float, device=self.device) for clm_emb in clm_emb_list]
+    #     return torch.stack(clm_embs_tens_list, dim=0)
 
     def get_actions_list(self, best_actions=False) -> list[Action]:
         if best_actions:
