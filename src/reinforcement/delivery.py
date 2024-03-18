@@ -124,8 +124,7 @@ class DeliveryEnvironment(BaseEnvironment):
         self._gamble = self.simulator.get_state()
         while len(self._gamble.claims) == 0:
             self.simulator.next(Assignment([]))
-            for k in self._assignment_statistics:
-                self._assignment_statistics[k] += self.simulator.assignment_statistics[k]
+            self._update_assignment_statistics(self.simulator.assignment_statistics)
             self._gamble = self.simulator.get_state()
             self._iter += 1
         self.embs_dict = {
@@ -166,6 +165,12 @@ class DeliveryEnvironment(BaseEnvironment):
             orders_embs=self.embs_dict['ord'],
             prev_idxs=self._prev_idxs,
         )
+
+    def _update_assignment_statistics(self, new_stats: dict[str, float]) -> None:
+        for k, v in new_stats.items():
+            if k not in self._assignment_statistics:
+                self._assignment_statistics[k] = 0.0
+            self._assignment_statistics[k] += v
 
 
 class DeliveryActorCritic(BaseActorCritic):
