@@ -29,6 +29,8 @@
     "max_grad_norm": 1.0,
     "gae_gamma": 0.99,
     "gae_lambda": 0.95,
+    "reward_norm_gamma": 0.99,
+    "reward_norm_cliprange": 10.0,
 
     "coef_reward_assigned": 0.1,
     "coef_reward_cancelled": 1.0,

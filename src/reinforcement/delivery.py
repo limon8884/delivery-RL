@@ -273,7 +273,7 @@ class DeliveryMaker(BaseMaker):
         runner = Runner(environment=self._env, actor_critic=self._ac,
                         n_envs=kwargs['n_envs'], trajectory_lenght=kwargs['trajectory_lenght'])
         gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
-        normalizer = RewardNormalizer()
+        normalizer = RewardNormalizer(gamma=kwargs['reward_norm_gamma'], cliprange=kwargs['reward_norm_cliprange'])
         buffer = Buffer(gae, reward_normalizer=normalizer, device=device)
         self._sampler = TrajectorySampler(runner, buffer, num_epochs_per_traj=kwargs['num_epochs_per_traj'],
                                           batch_size=batch_size)

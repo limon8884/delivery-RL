@@ -40,6 +40,8 @@ from src.evaluation import evaluate
 @click.option('--max_grad_norm', required=False, type=float)
 @click.option('--gae_gamma', required=False, type=float)
 @click.option('--gae_lambda', required=False, type=float)
+@click.option('--reward_norm_gamma', required=False, type=float)
+@click.option('--reward_norm_cliprange', required=False, type=float)
 @click.option('--coef_reward_assigned', required=False, type=float)
 @click.option('--coef_reward_cancelled', required=False, type=float)
 @click.option('--eval_num_simulator_steps', required=False, type=int)
