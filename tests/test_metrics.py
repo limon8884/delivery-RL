@@ -2,6 +2,7 @@ import json
 import random
 from datetime import datetime, timedelta
 from pytest import approx
+from pathlib import Path
 
 from src.simulator.simulator import DataReader, Simulator
 from src.router_makers import BaseRouteMaker
@@ -188,3 +189,32 @@ def test_ctd_simple(tmp_path):
     db.export_from_logger(logger)
     # assert db.get_metric(Metric.CTD) == ((0,), (0,), (0,))
     assert db.get_metric(Metric.CTD, run_id=-1) == approx(16.0, 0.000001)
+
+
+def test_cumulative_metrics_long_run(tmp_path):
+    config_path = Path('configs/simulator.json')
+    # db_path = tmp_path / 'test_db.db'
+
+    logger = Logger(run_id=-1)
+    reader = DataReader.from_config(config_path=config_path, sampler_mode='distr_sampler', logger=logger)
+    route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
+    dsp = HungarianDispatch(DistanceScorer())
+
+    last_completed = 0
+    last_cancelled = 0
+    last_assigned = 0
+    for iter in range(200):
+        gamble = sim.get_state()
+        assignments = dsp(gamble)
+        sim.next(assignments)
+        stats = sim.assignment_statistics
+        total_completed = sum(1 for item_id, dttm, event in logger.data['claims'] if event == 'claim_completed')
+        total_assigned = sum(1 for item_id, dttm, event in logger.data['claims'] if event == 'claim_assigned')
+        total_cancelled = sum(1 for item_id, dttm, event in logger.data['claims'] if event == 'claim_cancelled')
+        assert total_completed == last_completed + stats['completed_claims']
+        assert total_assigned == last_assigned + stats['assigned_not_batched_claims'] + stats['assigned_batched_claims']
+        assert total_cancelled == last_cancelled + stats['cancelled_claims']
+        last_completed = total_completed
+        last_assigned = total_assigned
+        last_cancelled = total_cancelled
