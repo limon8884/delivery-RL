@@ -25,7 +25,7 @@
     "exploration_temperature": 1.0,
     "ppo_cliprange": 0.2,
     "ppo_value_loss_coef": 0.25,
-    "ppo_entropy_loss_coef": 0.01,
+    "ppo_entropy_loss_coef": 0.0,
     "max_grad_norm": 1.0,
     "gae_gamma": 0.99,
     "gae_lambda": 0.95,
