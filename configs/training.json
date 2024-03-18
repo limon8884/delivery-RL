@@ -16,7 +16,7 @@
     "sampler_mode": "distr_sampler",
     
     "learning_rate": 3e-5,
-    "optimizer": "rmsprop",
+    "optimizer": "adam",
     "rmsprop_alpha": 0.9,
     "sgd_momentum": 0.9,
     "scheduler_max_lr": 1e-4,
