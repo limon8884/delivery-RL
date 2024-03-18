@@ -47,13 +47,13 @@ class NeuralSequantialDispatch(BaseDispatch):
                     available_couriers[assignment].id,
                     gamble.claims[claim_idx].id
                 ))
-                prev_idxs.append(prev_idxs)
+                prev_idxs.append(assignment)
             elif assignment < len(available_couriers) + len(available_orders):
                 assignment_list.append((
                     available_orders[assignment - len(available_couriers)].courier.id,
                     gamble.claims[claim_idx].id
                 ))
-                prev_idxs.append(prev_idxs)
+                prev_idxs.append(assignment)
         return Assignment(assignment_list)
 
 
