@@ -60,11 +60,11 @@ parameters:
   coef_reward_assigned:
     distribution: "log_uniform"
     min: -2.0
-    max: -2.0
+    max: 2.0
   coef_reward_cancelled:
     distribution: "log_uniform"
     min: -2.0
-    max: -2.0
+    max: 2.0
   total_iters:
     value: 25000
   device: 
