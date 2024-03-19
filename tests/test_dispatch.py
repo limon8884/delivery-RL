@@ -6,6 +6,7 @@ import numpy as np
 from src.dispatchs.scorers import DistanceScorer
 from src.dispatchs.hungarian_dispatch import HungarianDispatch
 from src.dispatchs.greedy_dispatch import GreedyDispatch
+from src.dispatchs.random_dispatch import RandomDispatch
 from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src.networks.encoders import GambleEncoder
 # from src.networks.networks import SimpleSequentialMLP
@@ -147,6 +148,12 @@ EXPECTED_GREEDY_DISPATCH = [
 def test_greedy_dispatch(idx: int, gamble: Gamble):
     dsp = GreedyDispatch(DistanceScorer())
     assert sorted(dsp(gamble).ids) == sorted(EXPECTED_GREEDY_DISPATCH[idx])
+
+
+@pytest.mark.parametrize(['idx', 'gamble'], TEST_GAMBLES)
+def test_random_dispatch(idx: int, gamble: Gamble):
+    dsp = RandomDispatch()
+    assert len(dsp(gamble).ids) == min(len(gamble.claims), len(gamble.couriers))
 
 
 # @pytest.mark.parametrize(['idx', 'gamble'], TEST_GAMBLES)

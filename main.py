@@ -8,6 +8,7 @@ from src.router_makers import AppendRouteMaker
 from src.database.database import Database, Metric, Logger
 from src.dispatchs.hungarian_dispatch import HungarianDispatch, BaseDispatch
 from src.dispatchs.greedy_dispatch import GreedyDispatch
+from src.dispatchs.random_dispatch import RandomDispatch
 from src.dispatchs.scorers import DistanceScorer
 from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src.networks.encoders import GambleEncoder
@@ -45,8 +46,8 @@ def main():
         simulator_cfg_path='configs/simulator.json',
         sampler_mode='distr_sampler',
         max_num_points_in_route=8,
-        database_logger_path='history.db',
-        eval_num_simulator_steps=2880,
+        history_db_path='history.db',
+        eval_num_simulator_steps=200,
     )
     print(res)
 
@@ -57,8 +58,20 @@ def main():
         simulator_cfg_path='configs/simulator.json',
         sampler_mode='distr_sampler',
         max_num_points_in_route=8,
-        database_logger_path='history.db',
-        eval_num_simulator_steps=2880,
+        history_db_path='history.db',
+        eval_num_simulator_steps=200,
+    )
+    print(res)
+
+    print('Greedy')
+    res = evaluate(
+        dispatch=RandomDispatch(),
+        run_id=1,
+        simulator_cfg_path='configs/simulator.json',
+        sampler_mode='distr_sampler',
+        max_num_points_in_route=8,
+        history_db_path='history.db',
+        eval_num_simulator_steps=200,
     )
     print(res)
 
