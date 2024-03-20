@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 # from enum import Enum
 from src.database.classes import TableName, Event, Metric
-from src.database.logger import Logger
+from src.database.logger import DatabaseLogger
 from src.database.sql_metrics_queries import (
     _sql_query_cr,
     _sql_query_ctd,
@@ -34,13 +34,13 @@ class Database:
         cursor.close()
         self._connection.commit()
 
-    def export_from_logger(self, logger: Logger) -> None:
-        self._export_from_logger_table(logger, TableName.COURIER_TABLE)
-        self._export_from_logger_table(logger, TableName.CLAIM_TABLE)
-        self._export_from_logger_table(logger, TableName.ORDER_TABLE)
+    def export_from_logger(self, db_logger: DatabaseLogger) -> None:
+        self._export_from_logger_table(db_logger, TableName.COURIER_TABLE)
+        self._export_from_logger_table(db_logger, TableName.CLAIM_TABLE)
+        self._export_from_logger_table(db_logger, TableName.ORDER_TABLE)
         self._connection.commit()
 
-    def _export_from_logger_table(self, logger: Logger, tablename: TableName) -> None:
+    def _export_from_logger_table(self, logger: DatabaseLogger, tablename: TableName) -> None:
         if len(logger.data[tablename.value]) == 0:
             return
         cursor = self._connection.cursor()

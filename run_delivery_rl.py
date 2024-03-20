@@ -77,10 +77,10 @@ def run_ppo(**kwargs):
     maker = DeliveryMaker(**kwargs)
 
     if not kwargs['use_train_logs']:
-        maker.ppo.logger = None
+        maker.ppo.metric_logger = None
     eval_runner = Runner(environment=maker.environment, actor_critic=maker.actor_critic,
                          n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
-    inference_logger = InferenceMetricsRunner(runner=eval_runner, logger=maker.logger)
+    inference_logger = InferenceMetricsRunner(runner=eval_runner, metric_logger=maker.metric_logger)
     dsp = NeuralSequantialDispatch(actor_critic=maker.actor_critic,
                                    max_num_points_in_route=kwargs['max_num_points_in_route'])
 
@@ -92,10 +92,10 @@ def run_ppo(**kwargs):
             maker.actor_critic.eval()
             metrics = evaluate(dispatch=dsp, run_id=iteration, **kwargs)
             for k, v in metrics.items():
-                maker.logger.log(k, v)
+                maker.metric_logger.log(k, v)
             inference_logger()
             if not kwargs['use_wandb']:
-                maker.logger.plot(window_size=10)
+                maker.metric_logger.plot(window_size=10)
             torch.save(maker.actor_critic.state_dict(), kwargs['checkpoint_path'])
 
 

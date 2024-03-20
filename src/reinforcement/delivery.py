@@ -28,7 +28,7 @@ from src.reinforcement.base import (
     GAE,
     Buffer,
     PPO,
-    Logger,
+    MetricLogger,
     TrajectorySampler,
     RewardNormalizer,
     # InferenceMetricsRunner,
@@ -255,7 +255,7 @@ class DeliveryMaker(BaseMaker):
         route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
         sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=simulator_config_path, logger=None)
         rewarder = DeliveryRewarder(**kwargs)
-        self._train_logger = Logger(use_wandb=kwargs['use_wandb'])
+        self._train_metric_logger = MetricLogger(use_wandb=kwargs['use_wandb'])
         self._env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, **kwargs)
         self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, clm_emb_size=encoder_cfg['claim_embedding_dim'],
                                        temperature=kwargs['exploration_temperature'], device=device)
@@ -267,7 +267,7 @@ class DeliveryMaker(BaseMaker):
             actor_critic=self._ac,
             opt=opt,
             scheduler=scheduler,
-            logger=self._train_logger,
+            metric_logger=self._train_metric_logger,
             **kwargs
             )
         runner = Runner(environment=self._env, actor_critic=self._ac,
@@ -295,5 +295,5 @@ class DeliveryMaker(BaseMaker):
         return self._env
 
     @property
-    def logger(self) -> Logger:
-        return self._train_logger
+    def metric_logger(self) -> MetricLogger:
+        return self._train_metric_logger

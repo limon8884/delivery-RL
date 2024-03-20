@@ -16,18 +16,18 @@ from src.objects import (
 from src.dispatchs.base_dispatch import BaseDispatch
 from src.simulator.data_reader import DataReader
 from src.router_makers import BaseRouteMaker
-from src.database.logger import Logger
+from src.database.logger import DatabaseLogger
 
 
 class Simulator(object):
     """A simulatior of the environment
     """
     def __init__(self, data_reader: DataReader, route_maker: BaseRouteMaker,
-                 config_path: Path, logger: tp.Optional[Logger] = None) -> None:
+                 config_path: Path, db_logger: tp.Optional[DatabaseLogger] = None) -> None:
         self.route_maker = route_maker
         self.data_reader = data_reader
         self._config_path = config_path
-        self._logger = logger
+        self._logger = db_logger
         self.assignment_statistics: dict[str, float] = defaultdict(float)
         self.reset()
 

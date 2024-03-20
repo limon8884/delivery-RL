@@ -7,8 +7,6 @@ from torch import nn
 from IPython.display import clear_output
 from collections import defaultdict
 
-from src.utils import write_in_txt_file
-
 
 class Action:
     '''
@@ -381,7 +379,7 @@ class TrajectorySampler:
         return self.buffer.sample(size=self.batch_size)
 
 
-class Logger:
+class MetricLogger:
     def __init__(self, use_wandb: bool = False) -> None:
         self.logs = defaultdict(list)
         self.logs_mute = defaultdict(list)
@@ -434,9 +432,9 @@ class Logger:
 
 
 class InferenceMetricsRunner:
-    def __init__(self, runner: Runner, logger: Logger) -> None:
+    def __init__(self, runner: Runner, metric_logger: MetricLogger) -> None:
         self.runner = runner
-        self.logger = logger
+        self.metric_logger = metric_logger
         self.called_counter = 0
 
     def __call__(self) -> None:
@@ -454,20 +452,20 @@ class InferenceMetricsRunner:
                 if reset:
                     break
 
-        self.logger.log('avg episode reward', total_reward / self.runner.n_envs)
-        self.logger.log('avg episode length', total_length / self.runner.n_envs)
-        self.logger.log('avg step reward', total_reward / total_length)
-        self.logger.log('avg chosen prob', np.mean(action_probs))
-        self.logger.log('std chosen prob', np.std(action_probs))
+        self.metric_logger.log('avg episode reward', total_reward / self.runner.n_envs)
+        self.metric_logger.log('avg episode length', total_length / self.runner.n_envs)
+        self.metric_logger.log('avg step reward', total_reward / total_length)
+        self.metric_logger.log('avg chosen prob', np.mean(action_probs))
+        self.metric_logger.log('std chosen prob', np.std(action_probs))
 
         total_info = defaultdict(float)
         for info in self.runner._statistics:
             for k, v in info.items():
                 total_info[k] += v
         for k, v in total_info.items():
-            self.logger.log('avg ' + k, v / self.runner.trajectory_lenght / self.runner.n_envs)
+            self.metric_logger.log('avg ' + k, v / self.runner.trajectory_lenght / self.runner.n_envs)
 
-        self.logger.commit(step=self.called_counter)
+        self.metric_logger.commit(step=self.called_counter)
         self.called_counter += 1
 
 
@@ -476,10 +474,10 @@ class PPO:
                  actor_critic: BaseActorCritic,
                  opt: torch.optim.Optimizer,
                  scheduler: typing.Optional[torch.optim.lr_scheduler._LRScheduler] = None,
-                 logger: typing.Optional[Logger] = None,
+                 metric_logger: typing.Optional[MetricLogger] = None,
                  **kwargs,
                  ):
-        self.logger = logger
+        self.metric_logger = metric_logger
         self.actor_critic = actor_critic
         self.opt = opt
         self.scheduler = scheduler
@@ -502,9 +500,9 @@ class PPO:
         ).squeeze(-1)
         r = torch.exp(new_log_probs_chosen - old_log_probs_chosen)
         loss = -torch.minimum(r * a, torch.clamp(r, 1 - self.cliprange, 1 + self.cliprange) * a).mean()
-        if self.logger:
-            self.logger.log('policy_loss', loss.item())
-            self.logger.log('mean_log_prob_chosen', new_log_probs_chosen.mean().item())
+        if self.metric_logger:
+            self.metric_logger.log('policy_loss', loss.item())
+            self.metric_logger.log('mean_log_prob_chosen', new_log_probs_chosen.mean().item())
         return loss
 
     def _value_loss(self, sample: dict[str, torch.FloatTensor | list[State]], new_values: torch.FloatTensor):
@@ -516,9 +514,9 @@ class PPO:
             old_values + torch.clamp(new_values - old_values, -self.cliprange, self.cliprange) - target_values
         )
         loss = torch.maximum(l_simple, l_clipped).mean()
-        if self.logger:
-            self.logger.log('value_loss', loss.item())
-            self.logger.log('mean_value', new_values.mean().item())
+        if self.metric_logger:
+            self.metric_logger.log('value_loss', loss.item())
+            self.metric_logger.log('mean_value', new_values.mean().item())
         return loss
 
     def _entropy_loss(self, new_log_probs: torch.FloatTensor):
@@ -541,10 +539,10 @@ class PPO:
         loss = self._loss(sample)
         loss.backward()
         grad_norm = nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
-        if self.logger:
-            self.logger.log('grad norm', grad_norm.item())
-            self.logger.log('total loss', loss.item())
-            self.logger.commit(step=self._step)
+        if self.metric_logger:
+            self.metric_logger.log('grad norm', grad_norm.item())
+            self.metric_logger.log('total loss', loss.item())
+            self.metric_logger.commit(step=self._step)
             self._step += 1
         self.opt.step()
         if self.scheduler is not None:
@@ -572,7 +570,7 @@ class BaseMaker:
         raise NotImplementedError
 
     @property
-    def logger(self) -> Logger:
+    def metric_logger(self) -> MetricLogger:
         raise NotImplementedError
 
 

@@ -120,7 +120,7 @@ CFG_DISTR = {
 
 
 def test_dummy_sampler():
-    smp = CityStampSampler(logger=None, cfg=CFG_DUMMY)
+    smp = CityStampSampler(db_logger=None, cfg=CFG_DUMMY)
     smp.sample_citystamp(BASE_DTTM, BASE_DTTM + timedelta(seconds=30))
 
     n_stamps = 50
@@ -131,12 +131,12 @@ def test_dummy_sampler():
 
 
 def test_distribution_sampler():
-    smp = CityStampSampler(logger=None, cfg=CFG_DISTR)
+    smp = CityStampSampler(db_logger=None, cfg=CFG_DISTR)
     smp.sample_citystamp(BASE_DTTM, BASE_DTTM + timedelta(seconds=30))
 
 
 def test_dummy_sampler_full():
-    smp = CityStampSampler(logger=None, cfg=CFG_DUMMY)
+    smp = CityStampSampler(db_logger=None, cfg=CFG_DUMMY)
     n_stamps = 10
     city_stamps = [
         smp.sample_citystamp(BASE_DTTM + timedelta(seconds=i * 30), BASE_DTTM + timedelta(seconds=30 + i * 30))

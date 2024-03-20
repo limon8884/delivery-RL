@@ -10,7 +10,7 @@ from src.objects import (
     Claim,
     Courier,
 )
-from src.database.logger import Logger
+from src.database.logger import DatabaseLogger
 from src.utils import get_random_point
 
 
@@ -204,10 +204,10 @@ class DistributionNumSampler(BaseNumSampler):
 
 
 class CityStampSampler:
-    def __init__(self, logger: typing.Optional[Logger], cfg: dict[str, typing.Any]) -> None:
+    def __init__(self, db_logger: typing.Optional[DatabaseLogger], cfg: dict[str, typing.Any]) -> None:
         self._next_claim_id = 0
         self._next_courier_id = 0
-        self._logger = logger
+        self._logger = db_logger
 
         if cfg['sampler_mode'] == 'dummy':
             self._num_sampler = DummyNumSampler(cfg['num_sampler'])

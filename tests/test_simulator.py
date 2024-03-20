@@ -6,7 +6,7 @@ from src.simulator.simulator import DataReader, Simulator
 from src.router_makers import BaseRouteMaker
 from src.dispatchs.hungarian_dispatch import HungarianDispatch
 from src.dispatchs.scorers import DistanceScorer
-from src.database.logger import Logger
+from src.database.logger import DatabaseLogger
 # from src.utils import get_random_point
 
 
@@ -93,9 +93,9 @@ def test_simulator_step_by_step(tmp_path):
             'courier_speed': 0.1
         }
         json.dump(config, f)
-    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, logger=None)
+    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, db_logger=None)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=None)
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
     dsp = HungarianDispatch(DistanceScorer())
 
     last_gamble = sim.get_state()
@@ -182,9 +182,9 @@ def test_simulator_full_run_wo_db(tmp_path):
         for i in range(n_iters)
     ]
 
-    reader = DataReader.from_list(couriers, claims, logger=None)
+    reader = DataReader.from_list(couriers, claims, db_logger=None)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=None)
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=n_iters)
@@ -225,10 +225,10 @@ def test_simulator_full_run_with_db(tmp_path):
     ]
 
     # db = Database(db_path)
-    logger = Logger(run_id=-1)
-    reader = DataReader.from_list(couriers, claims, logger=logger)
+    db_logger = DatabaseLogger(run_id=-1)
+    reader = DataReader.from_list(couriers, claims, db_logger=db_logger)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=db_logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=n_iters)

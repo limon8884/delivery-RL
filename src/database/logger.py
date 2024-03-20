@@ -3,7 +3,7 @@ from datetime import datetime
 from src.database.classes import Event, TableName
 
 
-class Logger:
+class DatabaseLogger:
     def __init__(self, run_id: int) -> None:
         self.run_id = run_id
         self.reset()

@@ -93,9 +93,9 @@ def test_simulator(tmp_path):
             'courier_speed': 0.02
         }
         json.dump(config, f)
-    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, logger=None)
+    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, db_logger=None)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=None)
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
     sim.next(Assignment([]))
     g0 = sim.get_state()
     assert len(g0.claims) == 2 and len(g0.couriers) == 3 and len(g0.orders) == 0
@@ -126,9 +126,9 @@ def test_delivery_environment(tmp_path):
             'courier_speed': 0.02
         }
         json.dump(config, f)
-    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, logger=None)
+    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, db_logger=None)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=None)
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
     rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0)
     env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4,
                               num_gambles_in_day=6, device=None)
@@ -177,9 +177,9 @@ def test_delivery_actor_critic_shape(tmp_path):
             'courier_speed': 0.02
         }
         json.dump(config, f)
-    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, logger=None)
+    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, db_logger=None)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=None)
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
     rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0)
     env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4,
                               num_gambles_in_day=6, device=None)

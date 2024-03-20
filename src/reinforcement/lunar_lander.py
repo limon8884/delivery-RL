@@ -14,7 +14,7 @@ from src.reinforcement.base import (
     GAE,
     Buffer,
     PPO,
-    Logger,
+    MetricLogger,
     TrajectorySampler,
     RewardNormalizer,
     InferenceMetricsRunner,
@@ -119,7 +119,7 @@ class GymMaker(BaseMaker):
         batch_size = kwargs['batch_size']
         device = kwargs['device']
 
-        self._train_logger = Logger(use_wandb=kwargs['use_wandb'])
+        self._train_metric_logger = MetricLogger(use_wandb=kwargs['use_wandb'])
         self._env = GymEnv(gym_name=kwargs['env_name'])
         self._ac = GymActorCritic(input_dim=self._env.state_dim, action_dim=self._env.action_dim, device=device)
         opt = make_optimizer(self._ac.parameters(), **kwargs)
@@ -127,10 +127,10 @@ class GymMaker(BaseMaker):
                                                         total_steps=kwargs['total_iters'],
                                                         pct_start=kwargs['scheduler_pct_start'])
         self._ppo = PPO(actor_critic=self._ac, opt=opt, scheduler=scheduler,
-                        logger=self._train_logger, **kwargs)
+                        metric_logger=self._train_metric_logger, **kwargs)
         runner = Runner(environment=self._env, actor_critic=self._ac,
                         n_envs=kwargs['n_envs'], trajectory_lenght=kwargs['trajectory_lenght'])
-        # inference_logger = InferenceMetricsRunner(runner=runner, logger=self._train_logger)
+        # inference_metric_logger = InferenceMetricsRunner(runner=runner, metric_logger=self._train_metric_logger)
         gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
         normalizer = RewardNormalizer()
         buffer = Buffer(gae=gae, reward_normalizer=normalizer, device=device)
@@ -154,5 +154,5 @@ class GymMaker(BaseMaker):
         return self._env
 
     @property
-    def logger(self) -> Logger:
-        return self._train_logger
+    def metric_logger(self) -> MetricLogger:
+        return self._train_metric_logger

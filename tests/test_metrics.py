@@ -9,7 +9,7 @@ from src.router_makers import BaseRouteMaker
 from src.dispatchs.hungarian_dispatch import HungarianDispatch
 from src.dispatchs.scorers import DistanceScorer
 from src.database.database import Database, Metric
-from src.database.logger import Logger
+from src.database.logger import DatabaseLogger
 
 
 BASE_DTTM = datetime.utcnow()
@@ -63,16 +63,16 @@ def test_cr_simple(tmp_path):
         }
         json.dump(config, f)
 
-    logger = Logger(run_id=-1)
-    reader = DataReader.from_list(TEST_DATA_COURIERS_CR, TEST_DATA_CLAIMS_CR, logger=logger)
+    db_logger = DatabaseLogger(run_id=-1)
+    reader = DataReader.from_list(TEST_DATA_COURIERS_CR, TEST_DATA_CLAIMS_CR, db_logger=db_logger)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=db_logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=5)
 
     db = Database(db_path)
-    db.export_from_logger(logger)
+    db.export_from_logger(db_logger)
 
     assert db.get_metric(Metric.CR, run_id=-1) == approx(1/3, 0.000001)
 
@@ -111,16 +111,16 @@ def test_cr_100_percent(tmp_path):
         for i in range(n_iters)
     ]
 
-    logger = Logger(run_id=-1)
-    reader = DataReader.from_list(couriers, claims, logger=logger)
+    db_logger = DatabaseLogger(run_id=-1)
+    reader = DataReader.from_list(couriers, claims, db_logger=db_logger)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=db_logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=n_iters + 5)
 
     db = Database(db_path)
-    db.export_from_logger(logger)
+    db.export_from_logger(db_logger)
     assert db.get_metric(Metric.CR, run_id=-1) == approx(1.0, 0.000001)
 
 
@@ -177,16 +177,16 @@ def test_ctd_simple(tmp_path):
         }
         json.dump(config, f)
 
-    logger = Logger(run_id=-1)
-    reader = DataReader.from_list(TEST_DATA_COURIERS_CTD, TEST_DATA_CLAIMS_CTD, logger=logger)
+    db_logger = DatabaseLogger(run_id=-1)
+    reader = DataReader.from_list(TEST_DATA_COURIERS_CTD, TEST_DATA_CLAIMS_CTD, db_logger=db_logger)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=db_logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     sim.run(dsp, num_iters=5)
 
     db = Database(db_path)
-    db.export_from_logger(logger)
+    db.export_from_logger(db_logger)
     # assert db.get_metric(Metric.CTD) == ((0,), (0,), (0,))
     assert db.get_metric(Metric.CTD, run_id=-1) == approx(16.0, 0.000001)
 
@@ -195,10 +195,10 @@ def test_cumulative_metrics_long_run(tmp_path):
     config_path = Path('configs/simulator.json')
     # db_path = tmp_path / 'test_db.db'
 
-    logger = Logger(run_id=-1)
-    reader = DataReader.from_config(config_path=config_path, sampler_mode='distr_sampler', logger=logger)
+    db_logger = DatabaseLogger(run_id=-1)
+    reader = DataReader.from_config(config_path=config_path, sampler_mode='distr_sampler', db_logger=db_logger)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
-    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, logger=logger)
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=db_logger)
     dsp = HungarianDispatch(DistanceScorer())
 
     last_completed = 0
@@ -209,9 +209,9 @@ def test_cumulative_metrics_long_run(tmp_path):
         assignments = dsp(gamble)
         sim.next(assignments)
         stats = sim.assignment_statistics
-        total_completed = sum(1 for item_id, dttm, event in logger.data['claims'] if event == 'claim_completed')
-        total_assigned = sum(1 for item_id, dttm, event in logger.data['claims'] if event == 'claim_assigned')
-        total_cancelled = sum(1 for item_id, dttm, event in logger.data['claims'] if event == 'claim_cancelled')
+        total_completed = sum(1 for item_id, dttm, event in db_logger.data['claims'] if event == 'claim_completed')
+        total_assigned = sum(1 for item_id, dttm, event in db_logger.data['claims'] if event == 'claim_assigned')
+        total_cancelled = sum(1 for item_id, dttm, event in db_logger.data['claims'] if event == 'claim_cancelled')
         assert total_completed == last_completed + stats['completed_claims']
         assert total_assigned == last_assigned + stats['assigned_not_batched_claims'] + stats['assigned_batched_claims']
         assert total_cancelled == last_cancelled + stats['cancelled_claims']

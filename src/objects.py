@@ -7,7 +7,7 @@ from collections import deque
 
 
 from src.database.classes import TableName, Event
-from src.database.logger import Logger
+from src.database.logger import DatabaseLogger
 
 
 class Point:
@@ -116,14 +116,14 @@ class Item:
     """
     A base class for Courier, Claim and Order
     """
-    def __init__(self, id: int, logger: typing.Optional[Logger]) -> None:
+    def __init__(self, id: int, logger: typing.Optional[DatabaseLogger]) -> None:
         """
         id - id of item
         dttm - creation datetime in the system
         """
         self.id: int = id
         self._dttm: typing.Optional[datetime] = None
-        self._logger: typing.Optional[Logger] = logger
+        self._logger: typing.Optional[DatabaseLogger] = logger
 
     def next(self, current_time: datetime) -> None:
         """
@@ -165,7 +165,7 @@ class Courier(Item):
                  start_dttm: datetime,
                  end_dttm: datetime,
                  courier_type: str,
-                 logger: typing.Optional[Logger] = None,
+                 logger: typing.Optional[DatabaseLogger] = None,
                  ) -> None:
         super().__init__(id, logger)
         self._dttm = start_dttm
@@ -224,7 +224,7 @@ class Claim(Item):
                  cancell_if_not_assigned_dttm: datetime,
                  waiting_on_point_source: timedelta,
                  waiting_on_point_destination: timedelta,
-                 logger: typing.Optional[Logger] = None,
+                 logger: typing.Optional[DatabaseLogger] = None,
                  ) -> None:
         super().__init__(id, logger)
         self._dttm = creation_dttm
@@ -299,7 +299,7 @@ class Order(Item):
                  courier: Courier,
                  route: Route,
                  claims: list[Claim],
-                 logger: typing.Optional[Logger] = None,
+                 logger: typing.Optional[DatabaseLogger] = None,
                  ) -> None:
         super().__init__(id, logger)
         self.creation_dttm = creation_dttm
