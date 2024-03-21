@@ -72,7 +72,7 @@ def main():
     )
     ac = DeliveryActorCritic(gamble_encoder=encoder, clm_emb_size=net_cfg['claim_embedding_dim'], device=None,
                              temperature=1.0)
-    ac.load_state_dict(torch.load('checkpoints/6313c9d40bce480f8b1416a0f0976544.pt', map_location='cpu'))
+    # ac.load_state_dict(torch.load('checkpoints/6313c9d40bce480f8b1416a0f0976544.pt', map_location='cpu'))
     dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route)
     res = evaluate(
         dispatch=dsp,

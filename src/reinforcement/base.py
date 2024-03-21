@@ -28,6 +28,9 @@ class State:
     '''
     def __init__(self, *args, **kwargs) -> None:
         raise NotImplementedError
+    
+    def size(self) -> int:
+        raise NotImplementedError
 
     def __hash__(self) -> int:
         raise NotImplementedError
@@ -73,13 +76,13 @@ class Trajectory:
         self.resets: list[bool] = []
         self.log_probs_chosen: list[float] = []
         self.values: list[float] = []
-        # self.old_probs_tensor: list[torch.FloatTensor] = []
+        self.entropies: list[float] = []
 
         self.last_state: State = state
         self.last_state_value: typing.Optional[float] = None
 
     def append(self, state: State, action: Action, reward: float, done: bool,
-               log_probs_chosen: float, value: float):
+               log_probs_chosen: float, value: float, entropy: float):
         '''
         Add an information about new step in trajectory
         '''
@@ -90,7 +93,7 @@ class Trajectory:
         self.resets.append(done)
         self.log_probs_chosen.append(log_probs_chosen)
         self.values.append(value)
-        # self.old_probs_tensor.append(old_probs_tens)
+        self.entropies.append(entropy)
 
 
 class BaseActorCritic(nn.Module):
@@ -156,14 +159,12 @@ class Runner:
                  n_envs: int,
                  trajectory_lenght: int,
                  parallel: bool = False,
-                 mask_fake_crr=False,
                  ) -> None:
         self.environment = environment
         self.actor_critic = actor_critic
         self.n_envs = n_envs
         self.trajectory_lenght = trajectory_lenght
         self.parallel = parallel
-        self.mask_fake_crr = mask_fake_crr
         self.reset()
 
     def reset(self, seeds: typing.Optional[list[int]] = None) -> None:
@@ -178,17 +179,18 @@ class Runner:
         states = [traj.last_state for traj in self._trajectories]
         for _ in range(self.trajectory_lenght):
             with torch.no_grad():
-                self.actor_critic(states, mask_fake_crr=self.mask_fake_crr)
+                self.actor_critic(states)
             actions = self.actor_critic.get_actions_list(best_actions=best_actions)
             log_probs_list = self.actor_critic.get_log_probs_list()
             values_list = self.actor_critic.get_values_list()
-            # old_probs_tens = self.actor_critic.get_log_probs_tensor()
+            log_probs = self.actor_critic.get_log_probs_tensor()
+            entropies = (-(torch.exp(log_probs) * log_probs).sum(dim=-1)).tolist()
             new_states: list[State] = []
             total_info = defaultdict(float)
             for idx in range(self.n_envs):
                 new_state, reward, done, info = self._environments[idx].step(actions[idx])
                 self._trajectories[idx].append(states[idx], actions[idx], reward, done,
-                                               log_probs_list[idx], values_list[idx])
+                                               log_probs_list[idx], values_list[idx], entropies[idx])
                 new_states.append(new_state)
                 for k, v in info.items():
                     total_info[k] += v
@@ -301,7 +303,6 @@ class Buffer:
         values = []
         actions = []
         rewards = []
-        # old_probs = []
         self._states = []
         for traj in trajectories:
             advantages.extend(self.gae(traj))
@@ -310,17 +311,11 @@ class Buffer:
             actions.extend([a.to_index() for a in traj.actions])
             self._states.extend(traj.states)
             rewards.extend(traj.rewards)
-            # old_probs.extend(traj.old_probs_tensor)
-        # self._actions_chosen = torch.LongTensor(actions).to(device=self.device)
-        # self._advantages = torch.FloatTensor(advantages).to(device=self.device)
-        # self._log_probs_chosen = torch.FloatTensor(log_probs_chosen).to(device=self.device)
-        # self._values = torch.FloatTensor(values).to(device=self.device)
         self._actions_chosen = torch.tensor(actions, dtype=torch.int64).to(device=self.device)
         self._advantages = torch.tensor(advantages, dtype=torch.float).to(device=self.device)
         self._log_probs_chosen = torch.tensor(log_probs_chosen, dtype=torch.float).to(device=self.device)
         self._values = torch.tensor(values, dtype=torch.float).to(device=self.device)
         self._rewards = np.array(rewards)
-        # self._old_probs_tens = old_probs
 
         self.lenght = len(self._advantages)
         self.shuffle()
@@ -351,7 +346,6 @@ class Buffer:
             'values': self._values[choices],
             'states': [self._states[i.item()] for i in choices],
             'actions_chosen': self._actions_chosen[choices],
-            # 'old_probs': [self._old_probs_tens[i.item()] for i in choices],
         }
 
     @staticmethod
@@ -440,32 +434,38 @@ class InferenceMetricsRunner:
         self.called_counter = 0
 
     def __call__(self) -> None:
-        total_reward = 0.0
-        total_length = 0
-        action_probs = []
+        cumulative_metrics = defaultdict(int)
         self.runner.actor_critic.eval()
         self.runner.reset()
         trajs = self.runner.run()
         for traj in trajs:
-            for reward, reset, log_prob_chosen in zip(traj.rewards, traj.resets, traj.log_probs_chosen):
-                total_length += 1
-                total_reward += reward
-                action_probs.append(np.exp(log_prob_chosen))
+            for reward, reset, log_prob_chosen, entropy, action, state in zip(
+                    traj.rewards, traj.resets, traj.log_probs_chosen, traj.entropies, traj.actions, traj.states):
+                cumulative_metrics['total_length'] += 1
+                cumulative_metrics['total_reward'] += reward
+                cumulative_metrics['prob_chosen'] += np.exp(log_prob_chosen)
+                cumulative_metrics['entropy'] += entropy
+                cumulative_metrics['last action'] += int(action.to_index() == state.size())
                 if reset:
                     break
 
-        self.metric_logger.log('avg episode reward', total_reward / self.runner.n_envs)
-        self.metric_logger.log('avg episode length', total_length / self.runner.n_envs)
-        self.metric_logger.log('avg step reward', total_reward / total_length)
-        self.metric_logger.log('avg chosen prob', np.mean(action_probs))
-        self.metric_logger.log('std chosen prob', np.std(action_probs))
+        self.metric_logger.log('PPO: episode reward', cumulative_metrics['total_reward'] / self.runner.n_envs)
+        self.metric_logger.log('PPO: episode length', cumulative_metrics['total_length'] / self.runner.n_envs)
+        self.metric_logger.log('PPO: step reward', cumulative_metrics['total_reward']
+                               / cumulative_metrics['total_length'] / self.runner.n_envs)
+        self.metric_logger.log('PPO: chosen prob', cumulative_metrics['prob_chosen']
+                               / cumulative_metrics['total_length'] / self.runner.n_envs)
+        self.metric_logger.log('PPO: entropy', cumulative_metrics['entropy']
+                               / cumulative_metrics['total_length'] / self.runner.n_envs)
+        self.metric_logger.log('PPO: last action', cumulative_metrics['last action']
+                               / cumulative_metrics['total_length'] / self.runner.n_envs)
 
         total_info = defaultdict(float)
         for info in self.runner._statistics:
             for k, v in info.items():
                 total_info[k] += v
         for k, v in total_info.items():
-            self.metric_logger.log('avg ' + k, v / self.runner.trajectory_lenght / self.runner.n_envs)
+            self.metric_logger.log('SIM: ' + k, v / self.runner.trajectory_lenght / self.runner.n_envs)
 
         self.metric_logger.commit(step=self.called_counter)
         self.called_counter += 1
@@ -526,6 +526,14 @@ class PPO:
 
     def _loss(self, sample: dict[str, torch.FloatTensor | list[State]]):
         self.actor_critic(sample['states'])
+
+        if self.metric_logger:
+            log_probs = self.actor_critic.get_log_probs_tensor()
+            self.metric_logger.log('entropy', -(torch.exp(log_probs) * log_probs).sum(dim=-1).mean().item())
+            is_last_action = sum([(state.size() == act_idx.item()) for act_idx, state
+                                 in zip(sample['actions_chosen'], sample['states'])]) / len(sample['states'])
+            self.metric_logger.log('last action', is_last_action)
+
         policy_loss = self._policy_loss(sample, self.actor_critic.get_log_probs_tensor())
         value_loss = self._value_loss(sample, self.actor_critic.get_values_tensor())
         entropy_loss = self._entropy_loss(self.actor_critic.get_log_probs_tensor())

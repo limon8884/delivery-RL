@@ -66,6 +66,7 @@ def test_trajectory():
         False,
         -3.0,
         2.0,
+        0.0,
     )
     assert tr.lenght == 1
 

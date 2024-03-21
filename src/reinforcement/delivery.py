@@ -56,6 +56,11 @@ class DeliveryState(State):
         self.orders_embs = orders_embs
         self.prev_idxs = prev_idxs
 
+    def size(self) -> int:
+        len_crr = len(self.couriers_embs) if self.couriers_embs is not None else 0
+        len_ord = len(self.orders_embs) if self.orders_embs is not None else 0
+        return len_crr + len_ord
+
     def __hash__(self) -> int:
         return hash(
             hash(tuple(self.claim_emb)) +
@@ -178,20 +183,22 @@ class DeliveryEnvironment(BaseEnvironment):
 
 
 class DeliveryActorCritic(BaseActorCritic):
-    def __init__(self, gamble_encoder: GambleEncoder, clm_emb_size: int, temperature: float, device) -> None:
+    def __init__(self, gamble_encoder: GambleEncoder, clm_emb_size: int, temperature: float,
+                 device, mask_fake_crr: bool = False) -> None:
         super().__init__()
         self.gamble_encoder = gamble_encoder
         self.clm_emb_size = clm_emb_size
         self.temperature = temperature
+        self.mask_fake_crr = mask_fake_crr
         self.device = device
 
-    def forward(self, state_list: list[DeliveryState], mask_fake_crr=False) -> None:
-        policy_tens, val_tens = self._make_padded_policy_value_tensors(state_list, mask_fake_crr)
+    def forward(self, state_list: list[DeliveryState]) -> None:
+        policy_tens, val_tens = self._make_padded_policy_value_tensors(state_list)
         self.log_probs = nn.functional.log_softmax(policy_tens / self.temperature, dim=-1)
         self.values = val_tens
         self._actions = None
 
-    def _make_padded_policy_value_tensors(self, states: list[DeliveryState], mask_fake_crr: bool,
+    def _make_padded_policy_value_tensors(self, states: list[DeliveryState]
                                           ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         policy_tens_list, value_tens_list = [], []
         for state in states:
@@ -199,12 +206,12 @@ class DeliveryActorCritic(BaseActorCritic):
             policy_half_tens, value_half_tens, claim_emb = self._make_three_tensors_from_state(state)
             policy_tens = claim_emb @ policy_half_tens.T
             policy_tens[prev_idxs] = -1e9
-            if mask_fake_crr:
+            if self.mask_fake_crr:
                 policy_tens[-1] = -1e9
             policy_tens_list.append(policy_tens)
             value_tens = claim_emb @ value_half_tens.T
             value_tens[prev_idxs] = 0.0
-            if mask_fake_crr:
+            if self.mask_fake_crr:
                 value_tens[-1] = 0.0
             value_tens_list.append(value_tens.mean())
         policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e9)
@@ -259,14 +266,15 @@ class DeliveryMaker(BaseMaker):
 
         gamble_encoder = GambleEncoder(max_num_points_in_route=max_num_points_in_route, **encoder_cfg, device=device)
         reader = DataReader.from_config(config_path=simulator_config_path,
-                                        sampler_mode=kwargs['sampler_mode'], logger=None)
+                                        sampler_mode=kwargs['sampler_mode'], db_logger=None)
         route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
-        sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=simulator_config_path, logger=None)
+        sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=simulator_config_path, db_logger=None)
         rewarder = DeliveryRewarder(**kwargs)
         self._train_metric_logger = MetricLogger(use_wandb=kwargs['use_wandb'])
         self._env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, **kwargs)
         self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, clm_emb_size=encoder_cfg['claim_embedding_dim'],
-                                       temperature=kwargs['exploration_temperature'], device=device)
+                                       temperature=kwargs['exploration_temperature'],
+                                       mask_fake_crr=kwargs['mask_fake_crr'], device=device)
         opt = make_optimizer(self._ac.parameters(), **kwargs)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=kwargs['scheduler_max_lr'],
                                                         total_steps=kwargs['total_iters'],
@@ -279,7 +287,7 @@ class DeliveryMaker(BaseMaker):
             **kwargs
             )
         runner = Runner(environment=self._env, actor_critic=self._ac, n_envs=kwargs['n_envs'],
-                        trajectory_lenght=kwargs['trajectory_lenght'], mask_fake_crr=kwargs['mask_fake_crr'])
+                        trajectory_lenght=kwargs['trajectory_lenght'])
         gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
         normalizer = RewardNormalizer(gamma=kwargs['reward_norm_gamma'], cliprange=kwargs['reward_norm_cliprange'])
         buffer = Buffer(gae, reward_normalizer=normalizer, device=device)
