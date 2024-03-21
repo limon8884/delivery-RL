@@ -17,10 +17,7 @@ from src.evaluation import evaluate
 
 
 def main():
-    simulator_config_path = Path('configs/simulator.json')
-    network_config_path = Path('configs/network.json')
-    db_path = Path('history.db')
-    db = Database(db_path)
+    db = Database(Path('history.db'))
     db.clear()
 
     # print('Hungarian')
@@ -61,7 +58,7 @@ def main():
 
     print('Neural')
     max_num_points_in_route = 4
-    with open(network_config_path) as f:
+    with open('configs/network.json') as f:
         net_cfg = json.load(f)['encoder']
     encoder = GambleEncoder(
         order_embedding_dim=net_cfg['order_embedding_dim'],
