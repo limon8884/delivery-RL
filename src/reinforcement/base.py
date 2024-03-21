@@ -520,7 +520,7 @@ class PPO:
         return loss
 
     def _entropy_loss(self, new_log_probs: torch.FloatTensor):
-        return -(torch.exp(new_log_probs) * new_log_probs).sum(dim=-1).mean()
+        return (torch.exp(new_log_probs) * new_log_probs).sum(dim=-1).mean()
 
     def _loss(self, sample: dict[str, torch.FloatTensor | list[State]]):
         self.actor_critic(sample['states'])
