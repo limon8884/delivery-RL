@@ -155,13 +155,15 @@ class Runner:
                  actor_critic: BaseActorCritic,
                  n_envs: int,
                  trajectory_lenght: int,
-                 parallel: bool = False
+                 parallel: bool = False,
+                 mask_fake_crr=False,
                  ) -> None:
         self.environment = environment
         self.actor_critic = actor_critic
         self.n_envs = n_envs
         self.trajectory_lenght = trajectory_lenght
         self.parallel = parallel
+        self.mask_fake_crr = mask_fake_crr
         self.reset()
 
     def reset(self, seeds: typing.Optional[list[int]] = None) -> None:
@@ -176,7 +178,7 @@ class Runner:
         states = [traj.last_state for traj in self._trajectories]
         for _ in range(self.trajectory_lenght):
             with torch.no_grad():
-                self.actor_critic(states)
+                self.actor_critic(states, mask_fake_crr=self.mask_fake_crr)
             actions = self.actor_critic.get_actions_list(best_actions=best_actions)
             log_probs_list = self.actor_critic.get_log_probs_list()
             values_list = self.actor_critic.get_values_list()

@@ -185,13 +185,13 @@ class DeliveryActorCritic(BaseActorCritic):
         self.temperature = temperature
         self.device = device
 
-    def forward(self, state_list: list[DeliveryState]) -> None:
-        policy_tens, val_tens = self._make_padded_policy_value_tensors(state_list)
+    def forward(self, state_list: list[DeliveryState], mask_fake_crr=False) -> None:
+        policy_tens, val_tens = self._make_padded_policy_value_tensors(state_list, mask_fake_crr)
         self.log_probs = nn.functional.log_softmax(policy_tens / self.temperature, dim=-1)
         self.values = val_tens
         self._actions = None
 
-    def _make_padded_policy_value_tensors(self, states: list[DeliveryState]
+    def _make_padded_policy_value_tensors(self, states: list[DeliveryState], mask_fake_crr: bool,
                                           ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         policy_tens_list, value_tens_list = [], []
         for state in states:
@@ -199,9 +199,13 @@ class DeliveryActorCritic(BaseActorCritic):
             policy_half_tens, value_half_tens, claim_emb = self._make_three_tensors_from_state(state)
             policy_tens = claim_emb @ policy_half_tens.T
             policy_tens[prev_idxs] = -1e9
+            if mask_fake_crr:
+                policy_tens[-1] = -1e9
             policy_tens_list.append(policy_tens)
             value_tens = claim_emb @ value_half_tens.T
             value_tens[prev_idxs] = 0.0
+            if mask_fake_crr:
+                value_tens[-1] = 0.0
             value_tens_list.append(value_tens.mean())
         policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e9)
         value_tens_result = torch.tensor(value_tens_list, device=self.device)
@@ -274,8 +278,8 @@ class DeliveryMaker(BaseMaker):
             metric_logger=self._train_metric_logger,
             **kwargs
             )
-        runner = Runner(environment=self._env, actor_critic=self._ac,
-                        n_envs=kwargs['n_envs'], trajectory_lenght=kwargs['trajectory_lenght'])
+        runner = Runner(environment=self._env, actor_critic=self._ac, n_envs=kwargs['n_envs'],
+                        trajectory_lenght=kwargs['trajectory_lenght'], mask_fake_crr=kwargs['mask_fake_crr'])
         gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
         normalizer = RewardNormalizer(gamma=kwargs['reward_norm_gamma'], cliprange=kwargs['reward_norm_cliprange'])
         buffer = Buffer(gae, reward_normalizer=normalizer, device=device)

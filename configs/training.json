@@ -7,6 +7,7 @@
     "use_wandb": true,
     "fix_zero_seed": false,
     "use_train_logs": false,
+    "mask_fake_crr": false,
 
     "n_envs": 32,
     "trajectory_lenght": 250,

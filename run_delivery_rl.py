@@ -21,6 +21,7 @@ from src.evaluation import evaluate
 @click.option('--use_wandb', required=False, type=bool)
 @click.option('--fix_zero_seed', required=False, type=bool)
 @click.option('--use_train_logs', required=False, type=bool)
+@click.option('--mask_fake_crr', required=False, type=bool)
 @click.option('--n_envs', required=False, type=int)
 @click.option('--trajectory_lenght', required=False, type=int)
 @click.option('--batch_size', required=False, type=int)
