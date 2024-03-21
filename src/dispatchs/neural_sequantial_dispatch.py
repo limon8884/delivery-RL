@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import logging
 
 from src.dispatchs.base_dispatch import BaseDispatch
 # from src.dispatchs.scorers import BaseScorer
@@ -9,6 +10,10 @@ from src.objects import (
     Assignment,
 )
 from src.reinforcement.delivery import BaseActorCritic, DeliveryState
+
+
+# logging.basicConfig(filename='logs.log', encoding='utf-8', level=logging.DEBUG,  filemode='w')
+# LOGGER = logging.getLogger(__name__)
 
 
 class NeuralSequantialDispatch(BaseDispatch):
@@ -41,6 +46,15 @@ class NeuralSequantialDispatch(BaseDispatch):
             with torch.no_grad():
                 self.actor_critic([state])
             assignment = self.actor_critic.get_actions_list(best_actions=True)[0].to_index()
+
+            # ### DEBUG AREA
+            # log_probs_chosen = self.actor_critic.get_log_probs_list()
+            # log_probs = self.actor_critic.get_log_probs_tensor().exp()
+            # len_c = len(state.couriers_embs) if state.couriers_embs is not None else 0
+            # len_o = len(state.orders_embs) if state.orders_embs is not None else 0
+            # LOGGER.debug(f'fake assignment: {assignment == len_c + len_o}, len_c: {len_c}, len_o: {len_o}, chosen probs: {log_probs_chosen}')
+            # LOGGER.debug(str(log_probs))
+            # ###
 
             if assignment < len(available_couriers):
                 assignment_list.append((

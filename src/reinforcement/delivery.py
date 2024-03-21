@@ -1,12 +1,11 @@
 import typing
 import torch
 import json
+import logging
 import numpy as np
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 from pathlib import Path
-# from tqdm import tqdm
-# from itertools import chain
 from copy import deepcopy
 
 from src.objects import (
@@ -35,6 +34,10 @@ from src.reinforcement.base import (
     make_optimizer,
     BaseMaker,
 )
+
+
+# logging.basicConfig(filename='logs.log', encoding='utf-8', level=logging.DEBUG)
+# LOGGER = logging.getLogger(__name__)
 
 
 class DeliveryAction(Action):
@@ -107,6 +110,7 @@ class DeliveryEnvironment(BaseEnvironment):
     def step(self, action: DeliveryAction) -> tuple[DeliveryState, float, bool, dict[str, float]]:
         if self.__getattribute__('_iter') is None:
             raise RuntimeError('Call reset before doing steps')
+        # LOGGER.debug(f'fake assignment: {action.to_index() == len(self._gamble.orders) + len(self._gamble.couriers)}')
         self._update_assignments(action)
         reward = 0
         done = False
