@@ -20,29 +20,29 @@ def main():
     db = Database(Path('history.db'))
     db.clear()
 
-    # print('Hungarian')
-    # res = evaluate(
-    #     dispatch=HungarianDispatch(DistanceScorer()),
-    #     run_id=0,
-    #     simulator_cfg_path='configs/simulator.json',
-    #     sampler_mode='distr_sampler',
-    #     max_num_points_in_route=8,
-    #     history_db_path='history.db',
-    #     eval_num_simulator_steps=200,
-    # )
-    # print(res)
+    print('Hungarian')
+    res = evaluate(
+        dispatch=HungarianDispatch(DistanceScorer()),
+        run_id=0,
+        simulator_cfg_path='configs/simulator.json',
+        sampler_mode='distr_sampler',
+        max_num_points_in_route=2,
+        history_db_path='history.db',
+        eval_num_simulator_steps=200,
+    )
+    print(res)
 
-    # print('Greedy')
-    # res = evaluate(
-    #     dispatch=GreedyDispatch(DistanceScorer()),
-    #     run_id=1,
-    #     simulator_cfg_path='configs/simulator.json',
-    #     sampler_mode='distr_sampler',
-    #     max_num_points_in_route=8,
-    #     history_db_path='history.db',
-    #     eval_num_simulator_steps=200,
-    # )
-    # print(res)
+    print('Greedy')
+    res = evaluate(
+        dispatch=GreedyDispatch(DistanceScorer()),
+        run_id=1,
+        simulator_cfg_path='configs/simulator.json',
+        sampler_mode='distr_sampler',
+        max_num_points_in_route=2,
+        history_db_path='history.db',
+        eval_num_simulator_steps=200,
+    )
+    print(res)
 
     print('Random')
     res = evaluate(
@@ -50,14 +50,14 @@ def main():
         run_id=2,
         simulator_cfg_path='configs/simulator.json',
         sampler_mode='distr_sampler',
-        max_num_points_in_route=4,
+        max_num_points_in_route=2,
         history_db_path='history.db',
         eval_num_simulator_steps=200,
     )
     print(res)
 
     print('Neural')
-    max_num_points_in_route = 4
+    max_num_points_in_route = 2
     with open('configs/network.json') as f:
         net_cfg = json.load(f)['encoder']
     encoder = GambleEncoder(
@@ -79,7 +79,7 @@ def main():
         run_id=3,
         simulator_cfg_path='configs/simulator.json',
         sampler_mode='distr_sampler',
-        max_num_points_in_route=4,
+        max_num_points_in_route=max_num_points_in_route,
         history_db_path='history.db',
         eval_num_simulator_steps=200,
     )
