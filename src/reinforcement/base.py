@@ -452,13 +452,13 @@ class InferenceMetricsRunner:
         self.metric_logger.log('PPO: episode reward', cumulative_metrics['total_reward'] / self.runner.n_envs)
         self.metric_logger.log('PPO: episode length', cumulative_metrics['total_length'] / self.runner.n_envs)
         self.metric_logger.log('PPO: step reward', cumulative_metrics['total_reward']
-                               / cumulative_metrics['total_length'] / self.runner.n_envs)
+                               / cumulative_metrics['total_length'])
         self.metric_logger.log('PPO: chosen prob', cumulative_metrics['prob_chosen']
-                               / cumulative_metrics['total_length'] / self.runner.n_envs)
+                               / cumulative_metrics['total_length'])
         self.metric_logger.log('PPO: entropy', cumulative_metrics['entropy']
-                               / cumulative_metrics['total_length'] / self.runner.n_envs)
+                               / cumulative_metrics['total_length'])
         self.metric_logger.log('PPO: last action', cumulative_metrics['last action']
-                               / cumulative_metrics['total_length'] / self.runner.n_envs)
+                               / cumulative_metrics['total_length'])
 
         total_info = defaultdict(float)
         for info in self.runner._statistics:
