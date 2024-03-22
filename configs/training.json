@@ -33,8 +33,8 @@
     "reward_norm_gamma": 0.99,
     "reward_norm_cliprange": 10.0,
 
-    "coef_reward_assigned": 0.1,
-    "coef_reward_cancelled": 1.0,
+    "coef_reward_assigned": 1000.0,
+    "coef_reward_cancelled": 1000.0,
 
     "num_gambles_in_day": 2880,
     "sweep_id": "",
