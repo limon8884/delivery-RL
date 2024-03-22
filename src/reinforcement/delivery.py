@@ -192,6 +192,9 @@ class DeliveryActorCritic(BaseActorCritic):
         self.mask_fake_crr = mask_fake_crr
         self.device = device
 
+        self.policy_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
+        self.value_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
+
     def forward(self, state_list: list[DeliveryState]) -> None:
         policy_tens, val_tens = self._make_padded_policy_value_tensors(state_list)
         self.log_probs = nn.functional.log_softmax(policy_tens / self.temperature, dim=-1)
@@ -204,12 +207,12 @@ class DeliveryActorCritic(BaseActorCritic):
         for state in states:
             prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
             policy_half_tens, value_half_tens, claim_emb = self._make_three_tensors_from_state(state)
-            policy_tens = claim_emb @ policy_half_tens.T
+            policy_tens = claim_emb @ self.policy_matrix @ policy_half_tens.T
             policy_tens[prev_idxs] = -1e9
             if self.mask_fake_crr:
                 policy_tens[-1] = -1e7
             policy_tens_list.append(policy_tens)
-            value_tens = claim_emb @ value_half_tens.T
+            value_tens = claim_emb @ self.value_matrix @ value_half_tens.T
             value_tens[prev_idxs] = 0.0
             if self.mask_fake_crr:
                 value_tens[-1] = 0.0
