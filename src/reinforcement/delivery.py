@@ -207,7 +207,7 @@ class DeliveryActorCritic(BaseActorCritic):
             policy_tens = claim_emb @ policy_half_tens.T
             policy_tens[prev_idxs] = -1e9
             if self.mask_fake_crr:
-                policy_tens[-1] = -1e9
+                policy_tens[-1] = -1e7
             policy_tens_list.append(policy_tens)
             value_tens = claim_emb @ value_half_tens.T
             value_tens[prev_idxs] = 0.0

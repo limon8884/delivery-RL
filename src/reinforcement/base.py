@@ -434,7 +434,7 @@ class InferenceMetricsRunner:
         self.called_counter = 0
 
     def __call__(self) -> None:
-        cumulative_metrics = defaultdict(int)
+        cumulative_metrics = defaultdict(float)
         self.runner.actor_critic.eval()
         self.runner.reset()
         trajs = self.runner.run()
