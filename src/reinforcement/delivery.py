@@ -195,12 +195,12 @@ class DeliveryActorCritic(BaseActorCritic):
         # self.policy_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
         # self.value_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
         self.policy_head = nn.Sequential(
-            nn.Linear(2 * clm_emb_size, clm_emb_size),
+            nn.Linear(3 * clm_emb_size, clm_emb_size),
             nn.LeakyReLU(),
             nn.Linear(clm_emb_size, 1),
         ).to(device)
         self.value_head = nn.Sequential(
-            nn.Linear(2 * clm_emb_size, clm_emb_size),
+            nn.Linear(3 * clm_emb_size, clm_emb_size),
             nn.LeakyReLU(),
             nn.Linear(clm_emb_size, 1),
         ).to(device)
@@ -216,17 +216,16 @@ class DeliveryActorCritic(BaseActorCritic):
         policy_tens_list, value_tens_list = [], []
         for state in states:
             prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
-            policy_half_tens, value_half_tens, claim_emb = self._make_three_tensors_from_state(state)
+            co_embs, claim_emb = self._make_three_tensors_from_state(state)
+            coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1)], dim=-1)
 
-            policy_input = torch.cat([policy_half_tens, claim_emb.repeat(len(policy_half_tens), 1)], dim=-1)
-            policy_tens = self.policy_head(policy_input).squeeze(-1)
+            policy_tens = self.policy_head(coc_embs).squeeze(-1)
             policy_tens[prev_idxs] = -1e9
             if self.mask_fake_crr:
                 policy_tens[-1] = -1e7
             policy_tens_list.append(policy_tens)
 
-            value_input = torch.cat([value_half_tens, claim_emb.repeat(len(value_half_tens), 1)], dim=-1)
-            value_tens = self.value_head(value_input).squeeze(-1)
+            value_tens = self.value_head(coc_embs).squeeze(-1)
             value_tens[prev_idxs] = 0.0
             if self.mask_fake_crr:
                 value_tens[-1] = 0.0
@@ -237,7 +236,7 @@ class DeliveryActorCritic(BaseActorCritic):
         return policy_tens_result, value_tens_result
 
     def _make_three_tensors_from_state(self, state: DeliveryState
-                                       ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
+                                       ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         embs_dict = {
             'clm': state.claim_emb.reshape(1, -1),
             'crr': state.couriers_embs,
@@ -249,7 +248,7 @@ class DeliveryActorCritic(BaseActorCritic):
             ([encoded_dict['crr']] if encoded_dict['crr'] is not None else []) +
             ([encoded_dict['ord']] if encoded_dict['ord'] is not None else []) +
             [fake_crr], dim=0)
-        return co_embs[:, :self.clm_emb_size], co_embs[:, self.clm_emb_size:], encoded_dict['clm'][0]
+        return co_embs, encoded_dict['clm'][0]
 
     def get_actions_list(self, best_actions=False) -> list[Action]:
         if best_actions:
