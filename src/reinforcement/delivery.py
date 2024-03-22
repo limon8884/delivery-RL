@@ -192,8 +192,18 @@ class DeliveryActorCritic(BaseActorCritic):
         self.mask_fake_crr = mask_fake_crr
         self.device = device
 
-        self.policy_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
-        self.value_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
+        # self.policy_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
+        # self.value_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
+        self.policy_head = nn.Sequential(
+            nn.Linear(2 * clm_emb_size, clm_emb_size),
+            nn.LeakyReLU(),
+            nn.Linear(clm_emb_size, 1),
+        ).to(device)
+        self.value_head = nn.Sequential(
+            nn.Linear(2 * clm_emb_size, clm_emb_size),
+            nn.LeakyReLU(),
+            nn.Linear(clm_emb_size, 1),
+        ).to(device)
 
     def forward(self, state_list: list[DeliveryState]) -> None:
         policy_tens, val_tens = self._make_padded_policy_value_tensors(state_list)
@@ -207,16 +217,21 @@ class DeliveryActorCritic(BaseActorCritic):
         for state in states:
             prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
             policy_half_tens, value_half_tens, claim_emb = self._make_three_tensors_from_state(state)
-            policy_tens = claim_emb @ self.policy_matrix @ policy_half_tens.T
+
+            policy_input = torch.cat([policy_half_tens, claim_emb.repeat(len(policy_half_tens), 1)], dim=-1)
+            policy_tens = self.policy_head(policy_input).squeeze(-1)
             policy_tens[prev_idxs] = -1e9
             if self.mask_fake_crr:
                 policy_tens[-1] = -1e7
             policy_tens_list.append(policy_tens)
-            value_tens = claim_emb @ self.value_matrix @ value_half_tens.T
+
+            value_input = torch.cat([value_half_tens, claim_emb.repeat(len(value_half_tens), 1)], dim=-1)
+            value_tens = self.value_head(value_input).squeeze(-1)
             value_tens[prev_idxs] = 0.0
             if self.mask_fake_crr:
                 value_tens[-1] = 0.0
             value_tens_list.append(value_tens.mean())
+
         policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e9)
         value_tens_result = torch.tensor(value_tens_list, device=self.device)
         return policy_tens_result, value_tens_result
