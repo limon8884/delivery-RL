@@ -9,8 +9,8 @@
     "use_train_logs": false,
     "mask_fake_crr": false,
 
-    "n_envs": 32,
-    "trajectory_lenght": 250,
+    "n_envs": 8,
+    "trajectory_lenght": 1000,
     "batch_size": 64,
     "num_epochs_per_traj": 10,
     "max_num_points_in_route": 2,
@@ -20,7 +20,7 @@
     "optimizer": "adam",
     "rmsprop_alpha": 0.9,
     "sgd_momentum": 0.9,
-    "scheduler_max_lr": 1e-4,
+    "scheduler_max_lr": 1e-3,
     "scheduler_pct_start": 0.3,
 
     "exploration_temperature": 1.0,
@@ -34,7 +34,7 @@
     "reward_norm_cliprange": 10.0,
 
     "coef_reward_assigned": 1000.0,
-    "coef_reward_cancelled": 1000.0,
+    "coef_reward_cancelled": 0.0,
 
     "num_gambles_in_day": 2880,
     "sweep_id": "",
