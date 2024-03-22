@@ -160,7 +160,7 @@ class Runner:
                  trajectory_lenght: int,
                  parallel: bool = False,
                  ) -> None:
-        self.environment = environment
+        self.environment = environment.copy()
         self.actor_critic = actor_critic
         self.n_envs = n_envs
         self.trajectory_lenght = trajectory_lenght
@@ -446,8 +446,8 @@ class InferenceMetricsRunner:
                 cumulative_metrics['prob_chosen'] += np.exp(log_prob_chosen)
                 cumulative_metrics['entropy'] += entropy
                 cumulative_metrics['last action'] += int(action.to_index() == state.size())
-                if reset:
-                    break
+                # if reset:
+                #     break
 
         self.metric_logger.log('PPO: episode reward', cumulative_metrics['total_reward'] / self.runner.n_envs)
         self.metric_logger.log('PPO: episode length', cumulative_metrics['total_length'] / self.runner.n_envs)
