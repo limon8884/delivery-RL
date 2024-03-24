@@ -106,7 +106,7 @@ class DeliveryEnvironment(BaseEnvironment):
         self._prev_idxs: list[int] = []
         self._assignments: Assignment = Assignment([])
         self._base_gamble_reward: float = 0.0
-        self._assignment_statistics = dict[str, float]
+        self._assignment_statistics: dict[str, float] = {}
         self.simulator.reset()
         self._update_next_gamble()
         state = self._make_state_from_gamble_dict()
