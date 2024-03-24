@@ -172,7 +172,7 @@ class DeliveryEnvironment(BaseEnvironment):
             claim_emb=claim_emb,
             couriers_embs=self.embs_dict['crr'],
             orders_embs=self.embs_dict['ord'],
-            prev_idxs=self._prev_idxs,
+            prev_idxs=self._prev_idxs.copy(),
         )
 
     def _update_assignment_statistics(self, new_stats: dict[str, float]) -> None:
