@@ -1,0 +1,65 @@
+{
+    "couriers": [
+        {
+            "id": 0,
+            "position": {
+                "x": 0.0,
+                "y": 1.0
+            }
+        },
+        {
+            "id": 1,
+            "position": {
+                "x": 0.0,
+                "y": 0.0
+            }
+        }
+    ],
+    "claims": [
+        {
+            "id": 0,
+            "source": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "destination": {
+                "x": 1.0,
+                "y": 1.0
+            }
+        },
+        {
+            "id": 1,
+            "source": {
+                "x": 0.5,
+                "y": 0.0
+            },
+            "destination": {
+                "x": 1.0,
+                "y": 0.0
+            }
+        }
+    ],
+    "orders": [
+        {
+            "id": 0,
+            "courier": {
+                "id": 2,
+                "position": {
+                    "x": 0.0,
+                    "y": 0.5
+            }
+            },
+            "claim": {
+                "id": 2,
+                "source": {
+                    "x": 0.5,
+                    "y": 0.5
+                },
+                "destination": {
+                    "x": 1.0,
+                    "y": 0.5
+                }
+            }
+        }
+    ]
+}

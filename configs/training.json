@@ -4,7 +4,7 @@
 
     "total_iters": 50000,
     "device": "cuda",
-    "use_wandb": true,
+    "use_wandb": false,
     "fix_zero_seed": false,
     "use_train_logs": false,
     "mask_fake_crr": false,

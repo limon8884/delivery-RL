@@ -12,6 +12,7 @@ from src.objects import (
     Gamble,
     Route,
     Assignment,
+    Point,
 )
 from src.dispatchs.base_dispatch import BaseDispatch
 from src.simulator.data_reader import DataReader
@@ -112,6 +113,8 @@ class Simulator(object):
                     self.free_couriers[order.courier.id] = order.courier
                 del self.active_orders[order_id]
                 self.assignment_statistics['completed_claims'] += len(order.claims)
+            else:
+                self.assignment_statistics['active_orders'] += 1
 
     def _assign_active_orders(self, assignments: Assignment) -> None:
         for courier_id, claim_id in assignments.ids:
@@ -177,3 +180,81 @@ class Simulator(object):
         for claim in new_claims:
             self.unassigned_claims[claim.id] = claim
         self.assignment_statistics['new_claims'] += len(new_claims)
+
+
+class ConstantSimulator(Simulator):
+    def __init__(self, config_path: Path) -> None:
+        self.assignment_statistics: dict[str, float] = defaultdict(float)
+        with open(config_path, 'r') as f:
+            self.config = json.load(f)
+        self._dttm = datetime.min
+        self._create_gamble()
+        self.reset()
+
+    def _create_gamble(self) -> Gamble:
+        self._gamble = Gamble(
+            couriers=[self._make_courier(data) for data in self.config['couriers']],
+            claims=[self._make_claim(data) for data in self.config['claims']],
+            orders=[self._make_order(data) for data in self.config['orders']],
+            dttm_start=self._dttm,
+            dttm_end=self._dttm + timedelta(seconds=30),
+        )
+
+    def _make_courier(self, cfg: dict[str, tp.Any]) -> Courier:
+        return Courier(
+            id=cfg['id'],
+            position=Point(cfg['position']['x'], cfg['position']['y']),
+            start_dttm=self._dttm,
+            end_dttm=self._dttm,
+            courier_type='auto',
+        )
+
+    def _make_claim(self, cfg: dict[str, tp.Any]) -> Claim:
+        return Claim(
+            id=cfg['id'],
+            source_point=Point(cfg['source']['x'], cfg['source']['y']),
+            destination_point=Point(cfg['destination']['x'], cfg['destination']['y']),
+            creation_dttm=self._dttm,
+            cancell_if_not_assigned_dttm=self._dttm + timedelta(seconds=100),
+            waiting_on_point_source=timedelta(seconds=10),
+            waiting_on_point_destination=timedelta(seconds=10),
+        )
+
+    def _make_order(self, cfg: dict[str, tp.Any]) -> Order:
+        claim = self._make_claim(cfg['claim'])
+        return Order(
+            id=cfg['id'],
+            creation_dttm=datetime.min,
+            courier=self._make_courier(cfg['courier']),
+            route=Route.from_claim(claim),
+            claims=[claim],
+        )
+
+    def reset(self) -> None:
+        pass
+
+    def get_state(self) -> Gamble:
+        return self._gamble
+
+    def next(self, assignments: Assignment) -> None:
+        self.assignment_statistics = defaultdict(float)
+        crr_ids = {crr.id for crr in self._gamble.couriers}
+        crr_ord_ids = {ord.courier.id for ord in self._gamble.orders}
+        clm_ids = {clm.id for clm in self._gamble.claims}
+        for crr_id, clm_id in assignments.ids:
+            assert clm_id in clm_ids, (clm_id, clm_ids)
+            if crr_id in crr_ids:
+                crr_ids.remove(crr_id)
+                clm_ids.remove(clm_id)
+                self.assignment_statistics['assigned_not_batched_claims'] += 1
+            elif crr_id in crr_ord_ids:
+                crr_ord_ids.remove(crr_id)
+                clm_ids.remove(clm_id)
+                self.assignment_statistics['assigned_batched_claims'] + 1
+            else:
+                print(crr_id, crr_ids, crr_ord_ids)
+                raise RuntimeError
+        self.assignment_statistics['unassigned_couriers'] = len(crr_ids)
+        self.assignment_statistics['unassigned_claims'] = len(clm_ids)
+        self.assignment_statistics['completed_claims'] = 0
+        self.assignment_statistics['cancelled_claims'] = 0
