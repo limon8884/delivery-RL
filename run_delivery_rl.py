@@ -79,7 +79,7 @@ def run_ppo(**kwargs):
 
     if not kwargs['use_train_logs']:
         maker.ppo.metric_logger = None
-    eval_runner = Runner(environment=maker.environment, actor_critic=maker.actor_critic,
+    eval_runner = Runner(environment=maker.environment.copy(), actor_critic=maker.actor_critic,
                          n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
     inference_logger = InferenceMetricsRunner(runner=eval_runner, metric_logger=maker.metric_logger)
     dsp = NeuralSequantialDispatch(actor_critic=maker.actor_critic,
