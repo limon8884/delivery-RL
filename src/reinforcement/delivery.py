@@ -127,10 +127,10 @@ class DeliveryEnvironment(BaseEnvironment):
         if self._claim_idx == len(self.embs_dict['clm']):
             self._update_next_gamble()
             reward = self.rewarder(self._assignment_statistics)
+            info = self._assignment_statistics
         new_state = self._make_state_from_gamble_dict()
         if self._iter == self.num_gambles:
             done = True
-            info = self._assignment_statistics
         return new_state, reward, done, info
 
     def _update_next_gamble(self):
