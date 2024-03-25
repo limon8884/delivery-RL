@@ -29,7 +29,7 @@ class Simulator(object):
         self.data_reader = data_reader
         self._config_path = config_path
         self._logger = db_logger
-        self.assignment_statistics: dict[str, float] = defaultdict(float)
+        self.assignment_statistics: dict[str, float] = defaultdict(float)  # Additive statistics
         self.reset()
 
     def reset(self) -> None:
@@ -111,10 +111,13 @@ class Simulator(object):
                 del self.courier_id_to_order_id[order.courier.id]
                 if not order.courier.done():
                     self.free_couriers[order.courier.id] = order.courier
+                else:
+                    self.assignment_statistics['finished_couriers'] += 1
                 del self.active_orders[order_id]
                 self.assignment_statistics['completed_claims'] += len(order.claims)
-            else:
-                self.assignment_statistics['active_orders'] += 1
+                self.assignment_statistics['completed_orders'] += 1
+            # else:
+            #     self.assignment_statistics['active_orders'] += 1
 
     def _assign_active_orders(self, assignments: Assignment) -> None:
         for courier_id, claim_id in assignments.ids:
@@ -133,6 +136,7 @@ class Simulator(object):
                 self.active_orders[order.id] = order
                 self.courier_id_to_order_id[courier_id] = order.id
                 self.assignment_statistics['assigned_not_batched_claims'] += 1
+                self.assignment_statistics['assigned_couriers'] += 1
                 self.assignment_statistics['assigned_not_batched_orders_arrival_distance'] += \
                     order.route.distance_of_courier_arrival(order.courier.position)
             else:
@@ -157,8 +161,9 @@ class Simulator(object):
             courier.next(self._current_gamble_end_dttm)
             if courier.done():
                 del self.free_couriers[courier_id]
-            else:
-                self.assignment_statistics['unassigned_couriers'] += 1
+                self.assignment_statistics['finished_couriers'] += 1
+            # else:
+            #     self.assignment_statistics['unassigned_couriers'] += 1
 
     def _set_new_couriers(self, new_couriers: list[Courier]) -> None:
         for courier in new_couriers:
@@ -173,8 +178,8 @@ class Simulator(object):
             if claim.done():
                 del self.unassigned_claims[claim_id]
                 self.assignment_statistics['cancelled_claims'] += 1
-            else:
-                self.assignment_statistics['unassigned_claims'] += 1
+            # else:
+            #     self.assignment_statistics['unassigned_claims'] += 1
 
     def _set_new_claims(self, new_claims: list[Claim]) -> None:
         for claim in new_claims:

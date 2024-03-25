@@ -106,7 +106,11 @@ class DeliveryEnvironment(BaseEnvironment):
         self._prev_idxs: list[int] = []
         self._assignments: Assignment = Assignment([])
         self._base_gamble_reward: float = 0.0
-        self._assignment_statistics: dict[str, float] = {}
+        self._assignment_statistics: dict[str, float] = {
+            'free_couriers': 0.0,
+            'free_claims': 0.0,
+            'active_routes': 0.0,
+        }
         self.simulator.reset()
         self._update_next_gamble()
         state = self._make_state_from_gamble_dict()
@@ -129,11 +133,11 @@ class DeliveryEnvironment(BaseEnvironment):
 
     def _update_next_gamble(self):
         self.simulator.next(self._assignments)
-        self._assignment_statistics = self.simulator.assignment_statistics
+        self._statistics_update(self.simulator.assignment_statistics)
         self._gamble = self.simulator.get_state()
         while len(self._gamble.claims) == 0:
             self.simulator.next(Assignment([]))
-            self._update_assignment_statistics(self.simulator.assignment_statistics)
+            self._statistics_add(self.simulator.assignment_statistics)
             self._gamble = self.simulator.get_state()
             self._iter += 1
         self.embs_dict = {
@@ -175,11 +179,24 @@ class DeliveryEnvironment(BaseEnvironment):
             prev_idxs=self._prev_idxs.copy(),
         )
 
-    def _update_assignment_statistics(self, new_stats: dict[str, float]) -> None:
+    def _statistics_add(self, new_stats: dict[str, float]) -> None:
         for k, v in new_stats.items():
             if k not in self._assignment_statistics:
                 self._assignment_statistics[k] = 0.0
             self._assignment_statistics[k] += v
+
+    def _statistics_update(self, new_stats: dict[str, float]) -> None:
+        self._statistics_add(new_stats)
+        self._assignment_statistics['free_couriers'] += new_stats['new_couriers'] \
+            - new_stats['assigned_couriers'] \
+            + new_stats['completed_orders'] \
+            - new_stats['finished_couriers']
+        self._assignment_statistics['free_claims'] += new_stats['new_claims'] \
+            - new_stats['assigned_not_batched_claims'] \
+            - new_stats['assigned_batched_claims'] \
+            - new_stats['cancelled_claims']
+        self._assignment_statistics['active_routes'] += new_stats['assigned_not_batched_claims'] \
+            - new_stats['completed_orders']
 
 
 class DeliveryActorCritic(BaseActorCritic):
