@@ -29,8 +29,23 @@ class Simulator(object):
         self.data_reader = data_reader
         self._config_path = config_path
         self._logger = db_logger
-        self.assignment_statistics: dict[str, float] = defaultdict(float)  # Additive statistics
         self.reset()
+
+    def _update_assignment_statistics(self) -> None:
+        # Additive statistics
+        self.assignment_statistics = {
+            'new_couriers': 0.0,
+            'new_claims': 0.0,
+            'assigned_couriers': 0.0,
+            'assigned_not_batched_claims': 0.0,
+            'assigned_batched_claims': 0.0,
+            'assigned_not_batched_orders_arrival_distance': 0.0,
+            'assigned_batched_orders_distance_increase': 0.0,
+            'finished_couriers': 0.0,
+            'cancelled_claims': 0.0,
+            'completed_claims': 0.0,
+            'completed_orders': 0.0,
+        }
 
     def reset(self) -> None:
         """Resets simulator. Does not reset data_reader!
@@ -41,6 +56,7 @@ class Simulator(object):
         with open(self._config_path, 'r') as f:
             config = json.load(f)
 
+        self._update_assignment_statistics()
         self.active_orders: dict[int, Order] = {}
         self.unassigned_claims: dict[int, Claim] = {}
         self.free_couriers: dict[int, Courier] = {}
@@ -62,7 +78,7 @@ class Simulator(object):
         city_stamp = self.data_reader.get_next_city_stamp(self.gamble_interval)
         self._current_gamble_begin_dttm = city_stamp.from_dttm
         self._current_gamble_end_dttm = city_stamp.to_dttm
-        self.assignment_statistics = defaultdict(float)
+        self._update_assignment_statistics()
 
         self._assign_active_orders(assignments)
         self._set_new_couriers(city_stamp.couriers)
