@@ -396,7 +396,7 @@ class MetricLogger:
             wandb.log({**self.wandb_logs, 'iter': step})
             self.wandb_logs = {}
 
-    def plot(self, window_size=10, log_scale=False, start=0):
+    def plot(self, window_size=1, log_scale=False, start=0):
         def moving_average(a, window_size):
             n = window_size
             ret = np.cumsum(a, dtype=float)
