@@ -15,7 +15,7 @@ class BaseRouteMaker:
 
 class AppendRouteMaker(BaseRouteMaker):
     def add_claim(self, route: Route, courier_position: Point, new_claim: Claim) -> None:
-        if len(route.route_points) >= self.max_points_lenght:
+        if len(route.route_points) + 2 > self.max_points_lenght:
             raise RuntimeError("Max points limit reached")
         length = len(route.route_points)
         source_route_point = Route.RoutePoint(new_claim.source_point, new_claim.id, Route.PointType.SOURCE)
