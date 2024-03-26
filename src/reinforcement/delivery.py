@@ -39,6 +39,11 @@ from src.reinforcement.base import (
 # logging.basicConfig(filename='logs.log', encoding='utf-8', level=logging.DEBUG)
 # LOGGER = logging.getLogger(__name__)
 
+PAD_MASK_VALUE = -1e9
+FAKE_MASK_VALUE = -1e7
+PREV_CHOICE_MASK_VALUE = -1e9
+FULL_ORDER_MASK_VALUE = -1e9
+
 
 class DeliveryAction(Action):
     def __init__(self, idx: int) -> None:
@@ -50,11 +55,12 @@ class DeliveryAction(Action):
 
 class DeliveryState(State):
     def __init__(self, claim_emb: np.ndarray, couriers_embs: typing.Optional[np.ndarray],
-                 orders_embs: typing.Optional[np.ndarray], prev_idxs: list[int]) -> None:
+                 orders_embs: typing.Optional[np.ndarray], prev_idxs: list[int], orders_full_masks: list[bool]) -> None:
         self.claim_emb = claim_emb
         self.couriers_embs = couriers_embs
         self.orders_embs = orders_embs
         self.prev_idxs = prev_idxs
+        self.orders_full_masks = orders_full_masks
 
     def size(self) -> int:
         len_crr = len(self.couriers_embs) if self.couriers_embs is not None else 0
@@ -151,6 +157,8 @@ class DeliveryEnvironment(BaseEnvironment):
                              for ord in self._gamble.orders], axis=0)
             if len(self._gamble.orders) > 0
             else None,
+            'ord_masks': [ord.has_full_route(max_num_points_in_route=self.max_num_points_in_route)
+                          for ord in self._gamble.orders]
         }
         self._assignments = Assignment([])
         self._claim_idx = 0
@@ -179,6 +187,7 @@ class DeliveryEnvironment(BaseEnvironment):
             couriers_embs=self.embs_dict['crr'],
             orders_embs=self.embs_dict['ord'],
             prev_idxs=self._prev_idxs.copy(),
+            orders_full_masks=self.embs_dict['ord_masks'],
         )
 
     def _statistics_add(self, new_stats: dict[str, float]) -> None:
@@ -238,22 +247,31 @@ class DeliveryActorCritic(BaseActorCritic):
             prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
             co_embs, claim_emb = self._make_three_tensors_from_state(state)
             coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1)], dim=-1)
+            full_ord_masks = self._make_full_order_mask(state)
 
             policy_tens = self.policy_head(coc_embs).squeeze(-1)
-            policy_tens[prev_idxs] = -1e9
+            policy_tens[prev_idxs] = PREV_CHOICE_MASK_VALUE
+            policy_tens[full_ord_masks] = FULL_ORDER_MASK_VALUE
             if self.mask_fake_crr:
-                policy_tens[-1] = -1e7
+                policy_tens[-1] = FAKE_MASK_VALUE
             policy_tens_list.append(policy_tens)
 
             value_tens = self.value_head(coc_embs).squeeze(-1)
             value_tens[prev_idxs] = 0.0
+            value_tens[full_ord_masks] = 0.0
             if self.mask_fake_crr:
                 value_tens[-1] = 0.0
             value_tens_list.append(value_tens.mean())
 
-        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=-1e9)
+        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=PAD_MASK_VALUE)
         value_tens_result = torch.tensor(value_tens_list, device=self.device)
         return policy_tens_result, value_tens_result
+
+    def _make_full_order_mask(self, state: DeliveryState) -> torch.BoolTensor:
+        couriers_part = [False] * len(state.couriers_embs) if state.couriers_embs is not None else []
+        orders_part = state.orders_full_masks
+        mask = torch.tensor(couriers_part + orders_part + [False], device=self.device, dtype=torch.bool)
+        return mask
 
     def _make_three_tensors_from_state(self, state: DeliveryState
                                        ) -> tuple[torch.FloatTensor, torch.FloatTensor]:

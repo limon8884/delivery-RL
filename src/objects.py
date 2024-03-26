@@ -401,6 +401,9 @@ class Order(Item):
         pts_tens = np.array([status_num, online_secs_num] + point_coords)
         return np.concatenate([crr_tens, pts_tens], axis=-1)
 
+    def has_full_route(self, max_num_points_in_route: int) -> np.ndarray:
+        return len(self.route.route_points) > max_num_points_in_route - 2
+
     @staticmethod
     def numpy_feature_types(max_num_points_in_route: int) -> dict[tuple[int, int], str]:
         crr_np_dim = max(r for _, r in Courier.numpy_feature_types().keys())

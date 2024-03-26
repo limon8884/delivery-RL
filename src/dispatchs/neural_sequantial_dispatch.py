@@ -36,12 +36,15 @@ class NeuralSequantialDispatch(BaseDispatch):
                                 for o in available_orders]
             couriers_embs = np.stack(couriers_embs_list, axis=0) if len(couriers_embs_list) > 0 else None
             orders_embs = np.stack(orders_embs_list, axis=0) if len(orders_embs_list) > 0 else None
+            orders_full_mask = [o.has_full_route(max_num_points_in_route=self.max_num_points_in_route)
+                                for o in available_orders]
 
             state = DeliveryState(
                 claim_emb=gamble.claims[claim_idx].to_numpy(),
                 couriers_embs=couriers_embs,
                 orders_embs=orders_embs,
-                prev_idxs=prev_idxs
+                prev_idxs=prev_idxs,
+                orders_full_masks=orders_full_mask
             )
             with torch.no_grad():
                 self.actor_critic([state])
