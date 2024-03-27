@@ -195,6 +195,9 @@ class DeliveryEnvironment(BaseEnvironment):
             if k not in self._assignment_statistics:
                 self._assignment_statistics[k] = 0.0
             self._assignment_statistics[k] += v
+        if 'num steps' not in self._assignment_statistics:
+            self._assignment_statistics['num steps'] = 0
+        self._assignment_statistics['num steps'] += 1
 
     def _statistics_update(self, new_stats: dict[str, float]) -> None:
         self._assignment_statistics = {}

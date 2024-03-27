@@ -2,8 +2,8 @@
     "dummy_sampler": {
         "sampler_mode": "dummy",
         "num_sampler": {
-            "num_couriers": 2,
-            "num_claims": 3
+            "num_couriers": 4,
+            "num_claims": 5
         },
         "pos_sampler": {
             "left_bound": 37.35,

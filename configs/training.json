@@ -10,7 +10,7 @@
     "mask_fake_crr": false,
 
     "n_envs": 8,
-    "trajectory_lenght": 1000,
+    "trajectory_lenght": 3000,
     "batch_size": 64,
     "num_epochs_per_traj": 10,
     "max_num_points_in_route": 2,
@@ -33,8 +33,8 @@
     "reward_norm_gamma": 0.99,
     "reward_norm_cliprange": 10.0,
 
-    "coef_reward_assigned": 1000.0,
-    "coef_reward_cancelled": 0.0,
+    "coef_reward_assigned": 0.0,
+    "coef_reward_cancelled": 1.0,
 
     "num_gambles_in_day": 2880,
     "sweep_id": "",
