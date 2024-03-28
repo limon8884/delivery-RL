@@ -1,5 +1,6 @@
 import json
 import torch
+import numpy as np
 from pathlib import Path
 
 from src.simulator.simulator import Simulator
@@ -19,16 +20,20 @@ from src.evaluation import evaluate
 def main():
     db = Database(Path('history.db'))
     db.clear()
+    sample_mode = 'dummy_sampler'
+    max_num_points_in_route = 2
+    eval_num_simulator_steps = 200
+    n_runs = 5
 
     print('Hungarian')
     res = evaluate(
         dispatch=HungarianDispatch(DistanceScorer()),
         run_id=0,
         simulator_cfg_path='configs/simulator.json',
-        sampler_mode='distr_sampler',
-        max_num_points_in_route=2,
+        sampler_mode=sample_mode,
+        max_num_points_in_route=max_num_points_in_route,
         history_db_path='history.db',
-        eval_num_simulator_steps=200,
+        eval_num_simulator_steps=eval_num_simulator_steps,
     )
     print(res)
 
@@ -37,53 +42,61 @@ def main():
         dispatch=GreedyDispatch(DistanceScorer()),
         run_id=1,
         simulator_cfg_path='configs/simulator.json',
-        sampler_mode='distr_sampler',
-        max_num_points_in_route=2,
+        sampler_mode=sample_mode,
+        max_num_points_in_route=max_num_points_in_route,
         history_db_path='history.db',
-        eval_num_simulator_steps=200,
+        eval_num_simulator_steps=eval_num_simulator_steps,
     )
     print(res)
 
     print('Random')
-    res = evaluate(
-        dispatch=RandomDispatch(),
-        run_id=2,
-        simulator_cfg_path='configs/simulator.json',
-        sampler_mode='distr_sampler',
-        max_num_points_in_route=2,
-        history_db_path='history.db',
-        eval_num_simulator_steps=200,
-    )
-    print(res)
+    ress = []
+    for run in range(n_runs):
+        ress = []
+        db.clear()
+        res = evaluate(
+            dispatch=RandomDispatch(),
+            run_id=run,
+            simulator_cfg_path='configs/simulator.json',
+            sampler_mode=sample_mode,
+            max_num_points_in_route=max_num_points_in_route,
+            history_db_path='history.db',
+            eval_num_simulator_steps=eval_num_simulator_steps,
+        )
+        ress.append(res['CR'])
+    print(np.mean(ress))
 
     print('Neural')
-    max_num_points_in_route = 2
-    with open('configs/network.json') as f:
-        net_cfg = json.load(f)['encoder']
-    encoder = GambleEncoder(
-        order_embedding_dim=net_cfg['order_embedding_dim'],
-        claim_embedding_dim=net_cfg['claim_embedding_dim'],
-        courier_embedding_dim=net_cfg['courier_embedding_dim'],
-        route_embedding_dim=net_cfg['route_embedding_dim'],
-        point_embedding_dim=net_cfg['point_embedding_dim'],
-        number_embedding_dim=net_cfg['number_embedding_dim'],
-        max_num_points_in_route=max_num_points_in_route,
-        device=None,
-    )
-    ac = DeliveryActorCritic(gamble_encoder=encoder, clm_emb_size=net_cfg['claim_embedding_dim'], device=None,
-                             temperature=1.0)
-    # ac.load_state_dict(torch.load('checkpoints/6313c9d40bce480f8b1416a0f0976544.pt', map_location='cpu'))
-    dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route)
-    res = evaluate(
-        dispatch=dsp,
-        run_id=3,
-        simulator_cfg_path='configs/simulator.json',
-        sampler_mode='distr_sampler',
-        max_num_points_in_route=max_num_points_in_route,
-        history_db_path='history.db',
-        eval_num_simulator_steps=200,
-    )
-    print(res)
+    ress = []
+    for run in range(n_runs):
+        with open('configs/network.json') as f:
+            net_cfg = json.load(f)['encoder']
+        encoder = GambleEncoder(
+            order_embedding_dim=net_cfg['order_embedding_dim'],
+            claim_embedding_dim=net_cfg['claim_embedding_dim'],
+            courier_embedding_dim=net_cfg['courier_embedding_dim'],
+            route_embedding_dim=net_cfg['route_embedding_dim'],
+            point_embedding_dim=net_cfg['point_embedding_dim'],
+            number_embedding_dim=net_cfg['number_embedding_dim'],
+            max_num_points_in_route=max_num_points_in_route,
+            device=None,
+        )
+        ac = DeliveryActorCritic(gamble_encoder=encoder, clm_emb_size=net_cfg['claim_embedding_dim'], device=None,
+                                 temperature=1.0)
+        ac.load_state_dict(torch.load('checkpoints/9f3799cdca1c4d81beae5e0355ff8c2b.pt', map_location='cpu'))
+        dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route)
+        db.clear()
+        res = evaluate(
+            dispatch=dsp,
+            run_id=run,
+            simulator_cfg_path='configs/simulator.json',
+            sampler_mode=sample_mode,
+            max_num_points_in_route=max_num_points_in_route,
+            history_db_path='history.db',
+            eval_num_simulator_steps=eval_num_simulator_steps,
+        )
+        ress.append(res['CR'])
+    print(np.mean(ress))
 
 
 def debug():
