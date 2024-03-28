@@ -18,7 +18,7 @@ from src.evaluation import evaluate
 @click.option('--description', '-d', 'description', type=str)
 @click.option('-i', '--total_iters', required=False, type=int)
 @click.option('--device', required=False, type=str)
-@click.option('-w', '--use_wandb', required=False, default=False, is_flag=True, type=bool)
+@click.option('-w', '--use_wandb', required=False, default=True, is_flag=True, type=bool)
 @click.option('-z', '--fix_zero_seed', required=False, default=False, is_flag=True, type=bool)
 @click.option('-t', '--use_train_logs', required=False, default=False, is_flag=True, type=bool)
 @click.option('--mask_fake_crr', required=False, type=bool)

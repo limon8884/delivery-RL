@@ -100,10 +100,27 @@ def main():
 
 
 def debug():
-    db_path = Path('history.db')
-    db = Database(db_path)
-    res = db.select('select * from claims;')
-    print(res)
+    with open('configs/network.json') as f:
+            net_cfg = json.load(f)['encoder']
+    encoder = GambleEncoder(
+        order_embedding_dim=net_cfg['order_embedding_dim'],
+        claim_embedding_dim=net_cfg['claim_embedding_dim'],
+        courier_embedding_dim=net_cfg['courier_embedding_dim'],
+        route_embedding_dim=net_cfg['route_embedding_dim'],
+        point_embedding_dim=net_cfg['point_embedding_dim'],
+        number_embedding_dim=net_cfg['number_embedding_dim'],
+        max_num_points_in_route=2,
+        device=None,
+    )
+    param_size = 0
+    for param in encoder.parameters():
+        param_size += param.nelement()
+    buffer_size = 0
+    for buffer in encoder.buffers():
+        buffer_size += buffer.nelement()
+
+    size_all_mb = (param_size + buffer_size) / 1024**2
+    print('model size: {:.3f}M'.format(size_all_mb))
 
 
 if __name__ == '__main__':
