@@ -2,7 +2,7 @@
     "group_run": "no group run",
     "description": "no info",
 
-    "total_iters": 50000,
+    "total_iters": 25000,
     "device": "cuda",
     "use_wandb": false,
     "fix_zero_seed": false,
