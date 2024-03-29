@@ -77,15 +77,21 @@ class DeliveryState(State):
 
 class DeliveryRewarder:
     def __init__(self, **kwargs) -> None:
+        self.coef_reward_completed = kwargs['coef_reward_completed']
         self.coef_reward_assigned = kwargs['coef_reward_assigned']
         self.coef_reward_cancelled = kwargs['coef_reward_cancelled']
+        self.coef_reward_distance = kwargs['coef_reward_distance']
 
     def __call__(self, assignment_statistics: dict[str, float]) -> float:
         completed = assignment_statistics['completed_claims']
         assigned = assignment_statistics['assigned_not_batched_claims'] \
             + assignment_statistics['assigned_batched_claims']
         cancelled = assignment_statistics['cancelled_claims']
-        return completed + self.coef_reward_assigned * assigned - self.coef_reward_cancelled * cancelled
+        distance = assignment_statistics['assigned_not_batched_orders_arrival_distance']
+        return self.coef_reward_completed * completed \
+            + self.coef_reward_assigned * assigned \
+            - self.coef_reward_cancelled * cancelled \
+            - self.coef_reward_distance * distance
 
 
 class DeliveryEnvironment(BaseEnvironment):

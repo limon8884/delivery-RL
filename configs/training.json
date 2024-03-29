@@ -2,7 +2,7 @@
     "group_run": "no group run",
     "description": "no info",
 
-    "total_iters": 25000,
+    "total_iters": 3000,
     "device": "cuda",
     "use_wandb": true,
     "fix_zero_seed": false,
@@ -14,7 +14,7 @@
     "batch_size": 64,
     "num_epochs_per_traj": 10,
     "max_num_points_in_route": 2,
-    "sampler_mode": "distr_sampler",
+    "sampler_mode": "dummy_sampler",
     "model_size": "medium",
     
     "learning_rate": 3e-5,
@@ -34,8 +34,10 @@
     "reward_norm_gamma": 0.99,
     "reward_norm_cliprange": 10.0,
 
-    "coef_reward_assigned": 0.0,
-    "coef_reward_cancelled": 1.0,
+    "coef_reward_completed": 0.0,
+    "coef_reward_assigned": 1.0,
+    "coef_reward_cancelled": 0.0,
+    "coef_reward_distance": 1.0,
 
     "num_gambles_in_day": 2880,
     "sweep_id": "",
