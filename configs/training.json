@@ -15,6 +15,7 @@
     "num_epochs_per_traj": 10,
     "max_num_points_in_route": 2,
     "sampler_mode": "distr_sampler",
+    "model_size": "medium",
     
     "learning_rate": 3e-5,
     "optimizer": "adam",

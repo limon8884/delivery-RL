@@ -28,6 +28,7 @@ from src.evaluation import evaluate
 @click.option('--num_epochs_per_traj', required=False, type=int)
 @click.option('--max_num_points_in_route', required=False, type=int)
 @click.option('--sampler_mode', required=False, type=str)
+@click.option('--model_size', required=False, type=str)
 @click.option('--learning_rate', required=False, type=float)
 @click.option('--optimizer', required=False, type=str)
 @click.option('--rmsprop_alpha', required=False, type=float)

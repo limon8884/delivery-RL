@@ -21,6 +21,7 @@ def main():
     db = Database(Path('history.db'))
     db.clear()
     sample_mode = 'dummy_sampler'
+    model_size = 'medium'
     max_num_points_in_route = 2
     eval_num_simulator_steps = 200
     n_runs = 5
@@ -70,7 +71,7 @@ def main():
     ress = []
     for run in range(n_runs):
         with open('configs/network.json') as f:
-            net_cfg = json.load(f)['encoder']
+            net_cfg = json.load(f)['encoder'][model_size]
         encoder = GambleEncoder(
             order_embedding_dim=net_cfg['order_embedding_dim'],
             claim_embedding_dim=net_cfg['claim_embedding_dim'],
@@ -101,7 +102,7 @@ def main():
 
 def debug():
     with open('configs/network.json') as f:
-            net_cfg = json.load(f)['encoder']
+        net_cfg = json.load(f)['encoder']
     encoder = GambleEncoder(
         order_embedding_dim=net_cfg['order_embedding_dim'],
         claim_embedding_dim=net_cfg['claim_embedding_dim'],

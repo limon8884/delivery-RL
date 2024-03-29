@@ -1,5 +1,5 @@
-name: fourth_sweep
-method: bayes
+name: fifth_sweep
+method: random
 metric:
   goal: maximize
   name: CR
@@ -7,9 +7,9 @@ parameters:
   n_envs: 
     value: 8
   trajectory_lenght: 
-    values: [2000, 3000]
+    value: 1500
   batch_size: 
-    values: [32, 64, 128]
+    value: 64
   num_epochs_per_traj:
     min: 6
     max: 14
@@ -44,9 +44,10 @@ parameters:
     min: -4.5
     max: 4.5
   ppo_entropy_loss_coef:
-    distribution: "log_uniform"
-    min: -4.5
-    max: 4.5
+    value: 0.0
+    # distribution: "log_uniform"
+    # min: -4.5
+    # max: 4.5
   max_grad_norm:
     value: 1.0
   gae_gamma: 
@@ -66,7 +67,7 @@ parameters:
     min: -2.0
     max: 2.0
   total_iters:
-    value: 25000
+    value: 3000
   device: 
     value: "cuda"
   use_wandb: 
@@ -74,4 +75,6 @@ parameters:
   use_train_logs:
     value: false
   eval_epochs_frequency: 
-    value: 1000
+    value: 100
+  model_size:
+    values: ["small", "medium", "big"]

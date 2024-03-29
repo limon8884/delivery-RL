@@ -318,9 +318,10 @@ class DeliveryMaker(BaseMaker):
         device = kwargs['device']
 
         simulator_config_path = Path(kwargs['simulator_cfg_path'])
+        model_size = kwargs['model_size']
         network_config_path = Path(kwargs['network_cfg_path'])
         with open(network_config_path) as f:
-            encoder_cfg = json.load(f)['encoder']
+            encoder_cfg = json.load(f)['encoder'][model_size]
 
         gamble_encoder = GambleEncoder(max_num_points_in_route=max_num_points_in_route, **encoder_cfg, device=device)
         reader = DataReader.from_config(config_path=simulator_config_path,
