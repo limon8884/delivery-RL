@@ -340,6 +340,8 @@ class DeliveryMaker(BaseMaker):
         self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, clm_emb_size=encoder_cfg['claim_embedding_dim'],
                                        temperature=kwargs['exploration_temperature'],
                                        mask_fake_crr=kwargs['mask_fake_crr'], device=device)
+        if kwargs['load_checkpoint']:
+            self._ac.load_state_dict(torch.load(kwargs['load_checkpoint'], map_location=device))
         opt = make_optimizer(self._ac.parameters(), **kwargs)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=kwargs['scheduler_max_lr'],
                                                         total_steps=kwargs['total_iters'],

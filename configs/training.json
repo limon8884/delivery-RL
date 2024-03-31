@@ -1,6 +1,7 @@
 {
     "group_run": "no group run",
     "description": "no info",
+    "load_checkpoint": "",
 
     "total_iters": 3000,
     "device": "cuda",

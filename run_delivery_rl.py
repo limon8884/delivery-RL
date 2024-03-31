@@ -16,6 +16,7 @@ from src.evaluation import evaluate
 @click.command()
 @click.option('--group_run', '-g', 'group_run', type=str)
 @click.option('--description', '-d', 'description', type=str)
+@click.option('--load_checkpoint', '-l', 'load_checkpoint', type=str, default="")
 @click.option('-i', '--total_iters', required=False, type=int)
 @click.option('--device', required=False, type=str)
 @click.option('-w', '--use_wandb', required=False, default=True, is_flag=True, type=bool)
