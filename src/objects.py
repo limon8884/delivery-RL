@@ -1,4 +1,5 @@
 import typing
+import json
 import numpy as np
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -312,7 +313,8 @@ class Order(Item):
         self.status = Order.Status.IN_ARRIVAL
         self.courier.status = Courier.Status.PROCESS
         if self._logger is not None:
-            self._logger.insert(TableName.ORDER_TABLE, id, self.creation_dttm, Event.ORDER_CREATED)
+            info = json.dumps({'not_batched_arrival_distance': route.distance_of_courier_arrival(courier.position)})
+            self._logger.insert(TableName.ORDER_TABLE, id, self.creation_dttm, Event.ORDER_CREATED, info)
 
         self._dttm = creation_dttm
         self._seconds_to_wait = None

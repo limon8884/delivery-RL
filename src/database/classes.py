@@ -10,6 +10,7 @@ class TableName(Enum):
 class Metric(Enum):
     CR = 'cr'
     CTD = 'ctd'
+    NOT_BATCHED_ARRIVAL_DISTANCE = 'not_batched_arrival_distance'
     NUM_COURIERS = 'avg_num_couriers_in_gamble'
     NUM_CLAIMS = 'avg_num_claims_in_gamble'
     NUM_ORDERS = 'avg_num_orders_in_gamble'

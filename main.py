@@ -24,7 +24,7 @@ def main():
     model_size = 'medium'
     max_num_points_in_route = 2
     eval_num_simulator_steps = 200
-    n_runs = 5
+    n_runs = 1
 
     print('Hungarian')
     res = evaluate(
@@ -64,8 +64,10 @@ def main():
             history_db_path='history.db',
             eval_num_simulator_steps=eval_num_simulator_steps,
         )
-        ress.append(res['CR'])
-    print(np.mean(ress))
+        # ress.append(res['CR'])
+        ress.append(res)
+    # print(np.mean(ress))
+    print(ress)
 
     print('Neural')
     ress = []
@@ -84,7 +86,7 @@ def main():
         )
         ac = DeliveryActorCritic(gamble_encoder=encoder, clm_emb_size=net_cfg['claim_embedding_dim'], device=None,
                                  temperature=1.0)
-        ac.load_state_dict(torch.load('checkpoints/9f3799cdca1c4d81beae5e0355ff8c2b.pt', map_location='cpu'))
+        ac.load_state_dict(torch.load('checkpoints/f091c4ff33874a6bbf160403623507eb.pt', map_location='cpu'))
         dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route)
         db.clear()
         res = evaluate(
@@ -96,8 +98,10 @@ def main():
             history_db_path='history.db',
             eval_num_simulator_steps=eval_num_simulator_steps,
         )
-        ress.append(res['CR'])
-    print(np.mean(ress))
+        # ress.append(res['CR'])
+        ress.append(res)
+    # print(np.mean(ress))
+    print(ress)
 
 
 def debug():

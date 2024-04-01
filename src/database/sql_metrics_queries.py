@@ -1,6 +1,16 @@
 from src.database.classes import TableName, Event
 
 
+def _sql_query_not_batched_arrival_distance(run_id: int):
+    return f'''
+    select
+        avg(json_extract(info, '$.not_batched_arrival_distance')) as not_batched_arrival_distance
+    from {TableName.ORDER_TABLE.value}
+    where run_id = {run_id}
+        and event = '{Event.ORDER_CREATED.value}'
+    '''
+
+
 def _sql_query_cr(run_id: int) -> str:
     return f'''
     select

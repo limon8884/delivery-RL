@@ -10,6 +10,7 @@ from src.database.sql_metrics_queries import (
     _sql_query_num_couriers,
     _sql_query_num_claims,
     _sql_query_num_orders,
+    _sql_query_not_batched_arrival_distance,
 )
 
 
@@ -21,9 +22,12 @@ class Database:
         self._connection = sqlite3.connect(path)
         # self._connection.set_trace_callback(print)
         cursor = self._connection.cursor()
-        cursor.execute(f'CREATE TABLE IF NOT EXISTS {TableName.COURIER_TABLE.value} (run_id, courier_id, dttm, event)')
-        cursor.execute(f'CREATE TABLE IF NOT EXISTS {TableName.CLAIM_TABLE.value} (run_id, claim_id, dttm, event)')
-        cursor.execute(f'CREATE TABLE IF NOT EXISTS {TableName.ORDER_TABLE.value} (run_id, order_id, dttm, event)')
+        cursor.execute(f'CREATE TABLE IF NOT EXISTS {TableName.COURIER_TABLE.value} \
+            (run_id, courier_id, dttm, event, info)')
+        cursor.execute(f'CREATE TABLE IF NOT EXISTS {TableName.CLAIM_TABLE.value} \
+            (run_id, claim_id, dttm, event, info)')
+        cursor.execute(f'CREATE TABLE IF NOT EXISTS {TableName.ORDER_TABLE.value} \
+            (run_id, order_id, dttm, event, info)')
         cursor.close()
 
     def clear(self):
@@ -46,7 +50,7 @@ class Database:
         cursor = self._connection.cursor()
         for bucket_idx in range(0, len(logger.data[tablename.value]), BUCKET_QUERY_SQLITE_SIZE):
             data = logger.data[tablename.value][bucket_idx:bucket_idx + BUCKET_QUERY_SQLITE_SIZE]
-            sql = f'INSERT INTO {tablename.value} VALUES ' + '(?, ?, ?, ?), ' * len(data)
+            sql = f'INSERT INTO {tablename.value} VALUES ' + '(?, ?, ?, ?, ?), ' * len(data)
             sql = sql[:-2] + ';\n'
             args = []
             for row in data:
@@ -70,6 +74,8 @@ class Database:
             return self.select(_sql_query_cr(run_id), select_one=True)[0]
         elif metric is Metric.CTD:
             return self.select(_sql_query_ctd(run_id), select_one=True)[0]
+        elif metric is Metric.NOT_BATCHED_ARRIVAL_DISTANCE:
+            return self.select(_sql_query_not_batched_arrival_distance(run_id), select_one=True)[0]
         # elif metric is Metric.NUM_COURIERS:
         #     return self.select(_sql_query_num_couriers(run_id), select_one=True)[0]
         # elif metric is Metric.NUM_CLAIMS:

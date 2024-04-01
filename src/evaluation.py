@@ -23,7 +23,9 @@ def evaluate(
     db = Database(Path(kwargs['history_db_path']))
     db.export_from_logger(db_logger)
     cr, ctd = db.get_metric(Metric.CR, run_id), db.get_metric(Metric.CTD, run_id)
+    arrival_dist = db.get_metric(Metric.NOT_BATCHED_ARRIVAL_DISTANCE, run_id)
     return {
         'CR': cr,
         'CTD': ctd,
+        'arrival_dist': arrival_dist,
     }
