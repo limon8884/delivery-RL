@@ -17,6 +17,7 @@
     "max_num_points_in_route": 2,
     "sampler_mode": "dummy_sampler",
     "model_size": "medium",
+    "dropout": 0.2,
     
     "learning_rate": 3e-5,
     "optimizer": "adam",

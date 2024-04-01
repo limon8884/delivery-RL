@@ -24,7 +24,7 @@ def main():
     model_size = 'medium'
     max_num_points_in_route = 2
     eval_num_simulator_steps = 200
-    n_runs = 1
+    n_runs = 3
 
     print('Hungarian')
     res = evaluate(
@@ -82,11 +82,12 @@ def main():
             point_embedding_dim=net_cfg['point_embedding_dim'],
             number_embedding_dim=net_cfg['number_embedding_dim'],
             max_num_points_in_route=max_num_points_in_route,
+            dropout=0.2,
             device=None,
         )
         ac = DeliveryActorCritic(gamble_encoder=encoder, clm_emb_size=net_cfg['claim_embedding_dim'], device=None,
                                  temperature=1.0)
-        ac.load_state_dict(torch.load('checkpoints/f091c4ff33874a6bbf160403623507eb.pt', map_location='cpu'))
+        # ac.load_state_dict(torch.load('checkpoints/f091c4ff33874a6bbf160403623507eb.pt', map_location='cpu'))
         dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route)
         db.clear()
         res = evaluate(
