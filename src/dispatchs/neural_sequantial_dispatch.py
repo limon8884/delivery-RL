@@ -10,7 +10,7 @@ from src.objects import (
     Assignment,
 )
 from src.reinforcement.delivery import BaseActorCritic, DeliveryState
-
+from src.utils import compulte_claims_to_couriers_distances
 
 # logging.basicConfig(filename='logs.log', encoding='utf-8', level=logging.DEBUG,  filemode='w')
 # LOGGER = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ class NeuralSequantialDispatch(BaseDispatch):
         available_couriers = gamble.couriers
         available_orders = gamble.orders
         prev_idxs = []
+        claims_to_couriers_distances = compulte_claims_to_couriers_distances(gamble)
         for claim_idx in range(num_claims):
             couriers_embs_list = [c.to_numpy() for c in available_couriers]
             orders_embs_list = [o.to_numpy(max_num_points_in_route=self.max_num_points_in_route)
@@ -41,6 +42,7 @@ class NeuralSequantialDispatch(BaseDispatch):
 
             state = DeliveryState(
                 claim_emb=gamble.claims[claim_idx].to_numpy(),
+                claim_to_couries_dists=claims_to_couriers_distances[claim_idx],
                 couriers_embs=couriers_embs,
                 orders_embs=orders_embs,
                 prev_idxs=prev_idxs,
