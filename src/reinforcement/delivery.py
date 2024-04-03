@@ -16,6 +16,7 @@ from src.simulator.simulator import Simulator
 from src.simulator.data_reader import DataReader
 from src.router_makers import AppendRouteMaker
 from src.networks.encoders import GambleEncoder
+from src.utils import compulte_claims_to_couriers_distances
 
 
 from src.reinforcement.base import (
@@ -55,8 +56,10 @@ class DeliveryAction(Action):
 
 class DeliveryState(State):
     def __init__(self, claim_emb: np.ndarray, couriers_embs: typing.Optional[np.ndarray],
-                 orders_embs: typing.Optional[np.ndarray], prev_idxs: list[int], orders_full_masks: list[bool]) -> None:
+                 orders_embs: typing.Optional[np.ndarray], prev_idxs: list[int], orders_full_masks: list[bool],
+                 claim_to_couries_dists: np.ndarray) -> None:
         self.claim_emb = claim_emb
+        self.claim_to_couries_dists = claim_to_couries_dists
         self.couriers_embs = couriers_embs
         self.orders_embs = orders_embs
         self.prev_idxs = prev_idxs
@@ -164,7 +167,8 @@ class DeliveryEnvironment(BaseEnvironment):
             if len(self._gamble.orders) > 0
             else None,
             'ord_masks': [ord.has_full_route(max_num_points_in_route=self.max_num_points_in_route)
-                          for ord in self._gamble.orders]
+                          for ord in self._gamble.orders],
+            'dists': compulte_claims_to_couriers_distances(self._gamble),
         }
         self._assignments = Assignment([])
         self._claim_idx = 0
@@ -188,8 +192,10 @@ class DeliveryEnvironment(BaseEnvironment):
 
     def _make_state_from_gamble_dict(self) -> DeliveryState:
         claim_emb = self.embs_dict['clm'][self._claim_idx]
+        claim_to_couries_dists = self.embs_dict['dists'][self._claim_idx]
         return DeliveryState(
             claim_emb=claim_emb,
+            claim_to_couries_dists=claim_to_couries_dists,
             couriers_embs=self.embs_dict['crr'],
             orders_embs=self.embs_dict['ord'],
             prev_idxs=self._prev_idxs.copy(),
@@ -222,23 +228,27 @@ class DeliveryEnvironment(BaseEnvironment):
 
 class DeliveryActorCritic(BaseActorCritic):
     def __init__(self, gamble_encoder: GambleEncoder, clm_emb_size: int, temperature: float,
-                 device, mask_fake_crr: bool = False) -> None:
+                 device, mask_fake_crr: bool = False, use_dist_feature: bool = False) -> None:
         super().__init__()
         self.gamble_encoder = gamble_encoder
         self.clm_emb_size = clm_emb_size
         self.temperature = temperature
         self.mask_fake_crr = mask_fake_crr
+        self.use_dist_feature = use_dist_feature
         self.device = device
 
         # self.policy_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
         # self.value_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
+        coc_emb_size = 3 * clm_emb_size
+        if self.use_dist_feature:
+            coc_emb_size += 1
         self.policy_head = nn.Sequential(
-            nn.Linear(3 * clm_emb_size, clm_emb_size),
+            nn.Linear(coc_emb_size, clm_emb_size),
             nn.LeakyReLU(),
             nn.Linear(clm_emb_size, 1),
         ).to(device)
         self.value_head = nn.Sequential(
-            nn.Linear(3 * clm_emb_size, clm_emb_size),
+            nn.Linear(coc_emb_size, clm_emb_size),
             nn.LeakyReLU(),
             nn.Linear(clm_emb_size, 1),
         ).to(device)
@@ -255,7 +265,11 @@ class DeliveryActorCritic(BaseActorCritic):
         for state in states:
             prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
             co_embs, claim_emb = self._make_three_tensors_from_state(state)
-            coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1)], dim=-1)
+            if self.use_dist_feature:
+                co_dists = torch.tensor(state.claim_to_couries_dists, dtype=torch.float, device=self.device).unsqueeze(-1)
+                coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1), co_dists], dim=-1)
+            else:
+                coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1)], dim=-1)
             full_ord_masks = self._make_full_order_mask(state)
 
             policy_tens = self.policy_head(coc_embs).squeeze(-1)
@@ -340,6 +354,7 @@ class DeliveryMaker(BaseMaker):
         self._env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, **kwargs)
         self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, clm_emb_size=encoder_cfg['claim_embedding_dim'],
                                        temperature=kwargs['exploration_temperature'],
+                                       use_dist_feature=kwargs['use_dist_feature'],
                                        mask_fake_crr=kwargs['mask_fake_crr'], device=device)
         if kwargs['load_checkpoint']:
             self._ac.load_state_dict(torch.load(kwargs['load_checkpoint'], map_location=device))

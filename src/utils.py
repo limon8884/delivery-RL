@@ -1,7 +1,12 @@
 import random
+import numpy as np
 
 from .objects import (
-    Point
+    Point,
+    Gamble,
+    Courier,
+    Order,
+    Claim,
 )
 
 
@@ -17,3 +22,17 @@ def write_in_txt_file(path: str, content: str) -> None:
     with open(path, 'a') as f:
         f.write(content)
         f.write('\n')
+
+
+def compulte_claims_to_couriers_distances(gamble: Gamble) -> np.ndarray:
+    result = []
+    for claim in gamble.claims:
+        result.append([])
+        for courier in gamble.couriers:
+            dist = Point.distance(claim.source_point, courier.position)
+            result[-1].append(dist)
+        for order in gamble.orders:
+            dist = Point.distance(claim.source_point, order.courier.position)
+            result[-1].append(dist)
+        result[-1].append(-1)
+    return np.array(result)

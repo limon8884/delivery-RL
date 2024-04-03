@@ -9,6 +9,7 @@
     "fix_zero_seed": false,
     "use_train_logs": false,
     "mask_fake_crr": false,
+    "use_dist_feature": false,
 
     "n_envs": 8,
     "trajectory_lenght": 3000,
