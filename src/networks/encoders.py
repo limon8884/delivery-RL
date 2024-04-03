@@ -6,14 +6,35 @@ from datetime import datetime, timedelta
 from src.objects import Point, Courier, Order, Route, Claim, Gamble
 
 
+class PointEncoder(nn.Module):
+    def __init__(self, point_emb_dim: int, device):
+        super().__init__()
+        assert point_emb_dim % 4 == 0
+        self.sin_layer_x = nn.Linear(1, point_emb_dim // 4, device=device)
+        self.cos_layer_x = nn.Linear(1, point_emb_dim // 4, device=device)
+        self.sin_layer_y = nn.Linear(1, point_emb_dim // 4, device=device)
+        self.cos_layer_y = nn.Linear(1, point_emb_dim // 4, device=device)
+        self.device = device
+
+        for param in self.parameters():
+            param.requires_grad = False
+
+    def forward(self, points: torch.FloatTensor):
+        assert points.shape[-1] == 2, points.shape
+        with torch.no_grad():
+            return torch.cat([
+                torch.sin(self.sin_layer_x(points[..., 0].unsqueeze(-1))),
+                torch.cos(self.cos_layer_x(points[..., 0].unsqueeze(-1))),
+                torch.sin(self.sin_layer_y(points[..., 1].unsqueeze(-1))),
+                torch.cos(self.cos_layer_y(points[..., 1].unsqueeze(-1))),
+            ], dim=-1)
+
+
 class NumberEncoder(nn.Module):
     def __init__(self, numbers_np_dim, number_embedding_dim, device, dropout) -> None:
         super().__init__()
         self.numbers_np_dim = numbers_np_dim
         self.number_embedding_dim = number_embedding_dim
-        # self.bn = nn.BatchNorm1d(num_features=numbers_np_dim, device=device)
-        # self.layer = nn.Linear(numbers_np_dim, number_embedding_dim, device=device)
-        # self.activation_func = nn.LeakyReLU()
         self.mlp = nn.Sequential(
             nn.Linear(numbers_np_dim, number_embedding_dim),
             nn.LeakyReLU(),
@@ -21,68 +42,63 @@ class NumberEncoder(nn.Module):
             nn.Linear(number_embedding_dim, number_embedding_dim),
             nn.LeakyReLU(),
             nn.Dropout(p=dropout),
-            nn.Linear(number_embedding_dim, number_embedding_dim),
         ).to(device)
         self.device = device
 
     def forward(self, numbers_np: np.ndarray) -> torch.FloatTensor:
-        # x = torch.FloatTensor(numbers_np, device=self.device)
         x = torch.tensor(numbers_np, device=self.device, dtype=torch.float)
-        # if numbers_np.shape[0] != 1 or not self.training:
-        #     x = self.bn(x)
-        # x = self.layer(x)
-        # x = self.activation_func(x)
         x = self.mlp(x)
         return x
 
 
-class CoordSinCosEncoder(nn.Module):
-    def __init__(self, coords_np_dim, coords_embedding_dim, device, dropout):
-        super().__init__()
-        assert coords_embedding_dim % 2 == 0
-        self.coords_np_dim = coords_np_dim
-        self.coords_embedding_dim = coords_embedding_dim
-        self.bn = nn.BatchNorm1d(num_features=coords_np_dim, device=device)
-        self.sin_layer = nn.Linear(coords_np_dim, coords_embedding_dim // 2, device=device)
-        self.cos_layer = nn.Linear(coords_np_dim, coords_embedding_dim // 2, device=device)
-        self.device = device
+# class CoordSinCosEncoder(nn.Module):
+#     def __init__(self, coords_np_dim, coords_embedding_dim, device, dropout):
+#         super().__init__()
+#         assert coords_embedding_dim % 2 == 0
+#         self.coords_np_dim = coords_np_dim
+#         self.coords_embedding_dim = coords_embedding_dim
+#         self.bn = nn.BatchNorm1d(num_features=coords_np_dim, device=device)
+#         self.sin_layer = nn.Linear(coords_np_dim, coords_embedding_dim // 2, device=device)
+#         self.cos_layer = nn.Linear(coords_np_dim, coords_embedding_dim // 2, device=device)
+#         self.device = device
 
-    def forward(self, coords_np: np.ndarray) -> torch.FloatTensor:
-        assert coords_np.ndim == 2 and coords_np.shape[1] == self.coords_np_dim
-        # x = torch.FloatTensor(coords_np, device=self.device)
-        x = torch.tensor(coords_np, device=self.device, dtype=torch.float)
-        if coords_np.shape[0] != 1 or not self.training:
-            x = self.bn(x)
-        return torch.cat([
-            torch.sin(self.sin_layer(x)),
-            torch.cos(self.cos_layer(x)),
-        ], dim=-1)
+#     def forward(self, coords_np: np.ndarray) -> torch.FloatTensor:
+#         assert coords_np.ndim == 2 and coords_np.shape[1] == self.coords_np_dim
+#         # x = torch.FloatTensor(coords_np, device=self.device)
+#         x = torch.tensor(coords_np, device=self.device, dtype=torch.float)
+#         if coords_np.shape[0] != 1 or not self.training:
+#             x = self.bn(x)
+#         return torch.cat([
+#             torch.sin(self.sin_layer(x)),
+#             torch.cos(self.cos_layer(x)),
+#         ], dim=-1)
 
 
 class CoordMLPEncoder(nn.Module):
-    def __init__(self, coords_np_dim, coords_embedding_dim, device, dropout):
+    def __init__(self, coords_np_dim, point_embedding_dim, coords_embedding_dim, device, dropout):
         super().__init__()
-        assert coords_embedding_dim % 2 == 0
+        assert point_embedding_dim % 4 == 0
+        self.pe = PointEncoder(point_embedding_dim, device=device)
         self.coords_np_dim = coords_np_dim
-        self.coords_embedding_dim = coords_embedding_dim
+        input_dim = coords_np_dim // 2 * point_embedding_dim
         self.mlp = nn.Sequential(
-            nn.LayerNorm(normalized_shape=(coords_np_dim,)),
-            nn.Linear(coords_np_dim, coords_embedding_dim),
+            nn.LayerNorm(normalized_shape=(input_dim,)),
+            nn.Linear(input_dim, coords_embedding_dim),
             nn.LeakyReLU(),
             nn.Dropout(p=dropout),
             nn.Linear(coords_embedding_dim, coords_embedding_dim),
             nn.LeakyReLU(),
             nn.Dropout(p=dropout),
-            nn.Linear(coords_embedding_dim, coords_embedding_dim),
         ).to(device)
         self.device = device
 
     def forward(self, coords_np: np.ndarray) -> torch.FloatTensor:
         assert coords_np.ndim == 2 and coords_np.shape[1] == self.coords_np_dim
-        # x = torch.FloatTensor(coords_np, device=self.device)
-        x = torch.tensor(coords_np, device=self.device, dtype=torch.float)
-        x = self.mlp(x)
-        return x
+        bs = coords_np.shape[0]
+        points = torch.tensor(coords_np.reshape(bs, self.coords_np_dim // 2, 2),
+                              dtype=torch.float, device=self.device)
+        points_embs = self.pe(points).reshape(bs, -1)
+        return self.mlp(points_embs)
 
 
 class ItemEncoder(nn.Module):
@@ -103,17 +119,21 @@ class ItemEncoder(nn.Module):
         self.coords_idxs = np.array(sorted(coords_idxs))
         self.numbers_idxs = np.array(sorted(numbers_idxs))
 
+        point_embedding_dim = kwargs['point_embedding_dim']
+        coords_embedding_dim = len(coords_idxs) // 2 * kwargs['cat_points_embedding_dim']
+        number_embedding_dim = len(numbers_idxs)
         # self.coord_encoder = CoordSinCosEncoder(coords_np_dim=len(self.coords_idxs),
         #                                   coords_embedding_dim=kwargs['point_embedding_dim'],
         #                                   device=kwargs['device'])
         self.coord_encoder = CoordMLPEncoder(coords_np_dim=len(self.coords_idxs),
-                                             coords_embedding_dim=kwargs['point_embedding_dim'],
+                                             point_embedding_dim=point_embedding_dim,
+                                             coords_embedding_dim=coords_embedding_dim,
                                              device=device, dropout=dropout)
         self.number_encoder = NumberEncoder(numbers_np_dim=len(self.numbers_idxs),
-                                            number_embedding_dim=kwargs['number_embedding_dim'],
+                                            number_embedding_dim=number_embedding_dim,
                                             device=device, dropout=dropout)
         self.mlp = self.mlp = nn.Sequential(
-            nn.Linear(kwargs['point_embedding_dim'] + kwargs['number_embedding_dim'], item_embedding_dim),
+            nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
             nn.LeakyReLU(),
             nn.Dropout(p=dropout),
             nn.Linear(item_embedding_dim, item_embedding_dim),
@@ -140,7 +160,7 @@ class GambleEncoder(nn.Module):
         claim_embedding_dim = kwargs['claim_embedding_dim']
         courier_embedding_dim = kwargs['courier_embedding_dim']
         point_embedding_dim = kwargs['point_embedding_dim']
-        number_embedding_dim = kwargs['number_embedding_dim']
+        cat_points_embedding_dim = kwargs['cat_points_embedding_dim']
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
         device = kwargs['device']
         dropout = kwargs['dropout']
@@ -148,7 +168,7 @@ class GambleEncoder(nn.Module):
             feature_types=Claim.numpy_feature_types(),
             item_embedding_dim=claim_embedding_dim,
             point_embedding_dim=point_embedding_dim * 2,
-            number_embedding_dim=number_embedding_dim,
+            cat_points_embedding_dim=cat_points_embedding_dim,
             dropout=dropout,
             device=device,
         )
@@ -156,7 +176,7 @@ class GambleEncoder(nn.Module):
             feature_types=Courier.numpy_feature_types(),
             item_embedding_dim=courier_embedding_dim,
             point_embedding_dim=point_embedding_dim * 1,
-            number_embedding_dim=number_embedding_dim,
+            cat_points_embedding_dim=cat_points_embedding_dim,
             dropout=dropout,
             device=device,
         )
@@ -164,7 +184,7 @@ class GambleEncoder(nn.Module):
             feature_types=Order.numpy_feature_types(max_num_points_in_route=self.max_num_points_in_route),
             item_embedding_dim=order_embedding_dim,
             point_embedding_dim=point_embedding_dim * (1 + self.max_num_points_in_route),
-            number_embedding_dim=number_embedding_dim,
+            cat_points_embedding_dim=cat_points_embedding_dim,
             dropout=dropout,
             device=device,
         )
