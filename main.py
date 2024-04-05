@@ -53,7 +53,6 @@ def main():
     print('Random')
     ress = []
     for run in range(n_runs):
-        ress = []
         db.clear()
         res = evaluate(
             dispatch=RandomDispatch(),
@@ -80,14 +79,14 @@ def main():
             courier_embedding_dim=net_cfg['courier_embedding_dim'],
             route_embedding_dim=net_cfg['route_embedding_dim'],
             point_embedding_dim=net_cfg['point_embedding_dim'],
-            number_embedding_dim=net_cfg['number_embedding_dim'],
+            cat_points_embedding_dim=net_cfg['cat_points_embedding_dim'],
             max_num_points_in_route=max_num_points_in_route,
             dropout=0.2,
             device=None,
         )
         ac = DeliveryActorCritic(gamble_encoder=encoder, clm_emb_size=net_cfg['claim_embedding_dim'], device=None,
                                  temperature=1.0)
-        # ac.load_state_dict(torch.load('checkpoints/f091c4ff33874a6bbf160403623507eb.pt', map_location='cpu'))
+        ac.load_state_dict(torch.load('checkpoints/e253f0d457794205b994ccb3abbca711.pt', map_location='cpu'))
         dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route)
         db.clear()
         res = evaluate(
