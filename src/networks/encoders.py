@@ -36,12 +36,13 @@ class NumberEncoder(nn.Module):
         self.numbers_np_dim = numbers_np_dim
         self.number_embedding_dim = number_embedding_dim
         self.mlp = nn.Sequential(
+            nn.LayerNorm(normalized_shape=(numbers_np_dim,)),
             nn.Linear(numbers_np_dim, number_embedding_dim),
             nn.LeakyReLU(),
-            nn.Dropout(p=dropout),
+            # nn.Dropout(p=dropout),
             nn.Linear(number_embedding_dim, number_embedding_dim),
             nn.LeakyReLU(),
-            nn.Dropout(p=dropout),
+            # nn.Dropout(p=dropout),
         ).to(device)
         self.device = device
 
@@ -85,10 +86,10 @@ class CoordMLPEncoder(nn.Module):
             nn.LayerNorm(normalized_shape=(input_dim,)),
             nn.Linear(input_dim, coords_embedding_dim),
             nn.LeakyReLU(),
-            nn.Dropout(p=dropout),
+            # nn.Dropout(p=dropout),
             nn.Linear(coords_embedding_dim, coords_embedding_dim),
             nn.LeakyReLU(),
-            nn.Dropout(p=dropout),
+            # nn.Dropout(p=dropout),
         ).to(device)
         self.device = device
 
@@ -122,9 +123,6 @@ class ItemEncoder(nn.Module):
         point_embedding_dim = kwargs['point_embedding_dim']
         coords_embedding_dim = len(coords_idxs) // 2 * kwargs['cat_points_embedding_dim']
         number_embedding_dim = len(numbers_idxs)
-        # self.coord_encoder = CoordSinCosEncoder(coords_np_dim=len(self.coords_idxs),
-        #                                   coords_embedding_dim=kwargs['point_embedding_dim'],
-        #                                   device=kwargs['device'])
         self.coord_encoder = CoordMLPEncoder(coords_np_dim=len(self.coords_idxs),
                                              point_embedding_dim=point_embedding_dim,
                                              coords_embedding_dim=coords_embedding_dim,
@@ -135,10 +133,10 @@ class ItemEncoder(nn.Module):
         self.mlp = self.mlp = nn.Sequential(
             nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
             nn.LeakyReLU(),
-            nn.Dropout(p=dropout),
+            # nn.Dropout(p=dropout),
             nn.Linear(item_embedding_dim, item_embedding_dim),
             nn.LeakyReLU(),
-            nn.Dropout(p=dropout),
+            # nn.Dropout(p=dropout),
             nn.Linear(item_embedding_dim, item_embedding_dim),
         ).to(device)
 
