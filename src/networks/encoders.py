@@ -31,7 +31,7 @@ class PointEncoder(nn.Module):
 
 
 class NumberEncoder(nn.Module):
-    def __init__(self, numbers_np_dim, number_embedding_dim, device, dropout) -> None:
+    def __init__(self, numbers_np_dim, number_embedding_dim, device) -> None:
         super().__init__()
         self.numbers_np_dim = numbers_np_dim
         self.number_embedding_dim = number_embedding_dim
@@ -39,10 +39,8 @@ class NumberEncoder(nn.Module):
             nn.LayerNorm(normalized_shape=(numbers_np_dim,)),
             nn.Linear(numbers_np_dim, number_embedding_dim),
             nn.LeakyReLU(),
-            # nn.Dropout(p=dropout),
             nn.Linear(number_embedding_dim, number_embedding_dim),
             nn.LeakyReLU(),
-            # nn.Dropout(p=dropout),
         ).to(device)
         self.device = device
 
@@ -52,31 +50,8 @@ class NumberEncoder(nn.Module):
         return x
 
 
-# class CoordSinCosEncoder(nn.Module):
-#     def __init__(self, coords_np_dim, coords_embedding_dim, device, dropout):
-#         super().__init__()
-#         assert coords_embedding_dim % 2 == 0
-#         self.coords_np_dim = coords_np_dim
-#         self.coords_embedding_dim = coords_embedding_dim
-#         self.bn = nn.BatchNorm1d(num_features=coords_np_dim, device=device)
-#         self.sin_layer = nn.Linear(coords_np_dim, coords_embedding_dim // 2, device=device)
-#         self.cos_layer = nn.Linear(coords_np_dim, coords_embedding_dim // 2, device=device)
-#         self.device = device
-
-#     def forward(self, coords_np: np.ndarray) -> torch.FloatTensor:
-#         assert coords_np.ndim == 2 and coords_np.shape[1] == self.coords_np_dim
-#         # x = torch.FloatTensor(coords_np, device=self.device)
-#         x = torch.tensor(coords_np, device=self.device, dtype=torch.float)
-#         if coords_np.shape[0] != 1 or not self.training:
-#             x = self.bn(x)
-#         return torch.cat([
-#             torch.sin(self.sin_layer(x)),
-#             torch.cos(self.cos_layer(x)),
-#         ], dim=-1)
-
-
 class CoordMLPEncoder(nn.Module):
-    def __init__(self, coords_np_dim, point_embedding_dim, coords_embedding_dim, device, dropout):
+    def __init__(self, coords_np_dim, point_embedding_dim, coords_embedding_dim, device):
         super().__init__()
         assert point_embedding_dim % 4 == 0
         self.pe = PointEncoder(point_embedding_dim, device=device)
@@ -86,10 +61,8 @@ class CoordMLPEncoder(nn.Module):
             nn.LayerNorm(normalized_shape=(input_dim,)),
             nn.Linear(input_dim, coords_embedding_dim),
             nn.LeakyReLU(),
-            # nn.Dropout(p=dropout),
             nn.Linear(coords_embedding_dim, coords_embedding_dim),
             nn.LeakyReLU(),
-            # nn.Dropout(p=dropout),
         ).to(device)
         self.device = device
 
@@ -105,7 +78,7 @@ class CoordMLPEncoder(nn.Module):
 class ItemEncoder(nn.Module):
     def __init__(self, feature_types: dict[tuple[int, int], str], item_embedding_dim: int, **kwargs) -> None:
         super().__init__()
-        dropout = kwargs['dropout']
+        # dropout = kwargs['dropout']
         device = kwargs['device']
         self.item_embedding_dim = item_embedding_dim
         coords_idxs = []
@@ -126,17 +99,15 @@ class ItemEncoder(nn.Module):
         self.coord_encoder = CoordMLPEncoder(coords_np_dim=len(self.coords_idxs),
                                              point_embedding_dim=point_embedding_dim,
                                              coords_embedding_dim=coords_embedding_dim,
-                                             device=device, dropout=dropout)
+                                             device=device)
         self.number_encoder = NumberEncoder(numbers_np_dim=len(self.numbers_idxs),
                                             number_embedding_dim=number_embedding_dim,
-                                            device=device, dropout=dropout)
+                                            device=device)
         self.mlp = self.mlp = nn.Sequential(
             nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
             nn.LeakyReLU(),
-            # nn.Dropout(p=dropout),
             nn.Linear(item_embedding_dim, item_embedding_dim),
             nn.LeakyReLU(),
-            # nn.Dropout(p=dropout),
             nn.Linear(item_embedding_dim, item_embedding_dim),
         ).to(device)
 
@@ -161,13 +132,12 @@ class GambleEncoder(nn.Module):
         cat_points_embedding_dim = kwargs['cat_points_embedding_dim']
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
         device = kwargs['device']
-        dropout = kwargs['dropout']
+        # dropout = kwargs['dropout']
         self.claim_encoder = ItemEncoder(
             feature_types=Claim.numpy_feature_types(),
             item_embedding_dim=claim_embedding_dim,
             point_embedding_dim=point_embedding_dim * 2,
             cat_points_embedding_dim=cat_points_embedding_dim,
-            dropout=dropout,
             device=device,
         )
         self.courier_encoder = ItemEncoder(
@@ -175,7 +145,6 @@ class GambleEncoder(nn.Module):
             item_embedding_dim=courier_embedding_dim,
             point_embedding_dim=point_embedding_dim * 1,
             cat_points_embedding_dim=cat_points_embedding_dim,
-            dropout=dropout,
             device=device,
         )
         self.order_encoder = ItemEncoder(
@@ -183,7 +152,6 @@ class GambleEncoder(nn.Module):
             item_embedding_dim=order_embedding_dim,
             point_embedding_dim=point_embedding_dim * (1 + self.max_num_points_in_route),
             cat_points_embedding_dim=cat_points_embedding_dim,
-            dropout=dropout,
             device=device,
         )
 
