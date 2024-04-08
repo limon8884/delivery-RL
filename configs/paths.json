@@ -4,6 +4,6 @@
     "debug_info_path": "debug_info/",
     "simulator_cfg_path": "configs/simulator.json",
     "network_cfg_path": "configs/network.json",
-    "eval_cfg_path": "configs/evaluation.json",
-    "training_cfg_path": "configs/training.json"
+    "pretrained_courier_coord_encoder": "checkpoints/courier_coord_encoder_p128cat16.pt",
+    "pretrained_claim_coord_encoder": "checkpoints/claim_coord_encoder_p128cat16.pt"
 }

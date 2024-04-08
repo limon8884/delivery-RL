@@ -227,30 +227,27 @@ class DeliveryEnvironment(BaseEnvironment):
 
 
 class DeliveryActorCritic(BaseActorCritic):
-    def __init__(self, gamble_encoder: GambleEncoder, clm_emb_size: int, temperature: float,
+    def __init__(self, gamble_encoder: GambleEncoder, coc_emb_size: int, temperature: float,
                  device, mask_fake_crr: bool = False, use_dist_feature: bool = False) -> None:
         super().__init__()
         self.gamble_encoder = gamble_encoder
-        self.clm_emb_size = clm_emb_size
+        # self.coc_emb_size = coc_emb_size
         self.temperature = temperature
         self.mask_fake_crr = mask_fake_crr
         self.use_dist_feature = use_dist_feature
         self.device = device
 
-        # self.policy_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
-        # self.value_matrix = nn.Parameter(torch.randn(clm_emb_size, clm_emb_size), requires_grad=True).to(device)
-        coc_emb_size = 3 * clm_emb_size
         if self.use_dist_feature:
             coc_emb_size += 1
         self.policy_head = nn.Sequential(
-            nn.Linear(coc_emb_size, clm_emb_size),
+            nn.Linear(coc_emb_size, coc_emb_size),
             nn.LeakyReLU(),
-            nn.Linear(clm_emb_size, 1),
+            nn.Linear(coc_emb_size, 1),
         ).to(device)
         self.value_head = nn.Sequential(
-            nn.Linear(coc_emb_size, clm_emb_size),
+            nn.Linear(coc_emb_size, coc_emb_size),
             nn.LeakyReLU(),
-            nn.Linear(clm_emb_size, 1),
+            nn.Linear(coc_emb_size, 1),
         ).to(device)
 
     def forward(self, state_list: list[DeliveryState]) -> None:
@@ -343,8 +340,7 @@ class DeliveryMaker(BaseMaker):
         with open(network_config_path) as f:
             encoder_cfg = json.load(f)['encoder'][model_size]
 
-        gamble_encoder = GambleEncoder(max_num_points_in_route=max_num_points_in_route, **encoder_cfg, device=device,
-                                       dropout=kwargs['dropout'])
+        gamble_encoder = GambleEncoder(**kwargs, **encoder_cfg)
         reader = DataReader.from_config(config_path=simulator_config_path,
                                         sampler_mode=kwargs['sampler_mode'], db_logger=None)
         route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
@@ -352,7 +348,9 @@ class DeliveryMaker(BaseMaker):
         rewarder = DeliveryRewarder(**kwargs)
         self._train_metric_logger = MetricLogger(use_wandb=kwargs['use_wandb'])
         self._env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, **kwargs)
-        self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, clm_emb_size=encoder_cfg['claim_embedding_dim'],
+        coc_emb_size = encoder_cfg['claim_embedding_dim'] + encoder_cfg['courier_order_embedding_dim']
+        self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder,
+                                       coc_emb_size=coc_emb_size,
                                        temperature=kwargs['exploration_temperature'],
                                        use_dist_feature=kwargs['use_dist_feature'],
                                        mask_fake_crr=kwargs['mask_fake_crr'], device=device)

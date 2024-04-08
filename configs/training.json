@@ -18,13 +18,13 @@
     "max_num_points_in_route": 2,
     "sampler_mode": "dummy_sampler",
     "model_size": "medium",
-    "dropout": 0.2,
+    "dropout": 0.0,
     
     "learning_rate": 3e-5,
     "optimizer": "adam",
     "rmsprop_alpha": 0.9,
     "sgd_momentum": 0.9,
-    "scheduler_max_lr": 1e-3,
+    "scheduler_max_lr": 3e-4,
     "scheduler_pct_start": 0.3,
 
     "exploration_temperature": 1.0,

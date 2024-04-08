@@ -125,9 +125,8 @@ class ItemEncoder(nn.Module):
 class GambleEncoder(nn.Module):
     def __init__(self, **kwargs) -> None:
         super().__init__()
-        order_embedding_dim = kwargs['order_embedding_dim']
         claim_embedding_dim = kwargs['claim_embedding_dim']
-        courier_embedding_dim = kwargs['courier_embedding_dim']
+        courier_order_embedding_dim = kwargs['courier_order_embedding_dim']
         point_embedding_dim = kwargs['point_embedding_dim']
         cat_points_embedding_dim = kwargs['cat_points_embedding_dim']
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
@@ -142,18 +141,29 @@ class GambleEncoder(nn.Module):
         )
         self.courier_encoder = ItemEncoder(
             feature_types=Courier.numpy_feature_types(),
-            item_embedding_dim=courier_embedding_dim,
+            item_embedding_dim=courier_order_embedding_dim,
             point_embedding_dim=point_embedding_dim * 1,
             cat_points_embedding_dim=cat_points_embedding_dim,
             device=device,
         )
         self.order_encoder = ItemEncoder(
             feature_types=Order.numpy_feature_types(max_num_points_in_route=self.max_num_points_in_route),
-            item_embedding_dim=order_embedding_dim,
+            item_embedding_dim=courier_order_embedding_dim,
             point_embedding_dim=point_embedding_dim * (1 + self.max_num_points_in_route),
             cat_points_embedding_dim=cat_points_embedding_dim,
             device=device,
         )
+
+        if kwargs['use_pretrained_encoders']:
+            self.claim_encoder.coord_encoder.load_state_dict(
+                torch.load(kwargs['pretrained_claim_coord_encoder'], map_location=device))
+            self.courier_encoder.coord_encoder.load_state_dict(
+                torch.load(kwargs['pretrained_courier_coord_encoder'], map_location=device))
+            for p in self.claim_encoder.coord_encoder.parameters():
+                p.requires_grad = False
+            for p in self.courier_encoder.coord_encoder.parameters():
+                p.requires_grad = False
+            print('encoders pretrained loaded and freezed!')
 
     def forward(self, gamble_np_dict: dict[str, np.ndarray | None]) -> dict[str, torch.FloatTensor | None]:
         return {
