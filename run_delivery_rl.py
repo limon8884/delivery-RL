@@ -63,17 +63,6 @@ def make_kwargs(**cfg):
     with open('configs/paths.json') as f:
         paths = dict(json.load(f))
         cfg.update(paths)
-    # with open(paths['training_cfg_path']) as f:
-    #     cfg = dict(json.load(f))
-    # with open(paths['eval_cfg_path']) as f:
-    #     cfg.update(json.load(f))
-    # cfg.update(paths)
-
-    # for k, v in kwargs.items():
-    #     assert k in cfg.keys(), f'Not found argument {k} in config!'
-    #     if v is None:
-    #         continue
-    #     cfg[k] = v
 
     train_id = str(uuid.uuid4().hex)
     cfg['train_id'] = train_id
