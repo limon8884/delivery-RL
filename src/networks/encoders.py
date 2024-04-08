@@ -131,7 +131,6 @@ class GambleEncoder(nn.Module):
         cat_points_embedding_dim = kwargs['cat_points_embedding_dim']
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
         device = kwargs['device']
-        # dropout = kwargs['dropout']
         self.claim_encoder = ItemEncoder(
             feature_types=Claim.numpy_feature_types(),
             item_embedding_dim=claim_embedding_dim,
@@ -155,10 +154,12 @@ class GambleEncoder(nn.Module):
         )
 
         if kwargs['use_pretrained_encoders']:
-            self.claim_encoder.coord_encoder.load_state_dict(
-                torch.load(kwargs['pretrained_claim_coord_encoder'], map_location=device))
-            self.courier_encoder.coord_encoder.load_state_dict(
-                torch.load(kwargs['pretrained_courier_coord_encoder'], map_location=device))
+            crr_enc_path = kwargs['pretrained_path'] + \
+                f'courier_coord_encoder_p{point_embedding_dim}cat{cat_points_embedding_dim}.pt'
+            clm_enc_path = kwargs['pretrained_path'] + \
+                f'claim_coord_encoder_p{point_embedding_dim}cat{cat_points_embedding_dim}.pt'
+            self.claim_encoder.coord_encoder.load_state_dict(torch.load(clm_enc_path, map_location=device))
+            self.courier_encoder.coord_encoder.load_state_dict(torch.load(crr_enc_path, map_location=device))
             for p in self.claim_encoder.coord_encoder.parameters():
                 p.requires_grad = False
             for p in self.courier_encoder.coord_encoder.parameters():

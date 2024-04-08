@@ -5,8 +5,6 @@
             "cat_points_embedding_dim": 8,
             "route_embedding_dim": 64,
             "claim_embedding_dim": 32,
-            "courier_embedding_dim": 64,
-            "order_embedding_dim": 64,
             "courier_order_embedding_dim": 64
         },
         "medium" : {
@@ -20,10 +18,8 @@
             "point_embedding_dim": 256,
             "cat_points_embedding_dim": 64,
             "route_embedding_dim": 256,
-            "claim_embedding_dim": 128,
-            "courier_embedding_dim": 256,
-            "order_embedding_dim": 256,
-            "courier_order_embedding_dim": 256
+            "claim_embedding_dim": 32,
+            "courier_order_embedding_dim": 64
         }
     }
 }
