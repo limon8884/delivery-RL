@@ -1,13 +1,15 @@
-name: distr_sampler_sweep
+name: distr_sampler_long_traj
 method: random
 metric:
   goal: maximize
   name: CR
 parameters:
+  group_run:
+    value: "distr_sampler_long_traj"
   n_envs: 
-    value: 8
+    value: 1
   trajectory_lenght:
-    value: 500
+    value: 12000
   batch_size: 
     value: 64
   num_epochs_per_traj:

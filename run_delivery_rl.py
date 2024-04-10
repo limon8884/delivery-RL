@@ -54,7 +54,7 @@ from src.evaluation import evaluate
 @click.option('--coef_reward_distance', required=False, type=float, default=1.0)
 @click.option('--eval_num_simulator_steps', required=False, type=int, default=200)
 @click.option('--eval_n_envs', required=False, type=int, default=2)
-@click.option('--eval_trajectory_lenght', required=False, type=int, default=500)
+@click.option('--eval_trajectory_lenght', required=False, type=int, default=2000)
 @click.option('--eval_epochs_frequency', required=False, type=int, default=1000)
 @click.option('--num_gambles_in_day', required=False, type=int, default=2880)
 @click.option('--sweep_id', type=str, default='')
