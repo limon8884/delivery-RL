@@ -74,19 +74,21 @@ def main():
         with open('configs/network.json') as f:
             net_cfg = json.load(f)['encoder'][model_size]
         encoder = GambleEncoder(
-            order_embedding_dim=net_cfg['order_embedding_dim'],
+            courier_order_embedding_dim=net_cfg['courier_order_embedding_dim'],
             claim_embedding_dim=net_cfg['claim_embedding_dim'],
-            courier_embedding_dim=net_cfg['courier_embedding_dim'],
             route_embedding_dim=net_cfg['route_embedding_dim'],
             point_embedding_dim=net_cfg['point_embedding_dim'],
             cat_points_embedding_dim=net_cfg['cat_points_embedding_dim'],
             max_num_points_in_route=max_num_points_in_route,
+            use_pretrained_encoders=False,
             dropout=0.2,
             device=None,
         )
-        ac = DeliveryActorCritic(gamble_encoder=encoder, clm_emb_size=net_cfg['claim_embedding_dim'], device=None,
+        ac = DeliveryActorCritic(gamble_encoder=encoder,
+                                 coc_emb_size=net_cfg['claim_embedding_dim'] + net_cfg['courier_order_embedding_dim'],
+                                 device=None,
                                  temperature=1.0)
-        ac.load_state_dict(torch.load('checkpoints/e253f0d457794205b994ccb3abbca711.pt', map_location='cpu'))
+        ac.load_state_dict(torch.load('checkpoints/6213d27a9efc4032bd1a59ceb596c9f4.pt', map_location='cpu'))
         dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route)
         db.clear()
         res = evaluate(
