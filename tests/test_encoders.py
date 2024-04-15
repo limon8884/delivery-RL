@@ -1,10 +1,11 @@
-# import torch
-# import torch.nn as nn
+import torch
+import torch.nn as nn
 import numpy as np
 from datetime import datetime, timedelta
 
 from src.networks.encoders import (
-    CoordEncoder,
+    PointEncoder,
+    CoordMLPEncoder,
     NumberEncoder,
     ItemEncoder,
     GambleEncoder,
@@ -17,9 +18,15 @@ BASE_DTTM = datetime.utcnow()
 
 
 def test_point_encoder():
-    enc = CoordEncoder(coords_np_dim=10, coords_embedding_dim=64, device=None)
-    coords = np.random.randn(3, 10)
-    assert enc(coords).shape == (3, 64)
+    enc = PointEncoder(point_emb_dim=12, device=None)
+    points = torch.randn((5, 2))
+    assert enc(points).shape == (5, 12)
+
+
+def test_coord_encoder():
+    enc = CoordMLPEncoder(coords_np_dim=10,  point_embedding_dim=16, coords_embedding_dim=64, device=None)
+    coords = torch.randn((5, 10))
+    assert enc(coords).shape == (5, 64)
 
 
 def test_number_encoder():
@@ -30,7 +37,7 @@ def test_number_encoder():
 
 def test_courier_encoder():
     enc = ItemEncoder(feature_types=Courier.numpy_feature_types(),
-                      item_embedding_dim=32, point_embedding_dim=16, number_embedding_dim=8, device=None)
+                      item_embedding_dim=32, point_embedding_dim=16, cat_points_embedding_dim=4, device=None)
     crr = Courier(
         id=0,
         position=Point(0.5, -1.5),
@@ -68,10 +75,10 @@ def test_order_encoder():
         feature_types=Order.numpy_feature_types(max_num_points_in_route=8),
         item_embedding_dim=64,
         point_embedding_dim=32,
-        number_embedding_dim=4,
+        cat_points_embedding_dim=4,
         device=None,
     )
-    
+
     courier = Courier(
         id=0,
         position=Point(0.0, 1.0),
@@ -95,7 +102,7 @@ def test_claim_encoder():
         Claim.numpy_feature_types(),
         item_embedding_dim=64,
         point_embedding_dim=32,
-        number_embedding_dim=4,
+        cat_points_embedding_dim=4,
         device=None,
     )
     claim = Claim(
@@ -131,13 +138,14 @@ def make_route(i):
 
 def test_gamble_encoder():
     enc = GambleEncoder(
-        order_embedding_dim=64,
         claim_embedding_dim=32,
-        courier_embedding_dim=32,
+        courier_order_embedding_dim=64,
+        route_embedding_dim=128,
         point_embedding_dim=8,
-        number_embedding_dim=4,
+        cat_points_embedding_dim=4,
         max_num_points_in_route=10,
         device=None,
+        use_pretrained_encoders=False,
         )
     gamble = Gamble(
         couriers=[make_courier(i) for i in range(5)],
@@ -158,6 +166,6 @@ def test_gamble_encoder():
     }
     emb_dict = enc(d)
     assert isinstance(emb_dict, dict)
-    assert emb_dict['crr'].shape == (5, 32)
+    assert emb_dict['crr'].shape == (5, 64)
     assert emb_dict['clm'].shape == (4, 32)
     assert emb_dict['ord'].shape == (3, 64)

@@ -21,7 +21,7 @@ def test_creation(tmp_path):
     from {TableName.CLAIM_TABLE.value}
     ''')
 
-    assert len(res) == 1 and len(res[0]) == 4
+    assert len(res) == 1 and len(res[0]) == 5
     assert res[0][1] == 1
     assert res[0][3] == Event.CLAIM_CANCELLED.value
 

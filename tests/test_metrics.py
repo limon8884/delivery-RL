@@ -209,9 +209,9 @@ def test_cumulative_metrics_long_run(tmp_path):
         assignments = dsp(gamble)
         sim.next(assignments)
         stats = sim.assignment_statistics
-        total_completed = sum(1 for item_id, dttm, event in db_logger.data['claims'] if event == 'claim_completed')
-        total_assigned = sum(1 for item_id, dttm, event in db_logger.data['claims'] if event == 'claim_assigned')
-        total_cancelled = sum(1 for item_id, dttm, event in db_logger.data['claims'] if event == 'claim_cancelled')
+        total_completed = sum(1 for item_id, dttm, event, info in db_logger.data['claims'] if event == 'claim_completed')
+        total_assigned = sum(1 for item_id, dttm, event, info in db_logger.data['claims'] if event == 'claim_assigned')
+        total_cancelled = sum(1 for item_id, dttm, event, info in db_logger.data['claims'] if event == 'claim_cancelled')
         assert total_completed == last_completed + stats['completed_claims']
         assert total_assigned == last_assigned + stats['assigned_not_batched_claims'] + stats['assigned_batched_claims']
         assert total_cancelled == last_cancelled + stats['cancelled_claims']
