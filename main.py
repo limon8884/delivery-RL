@@ -20,35 +20,43 @@ from src.evaluation import evaluate
 def main():
     db = Database(Path('history.db'))
     db.clear()
-    sample_mode = 'dummy_sampler'
+    sample_mode = 'distr_sampler'
     model_size = 'medium'
     max_num_points_in_route = 2
     eval_num_simulator_steps = 200
-    n_runs = 3
+    n_runs = 5
 
     print('Hungarian')
-    res = evaluate(
-        dispatch=HungarianDispatch(DistanceScorer()),
-        run_id=0,
-        simulator_cfg_path='configs/simulator.json',
-        sampler_mode=sample_mode,
-        max_num_points_in_route=max_num_points_in_route,
-        history_db_path='history.db',
-        eval_num_simulator_steps=eval_num_simulator_steps,
-    )
-    print(res)
+    ress = []
+    for run in range(n_runs):
+        res = evaluate(
+            dispatch=HungarianDispatch(DistanceScorer()),
+            run_id=0,
+            simulator_cfg_path='configs/simulator.json',
+            sampler_mode=sample_mode,
+            max_num_points_in_route=max_num_points_in_route,
+            history_db_path='history.db',
+            eval_num_simulator_steps=eval_num_simulator_steps,
+        )
+        ress.append(res)
+    print('CR', np.mean([res['CR'] for res in ress]))
+    print(ress)
 
     print('Greedy')
-    res = evaluate(
-        dispatch=GreedyDispatch(DistanceScorer()),
-        run_id=1,
-        simulator_cfg_path='configs/simulator.json',
-        sampler_mode=sample_mode,
-        max_num_points_in_route=max_num_points_in_route,
-        history_db_path='history.db',
-        eval_num_simulator_steps=eval_num_simulator_steps,
-    )
-    print(res)
+    ress = []
+    for run in range(n_runs):
+        res = evaluate(
+            dispatch=GreedyDispatch(DistanceScorer()),
+            run_id=1,
+            simulator_cfg_path='configs/simulator.json',
+            sampler_mode=sample_mode,
+            max_num_points_in_route=max_num_points_in_route,
+            history_db_path='history.db',
+            eval_num_simulator_steps=eval_num_simulator_steps,
+        )
+        ress.append(res)
+    print('CR', np.mean([res['CR'] for res in ress]))
+    print(ress)
 
     print('Random')
     ress = []
@@ -65,7 +73,7 @@ def main():
         )
         # ress.append(res['CR'])
         ress.append(res)
-    # print(np.mean(ress))
+    print('CR', np.mean([res['CR'] for res in ress]))
     print(ress)
 
     print('Neural')
@@ -87,8 +95,9 @@ def main():
         ac = DeliveryActorCritic(gamble_encoder=encoder,
                                  coc_emb_size=net_cfg['claim_embedding_dim'] + net_cfg['courier_order_embedding_dim'],
                                  device=None,
-                                 temperature=1.0)
-        ac.load_state_dict(torch.load('checkpoints/6213d27a9efc4032bd1a59ceb596c9f4.pt', map_location='cpu'))
+                                 temperature=1.0,
+                                 use_dist_feature=True)
+        ac.load_state_dict(torch.load('checkpoints/f9c06ccb65f149d5ae5785d68e285b64.pt', map_location='cpu'))
         dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route)
         db.clear()
         res = evaluate(
@@ -102,7 +111,7 @@ def main():
         )
         # ress.append(res['CR'])
         ress.append(res)
-    # print(np.mean(ress))
+    print('CR', np.mean([res['CR'] for res in ress]))
     print(ress)
 
 
