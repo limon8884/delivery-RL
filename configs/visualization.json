@@ -1,0 +1,63 @@
+{
+    "claim": {
+        "gradient": {
+            "num_pieces": 100,
+            "min": {
+                "value": 0,
+                "color": "green"
+            },
+            "max": {
+                "value": 600,
+                "color": "red"
+            }
+        },
+        "markers": {
+            "source": "^",
+            "destination": "v"
+        },
+        "kwargs": {
+            "s": 100,
+            "edgecolor": "black",
+            "linewidth": 0.9
+        },
+        "annotation_deltas": {
+            "x": 0.015,
+            "y": 0.015
+        }
+    },
+    "courier": {
+        "color": "blue",
+        "marker": "*",
+        "kwargs": {
+            "s": 100,
+            "edgecolor": "black",
+            "linewidth": 0.9
+        },
+        "annotation_deltas": {
+            "x": 0.015,
+            "y": 0.015
+        }
+    },
+    "order": {
+        "color": "gray",
+        "markers": {
+            "link": "--",
+            "courier": "o",
+            "source": "^",
+            "destination": "v"
+        },
+        "kwargs": {
+            "s": 50,
+            "edgecolor": "gray",
+            "linewidth": 0.0,
+            "alpha": 0.7
+        },
+        "links": {
+            "linewidth": 0.5,
+            "linestyle": "--",
+            "color": "gray"
+        }
+        
+    },
+    "assignment": {}
+}
