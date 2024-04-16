@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from src.reinforcement.base import Runner, InferenceMetricsRunner
 from src.reinforcement.delivery import DeliveryMaker
+from src.reinforcement.delivery2 import DeliveryMaker2
 from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src.evaluation import evaluate
 
@@ -22,6 +23,7 @@ from src.evaluation import evaluate
 @click.option('-w', '--use_wandb', required=False, default=True, is_flag=True, type=bool)
 @click.option('-z', '--fix_zero_seed', required=False, default=False, is_flag=True, type=bool)
 @click.option('-t', '--use_train_logs', required=False, default=False, is_flag=True, type=bool)
+@click.option('-m', '--mode', required=False, default='v1', type=str)
 @click.option('--use_pretrained_encoders', required=False, type=bool, default=True)
 @click.option('--mask_fake_crr', required=False, type=bool, default=False)
 @click.option('--use_dist_feature', required=False, type=bool, default=False)
@@ -73,8 +75,12 @@ def make_kwargs(**cfg):
 
 
 def run_ppo(**kwargs):
-    maker = DeliveryMaker(**kwargs)
-
+    if kwargs['mode'] == 'v1':
+        maker = DeliveryMaker(**kwargs)
+    elif kwargs['mode'] == 'v2':
+        maker = DeliveryMaker2(**kwargs)
+    else:
+        raise RuntimeError(f"No such mode {kwargs['mode']}")
     if not kwargs['use_train_logs']:
         maker.ppo.metric_logger = None
     eval_runner = Runner(environment=maker.environment.copy(), actor_critic=maker.actor_critic,

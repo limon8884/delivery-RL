@@ -21,5 +21,28 @@
             "claim_embedding_dim": 64,
             "courier_order_embedding_dim": 128
         }
+    },
+    "backbone": {
+        "small": {
+            "nhead": 2,
+            "hidden_dim": 32,
+            "dim_feedforward": 128,
+            "num_encoder_layers": 1,
+            "num_decoder_layers": 2
+        },
+        "medium": {
+            "nhead": 4,
+            "hidden_dim": 64,
+            "dim_feedforward": 256,
+            "num_encoder_layers": 2,
+            "num_decoder_layers": 4
+        },
+        "big": {
+            "nhead": 6,
+            "hidden_dim": 128,
+            "dim_feedforward": 512,
+            "num_encoder_layers": 4,
+            "num_decoder_layers": 6
+        }
     }
 }

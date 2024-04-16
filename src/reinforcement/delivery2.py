@@ -44,11 +44,15 @@ PREV_CHOICE_MASK_VALUE = -1e9
 FULL_ORDER_MASK_VALUE = -1e9
 
 
+# logging.basicConfig(filename='logs.log', encoding='utf-8', level=logging.DEBUG)
+# LOGGER = logging.getLogger(__name__)
+
+
 class DeliveryAction2(Action):
     def __init__(self, idxes: list[int]) -> None:
         self.idxes = idxes
 
-    def to_indexes(self) -> list[int]:
+    def to_index(self) -> list[int]:
         return self.idxes
 
 
@@ -121,7 +125,7 @@ class DeliveryEnvironment2(BaseEnvironment):
     def step(self, action: DeliveryAction2) -> tuple[DeliveryState2, float, bool, dict[str, float]]:
         if self.__getattribute__('_iter') is None:
             raise RuntimeError('Call reset before doing steps')
-        # LOGGER.debug(f'fake assignment: {action.to_index() == len(self._gamble.orders) + len(self._gamble.couriers)}')
+        # LOGGER.debug(f'action: {action.to_index()}')
         self._update_assignments(action)
         self._update_next_gamble()
         reward = self.rewarder(self._assignment_statistics)
@@ -156,7 +160,7 @@ class DeliveryEnvironment2(BaseEnvironment):
         self._iter += 1
 
     def _update_assignments(self, action: DeliveryAction2):
-        for c_idx, co_idx in enumerate(action.to_indexes()):
+        for c_idx, co_idx in enumerate(action.to_index()):
             if co_idx < len(self._gamble.couriers):
                 self._assignments.ids.append((
                     self._gamble.couriers[co_idx].id,
@@ -224,34 +228,14 @@ class DeliveryActorCritic2(BaseActorCritic):
 
     def _make_padded_policy_value_tensors(self, states: list[DeliveryState2]
                                           ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
-        # bs = len(states)
-        # max_clm_len, max_co_len = 0, 0
-        # for state in states:
-        #     max_clm_len = max(max_clm_len, len(state.claim_embs) if state.claim_embs is not None else 0)
-        #     crr_len = len(state.couriers_embs) if state.couriers_embs is not None else 0
-        #     ord_len = len(state.orders_embs) if state.orders_embs is not None else 0
-        #     max_co_len = max(max_co_len, crr_len + ord_len + 1)
-        # clm_embs_tensor = torch.zeros(size=(bs, max_clm_len, self.clm_emb_size), device=self.device, dtype=torch.float)
-        # crr_ord_embs_tensor = torch.zeros(size=(bs, max_co_len, self.crr_ord_emb_size),
-        #                                   device=self.device, dtype=torch.float)
-        # full_masks_tensor = torch.zeros(size=(bs, max_co_len), device=self.device, dtype=torch.float)
         clm_embs_list, crr_ord_embs_list, attn_masks_list, pad_clm_masks_list, pad_co_masks_list = [], [], [], [], []
         for idx, state in enumerate(states):
             co_embs, clm_embs = self._make_three_tensors_from_state(state)
-            # if self.use_dist_feature:
-            #     co_dists = torch.tensor(state.claims_to_couries_dists,
-            #                             dtype=torch.float, device=self.device).unsqueeze(-1)
-            #     co_embs = torch.cat([co_embs, co_dists], dim=-1)
             attn_masks_list.append(self._make_full_order_mask(state))
             crr_ord_embs_list.append(co_embs)
             clm_embs_list.append(clm_embs)
             pad_clm_masks_list.append(torch.tensor([False] * len(clm_embs), device=self.device))
             pad_co_masks_list.append(torch.tensor([False] * len(co_embs), device=self.device))
-            # crr_len = len(state.couriers_embs) if state.couriers_embs is not None else 0
-            # ord_len = len(state.orders_embs) if state.orders_embs is not None else 0
-            # clm_embs_tensor[idx, :clm_embs.size(0), :] = clm_embs
-            # crr_ord_embs_tensor[idx, :co_embs.size(0), :] = co_embs
-            # full_masks_tensor[idx, :full_ord_masks.size(0)] = FULL_ORDER_MASK_VALUE
 
         crr_ord_embs_tensor = pad_sequence(crr_ord_embs_list, batch_first=True)
         clm_embs_tensor = pad_sequence(clm_embs_list, batch_first=True)
@@ -319,3 +303,76 @@ class DeliveryActorCritic2(BaseActorCritic):
 
     def get_values_tensor(self) -> torch.FloatTensor:
         return self.values
+
+
+class DeliveryMaker2(BaseMaker):
+    def __init__(self, **kwargs) -> None:
+        batch_size = kwargs['batch_size']
+        max_num_points_in_route = kwargs['max_num_points_in_route']
+        device = kwargs['device']
+
+        simulator_config_path = Path(kwargs['simulator_cfg_path'])
+        model_size = kwargs['model_size']
+        network_config_path = Path(kwargs['network_cfg_path'])
+        with open(network_config_path) as f:
+            full_cfg = json.load(f)
+            encoder_cfg = full_cfg['encoder'][model_size]
+            backbone_cfg = full_cfg['backbone'][model_size]
+
+        gamble_encoder = GambleEncoder(**kwargs, **encoder_cfg)
+        backbone = TransformerBackbone(**kwargs, **encoder_cfg, **backbone_cfg)
+        reader = DataReader.from_config(config_path=simulator_config_path,
+                                        sampler_mode=kwargs['sampler_mode'], db_logger=None)
+        route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
+        sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=simulator_config_path, db_logger=None)
+        rewarder = DeliveryRewarder2(**kwargs)
+        self._train_metric_logger = MetricLogger(use_wandb=kwargs['use_wandb'])
+        self._env = DeliveryEnvironment2(simulator=sim, rewarder=rewarder, **kwargs)
+        self._ac = DeliveryActorCritic2(gamble_encoder=gamble_encoder,
+                                        backbone=backbone,
+                                        clm_emb_size=encoder_cfg['claim_embedding_dim'],
+                                        crr_ord_emb_size=encoder_cfg['courier_order_embedding_dim'],
+                                        temperature=kwargs['exploration_temperature'],
+                                        use_dist_feature=kwargs['use_dist_feature'],
+                                        mask_fake_crr=kwargs['mask_fake_crr'],
+                                        device=device)
+        if kwargs['load_checkpoint']:
+            self._ac.load_state_dict(torch.load(kwargs['load_checkpoint'], map_location=device))
+        opt = make_optimizer(self._ac.parameters(), **kwargs)
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=kwargs['scheduler_max_lr'],
+                                                        total_steps=kwargs['total_iters'],
+                                                        pct_start=kwargs['scheduler_pct_start'])
+        self._ppo = PPO(
+            actor_critic=self._ac,
+            opt=opt,
+            scheduler=scheduler,
+            metric_logger=self._train_metric_logger,
+            **kwargs
+            )
+        runner = Runner(environment=self._env, actor_critic=self._ac, n_envs=kwargs['n_envs'],
+                        trajectory_lenght=kwargs['trajectory_lenght'])
+        gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
+        normalizer = RewardNormalizer(gamma=kwargs['reward_norm_gamma'], cliprange=kwargs['reward_norm_cliprange'])
+        buffer = Buffer(gae, reward_normalizer=normalizer, device=device)
+        self._sampler = TrajectorySampler(runner, buffer, num_epochs_per_traj=kwargs['num_epochs_per_traj'],
+                                          batch_size=batch_size)
+
+    @property
+    def ppo(self) -> PPO:
+        return self._ppo
+
+    @property
+    def sampler(self) -> TrajectorySampler:
+        return self._sampler
+
+    @property
+    def actor_critic(self) -> BaseActorCritic:
+        return self._ac
+
+    @property
+    def environment(self) -> BaseEnvironment:
+        return self._env
+
+    @property
+    def metric_logger(self) -> MetricLogger:
+        return self._train_metric_logger
