@@ -82,15 +82,3 @@ def model_size(model: nn.Module):
 
     size_all_mb = (param_size + buffer_size) / 1000**2
     print('model size: {:.3f}M params'.format(size_all_mb))
-
-
-def results():
-    cfg = {
-        "sample_mode": 'dummy_sampler',
-        "max_num_points_in_route": 2,
-        "eval_num_simulator_steps": 200,
-        "n_runs": 1
-    }
-    df = pd.DataFrame.from_dict(run_baselines(**cfg)).T
-    pd.set_option("display.precision", 2)
-    print(df)
