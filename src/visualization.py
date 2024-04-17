@@ -2,9 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import imageio
 import typing
+import json
 from pathlib import Path
 from matplotlib.lines import Line2D
 from colour import Color
+from PIL import Image
 
 
 from src.objects import (
@@ -13,18 +15,17 @@ from src.objects import (
     Claim,
     Courier,
     Order,
-    Point
+    Route
 )
 
 
 class Visualization:
-    def __init__(self, save_path: Path, mute: bool = False, duration_sec=1, figsize=(10, 10)) -> None:
-        self.images = []
+    def __init__(self, config_path: Path, mute: bool = False, figsize=(10, 10)) -> None:
+        self.images: list[np.ndarray] = []
         self.mute = mute
-        self.save_path = save_path
-        self.duration_sec = duration_sec
         self.figsize = figsize
-        self.config = {}
+        with open(config_path) as f:
+            self.config = json.load(f)
 
     def visualize(self, gamble: Gamble, assignment: Assignment, step: int):
         if self.mute:
@@ -37,15 +38,32 @@ class Visualization:
         plot_assignment(gamble, assignment, ax, self.config['assignment'])
         fig.canvas.draw()
         image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
-        self.images.append(image.reshape(self.figsize[1] * 100, self.figsize[0] * 100, 3))
+        ncols, nrows = fig.canvas.get_width_height()
+        self.images.append(image.reshape(nrows, ncols, 3))
 
-    def save_visualization(self):
-        imageio.mimsave(self.save_path, self.images, format='GIF', duration=int(self.duration_sec * 1000))
+    def to_gif(self, save_path: Path, duration_sec: int):
+        assert len(self.images) > 0
+        imageio.mimsave(save_path, self.images, format='GIF', duration=int(duration_sec * 1000))
+
+    def reset(self):
         self.images = []
+
+    def __len__(self):
+        return len(self.images)
+
+    def show(self, idx: int):
+        assert idx < len(self.images)
+        Image.fromarray(self.images[idx]).show()
 
 
 def plot_assignment(gamble: Gamble, assignment: Assignment, ax: typing.Any, cfg: dict) -> None:
-    pass
+    crrs_coords = {crr.id: crr.position for crr in gamble.couriers}
+    clms_coords = {clm.id: clm.source_point for clm in gamble.claims}
+    for crr_id, clm_id in assignment.ids:
+        crr_x, crr_y = crrs_coords[crr_id].x, crrs_coords[crr_id].y
+        clm_x, clm_y = clms_coords[clm_id].x, clms_coords[clm_id].y
+        line = Line2D([crr_x, clm_x], [crr_y, clm_y], **cfg)
+        ax.add_line(line)
 
 
 def make_get_color(cfg: dict):
@@ -74,12 +92,11 @@ def plot_claims(claims: list[Claim], ax: typing.Any, cfg: dict):
         y_source_coords.append(claim.source_point.y)
         x_destination_coords.append(claim.destination_point.x)
         y_destination_coords.append(claim.destination_point.y)
-        colors.append(get_color(claim.time))
+        colors.append(get_color((claim._dttm - claim.creation_dttm).total_seconds()))
         ax.annotate(claim.id, (claim.source_point.x + annd['x'], claim.source_point.y + annd['y']))
         ax.annotate(claim.id, (claim.destination_point.x + annd['x'], claim.destination_point.y + annd['y']))
-    ax.scatter(x_source_coords, y_source_coords, facecolor=colors, marker=cfg['markers']['source'], **cfg['kwargs'])
-    ax.scatter(x_destination_coords, y_destination_coords, facecolor=colors, marker=cfg['markers']['destination'],
-               **cfg['kwargs'])
+    ax.scatter(x_source_coords, y_source_coords, facecolor=colors, **cfg['source'])
+    ax.scatter(x_destination_coords, y_destination_coords, facecolor=colors, **cfg['destination'])
 
 
 def plot_couriers(couriers: list[Courier], ax: typing.Any, cfg: dict):
@@ -93,28 +110,33 @@ def plot_couriers(couriers: list[Courier], ax: typing.Any, cfg: dict):
 
 
 def plot_orders(orders: list[Order], ax: typing.Any, cfg: dict):
-    x_points, y_points = [], []
+    from_color = Color(cfg['color']['min'])
+    to_color = Color(cfg['color']['max'])
+    x_source_points, y_source_points = [], []
+    x_destination_points, y_destination_points = [], []
     x_crrs, y_crrs = [], []
+    source_colors, destination_colors = [], []
     for order in orders:
+        palette = [c.hex for c in from_color.range_to(to_color, len(order.claims))]
+        claim_id_2_color = {id: c for id, c in zip(order.claims.keys(), palette)}
         prev_x, prev_y = order.courier.position.x, order.courier.position.y
-        for pt in order.route:
+        for rpt in order.route.route_points:
+            pt = rpt.point
             line = Line2D([prev_x, pt.x], [prev_y, pt.y], **cfg['links'])
             ax.add_line(line)
-            x_points.append(pt.x)
-            y_points.append(pt.y)
+            if rpt.point_type is Route.PointType.SOURCE:
+                x_source_points.append(pt.x)
+                y_source_points.append(pt.y)
+                source_colors.append(claim_id_2_color[rpt.claim_id])
+            elif rpt.point_type is Route.PointType.DESTINATION:
+                x_destination_points.append(pt.x)
+                y_destination_points.append(pt.y)
+                destination_colors.append(claim_id_2_color[rpt.claim_id])
             prev_x, prev_y = pt.x, pt.y
         x_crrs.append(order.courier.position.x)
         y_crrs.append(order.courier.position.y)
-    ax.scatter(x_points, y_points, facecolor=cfg['color'], marker=cfg['markers']['source'], **cfg['kwargs'])
-    ax.scatter(x_crrs, y_crrs, facecolor=cfg['color'], marker=cfg['markers']['courier'], **cfg['kwargs'])
-
-
-# if __name__ == '__main__':
-#     v = Visualization('test.gif')
-#     data1 = np.random.random((8, 10))
-#     data2 = np.random.random((8, 10)) * 5
-#     for step, (d1, d2) in enumerate(zip(data1, data2)):
-#         v.visualize(d1, d2, step)
-#     v.save_visualization()
-
-
+    ax.scatter(x_source_points, y_source_points, facecolor=source_colors, marker=cfg['markers']['source'],
+               **cfg['kwargs'])
+    ax.scatter(x_destination_points, y_destination_points, facecolor=destination_colors,
+               marker=cfg['markers']['destination'], **cfg['kwargs'])
+    ax.scatter(x_crrs, y_crrs, facecolor=cfg['color']['courier'], marker=cfg['markers']['courier'], **cfg['kwargs'])

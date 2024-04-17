@@ -11,12 +11,16 @@
                 "color": "red"
             }
         },
-        "markers": {
-            "source": "^",
-            "destination": "v"
-        },
-        "kwargs": {
+        "source": {
+            "marker": "^",
             "s": 100,
+            "edgecolor": "black",
+            "linewidth": 0.9
+        },
+        "destination": {
+            "marker": "v",
+            "s": 50,
+            "alpha": 0.7,
             "edgecolor": "black",
             "linewidth": 0.9
         },
@@ -39,7 +43,11 @@
         }
     },
     "order": {
-        "color": "gray",
+        "color": {
+            "courier": "red",
+            "min": "#F1D8F7",
+            "max": "#6E0384"
+        },
         "markers": {
             "link": "--",
             "courier": "o",
@@ -48,16 +56,20 @@
         },
         "kwargs": {
             "s": 50,
-            "edgecolor": "gray",
-            "linewidth": 0.0,
-            "alpha": 0.7
+            "alpha": 0.7,
+            "edgecolor": "gray"
         },
         "links": {
             "linewidth": 0.5,
-            "linestyle": "--",
+            "alpha": 0.7,
+            "linestyle": ":",
             "color": "gray"
         }
         
     },
-    "assignment": {}
+    "assignment": {
+        "linestyle": "-",
+        "linewidth": 2.0,
+        "color": "black"
+    }
 }
