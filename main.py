@@ -1,144 +1,39 @@
 import json
-import torch
-import numpy as np
-from pathlib import Path
+import click
+import pandas as pd
+from pprint import pprint
 
-from src.simulator.simulator import Simulator
-from src.simulator.data_reader import DataReader
-from src.router_makers import AppendRouteMaker
-from src.database.database import Database, Metric, DatabaseLogger
-from src.dispatchs.hungarian_dispatch import HungarianDispatch, BaseDispatch
-from src.dispatchs.greedy_dispatch import GreedyDispatch
-from src.dispatchs.random_dispatch import RandomDispatch
-from src.dispatchs.scorers import DistanceScorer
-from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
-from src.networks.encoders import GambleEncoder
-from src.reinforcement.delivery import DeliveryActorCritic
-from src.evaluation import evaluate
+from src.results import run_baselines, run_model
 
 
-def main():
-    db = Database(Path('history.db'))
-    db.clear()
-    sample_mode = 'distr_sampler'
-    model_size = 'medium'
-    max_num_points_in_route = 2
-    eval_num_simulator_steps = 200
-    n_runs = 5
+@click.command()
+@click.option('--s_mode', 'sample_mode', type=str, default="dummy_sampler")
+@click.option('--n_pts', 'max_num_points_in_route', type=int, default=2)
+@click.option('--steps', 'eval_num_simulator_steps', type=int, default=200)
+@click.option('--n_runs', type=int, default=5)
+@click.option('--model_size', type=str, default='medium')
+@click.option('--use_dist_feature', type=bool, default=True)
+@click.option('--device', type=str, default='cpu')
+@click.option('--use_pretrained_encoders', type=bool, default=True)
+@click.argument('checkpoint_ids', nargs=-1)
+def results(checkpoint_ids, **kwargs):
+    print(f'Evaluating checkpoints: {checkpoint_ids} with kwargs:\n')
+    pprint(kwargs)
+    print('-' * 50 + '\n\n')
+    results = {}
+    with open('configs/paths.json') as f:
+        kwargs.update(json.load(f))
+    for checkpoint_id in checkpoint_ids:
+        print(f'Start running checkpoint {checkpoint_id}')
+        results[checkpoint_id] = run_model(checkpoint_id, **kwargs)
+    results.update(run_baselines(**kwargs))
 
-    print('Hungarian')
-    ress = []
-    for run in range(n_runs):
-        res = evaluate(
-            dispatch=HungarianDispatch(DistanceScorer()),
-            run_id=0,
-            simulator_cfg_path='configs/simulator.json',
-            sampler_mode=sample_mode,
-            max_num_points_in_route=max_num_points_in_route,
-            history_db_path='history.db',
-            eval_num_simulator_steps=eval_num_simulator_steps,
-        )
-        ress.append(res)
-    print('CR', np.mean([res['CR'] for res in ress]))
-    print(ress)
-
-    print('Greedy')
-    ress = []
-    for run in range(n_runs):
-        res = evaluate(
-            dispatch=GreedyDispatch(DistanceScorer()),
-            run_id=1,
-            simulator_cfg_path='configs/simulator.json',
-            sampler_mode=sample_mode,
-            max_num_points_in_route=max_num_points_in_route,
-            history_db_path='history.db',
-            eval_num_simulator_steps=eval_num_simulator_steps,
-        )
-        ress.append(res)
-    print('CR', np.mean([res['CR'] for res in ress]))
-    print(ress)
-
-    print('Random')
-    ress = []
-    for run in range(n_runs):
-        db.clear()
-        res = evaluate(
-            dispatch=RandomDispatch(),
-            run_id=run,
-            simulator_cfg_path='configs/simulator.json',
-            sampler_mode=sample_mode,
-            max_num_points_in_route=max_num_points_in_route,
-            history_db_path='history.db',
-            eval_num_simulator_steps=eval_num_simulator_steps,
-        )
-        # ress.append(res['CR'])
-        ress.append(res)
-    print('CR', np.mean([res['CR'] for res in ress]))
-    print(ress)
-
-    print('Neural')
-    ress = []
-    for run in range(n_runs):
-        with open('configs/network.json') as f:
-            net_cfg = json.load(f)['encoder'][model_size]
-        encoder = GambleEncoder(
-            courier_order_embedding_dim=net_cfg['courier_order_embedding_dim'],
-            claim_embedding_dim=net_cfg['claim_embedding_dim'],
-            route_embedding_dim=net_cfg['route_embedding_dim'],
-            point_embedding_dim=net_cfg['point_embedding_dim'],
-            cat_points_embedding_dim=net_cfg['cat_points_embedding_dim'],
-            max_num_points_in_route=max_num_points_in_route,
-            use_pretrained_encoders=False,
-            dropout=0.2,
-            device=None,
-        )
-        ac = DeliveryActorCritic(gamble_encoder=encoder,
-                                 coc_emb_size=net_cfg['claim_embedding_dim'] + net_cfg['courier_order_embedding_dim'],
-                                 device=None,
-                                 temperature=1.0,
-                                 use_dist_feature=True)
-        ac.load_state_dict(torch.load('checkpoints/f9c06ccb65f149d5ae5785d68e285b64.pt', map_location='cpu'))
-        dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=max_num_points_in_route)
-        db.clear()
-        res = evaluate(
-            dispatch=dsp,
-            run_id=run,
-            simulator_cfg_path='configs/simulator.json',
-            sampler_mode=sample_mode,
-            max_num_points_in_route=max_num_points_in_route,
-            history_db_path='history.db',
-            eval_num_simulator_steps=eval_num_simulator_steps,
-        )
-        # ress.append(res['CR'])
-        ress.append(res)
-    print('CR', np.mean([res['CR'] for res in ress]))
-    print(ress)
-
-
-def debug():
-    with open('configs/network.json') as f:
-        net_cfg = json.load(f)['encoder']
-    encoder = GambleEncoder(
-        order_embedding_dim=net_cfg['order_embedding_dim'],
-        claim_embedding_dim=net_cfg['claim_embedding_dim'],
-        courier_embedding_dim=net_cfg['courier_embedding_dim'],
-        route_embedding_dim=net_cfg['route_embedding_dim'],
-        point_embedding_dim=net_cfg['point_embedding_dim'],
-        number_embedding_dim=net_cfg['number_embedding_dim'],
-        max_num_points_in_route=2,
-        device=None,
-    )
-    param_size = 0
-    for param in encoder.parameters():
-        param_size += param.nelement()
-    buffer_size = 0
-    for buffer in encoder.buffers():
-        buffer_size += buffer.nelement()
-
-    size_all_mb = (param_size + buffer_size) / 1024**2
-    print('model size: {:.3f}M'.format(size_all_mb))
+    print('-' * 50)
+    print('Results', end='\n\n')
+    df = pd.DataFrame.from_dict(results).T
+    pd.set_option("display.precision", 2)
+    print(df)
 
 
 if __name__ == '__main__':
-    main()
-    # debug()
+    results()

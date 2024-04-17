@@ -1,11 +1,11 @@
 # torch
+# scikit-learn
+# colour
+# imageio
 scipy
 matplotlib
 numpy
 pandas
-# gym==0.21.0
-# tensordict
-# torchrl
 joblib
 wandb==0.15.7
 ipython
@@ -13,4 +13,5 @@ tqdm
 flake8
 mypy
 uuid
+# gym==0.21.0
 # gym['InvertedDoublePendulum-v2']
