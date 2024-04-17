@@ -30,7 +30,7 @@ class NeuralSequantialDispatch(BaseDispatch):
         assignment_list = []
         available_couriers = gamble.couriers
         available_orders = gamble.orders
-        prev_idxs = []
+        prev_idxs: list[int] = []
         claims_to_couriers_distances = compulte_claims_to_couriers_distances(gamble)
         for claim_idx in range(num_claims):
             couriers_embs_list = [c.to_numpy() for c in available_couriers]
@@ -58,7 +58,8 @@ class NeuralSequantialDispatch(BaseDispatch):
             # log_probs = self.actor_critic.get_log_probs_tensor().exp()
             # len_c = len(state.couriers_embs) if state.couriers_embs is not None else 0
             # len_o = len(state.orders_embs) if state.orders_embs is not None else 0
-            # LOGGER.debug(f'fake assignment: {assignment == len_c + len_o}, len_c: {len_c}, len_o: {len_o}, chosen probs: {log_probs_chosen}')
+            # LOGGER.debug(f'fake assignment: {assignment == len_c + len_o}, len_c: {len_c}, len_o: {len_o},
+            # chosen probs: {log_probs_chosen}')
             # LOGGER.debug(str(log_probs))
             # ###
 
@@ -77,7 +78,7 @@ class NeuralSequantialDispatch(BaseDispatch):
         return Assignment(assignment_list)
 
 
-def _make_is_full_mask(num_points_list: list[int], max_num_points_in_route: int) -> torch.FloatTensor:
-    is_full_mask = [n_points >= max_num_points_in_route - 1 for n_points in num_points_list] + [False]
-    # return torch.FloatTensor(is_full_mask) * -torch.inf
-    return torch.tensor(is_full_mask, dtype=torch.float) * -torch.inf
+# def _make_is_full_mask(num_points_list: list[int], max_num_points_in_route: int) -> torch.FloatTensor:
+#     is_full_mask = [n_points >= max_num_points_in_route - 1 for n_points in num_points_list] + [False]
+#     # return torch.FloatTensor(is_full_mask) * -torch.inf
+#     return torch.tensor(is_full_mask, dtype=torch.float) * -torch.inf

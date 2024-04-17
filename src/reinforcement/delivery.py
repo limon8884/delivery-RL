@@ -333,7 +333,6 @@ class DeliveryMaker(BaseMaker):
     def __init__(self, **kwargs) -> None:
         batch_size = kwargs['batch_size']
         max_num_points_in_route = kwargs['max_num_points_in_route']
-        use_dist = kwargs['use_dist']
         device = kwargs['device']
 
         simulator_config_path = Path(kwargs['simulator_cfg_path'])

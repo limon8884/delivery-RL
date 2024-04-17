@@ -186,7 +186,7 @@ class Runner:
             log_probs = self.actor_critic.get_log_probs_tensor()
             entropies = (-(torch.exp(log_probs) * log_probs).sum(dim=-1)).tolist()
             new_states: list[State] = []
-            total_info = defaultdict(float)
+            total_info: dict[str, float] = defaultdict(float)
             for idx in range(self.n_envs):
                 new_state, reward, done, info = self._environments[idx].step(actions[idx])
                 self._trajectories[idx].append(states[idx], actions[idx], reward, done,
@@ -236,8 +236,8 @@ class GAE:
         return advantages
 
     @staticmethod
-    def _normalize(array: list[float]) -> np.ndarray:
-        array = np.array(array)
+    def _normalize(data: list[float]) -> np.ndarray:
+        array = np.array(data)
         return (array - np.mean(array)) / (np.std(array) + 1e-7)
 
 
@@ -280,17 +280,17 @@ class Buffer:
         self.device = device
         self.replace = replace
         self.lenght = 0
-        self.reset()
+        # self.reset()
 
-    def reset(self) -> None:
-        self.lenght = 0
-        self._advantages: typing.Optional[torch.FloatTensor] = None
-        # self._target_values: typing.Optional[torch.FloatTensor] = None
-        self._log_probs_chosen: typing.Optional[torch.FloatTensor] = None
-        self._values: typing.Optional[torch.FloatTensor] = None
-        self._states: typing.Optional[list[State]] = None
-        self._actions_chosen: typing.Optional[torch.LongTensor] = None
-        self._rewards: typing.Optional[np.ndarray] = None
+    # def reset(self) -> None:
+    #     self.lenght = 0
+    #     self._advantages: typing.Optional[torch.FloatTensor] = None
+    #     # self._target_values: typing.Optional[torch.FloatTensor] = None
+    #     self._log_probs_chosen: typing.Optional[torch.FloatTensor] = None
+    #     self._values: typing.Optional[torch.FloatTensor] = None
+    #     self._states: typing.Optional[list[State]] = None
+    #     self._actions_chosen: typing.Optional[torch.LongTensor] = None
+    #     self._rewards: typing.Optional[np.ndarray] = None
 
     def update(self, trajectories: list[Trajectory]) -> None:
         '''
