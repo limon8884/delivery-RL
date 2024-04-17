@@ -146,7 +146,7 @@ class Item:
         raise NotImplementedError
 
     @staticmethod
-    def numpy_feature_types(*args, **kwargs) -> dict[tuple[int, int], str]:
+    def numpy_feature_types() -> dict[tuple[int, int], str]:
         '''
         Describes on which position of numpy view of this class which types of numbers are encoded
         Returns a dict of elements, where key is [from_idx, to_idx) and value is either `number` or `coord`
@@ -183,6 +183,7 @@ class Courier(Item):
         self.position = position
 
     def is_time_off(self) -> bool:
+        assert self._dttm is not None
         return self.end_dttm <= self._dttm
 
     def next(self, current_time: datetime) -> None:
@@ -192,12 +193,14 @@ class Courier(Item):
         if self.is_time_off() and self.status is Courier.Status.FREE:
             self.status = Courier.Status.OFFLINE
             if self._logger is not None:
+                assert self._dttm is not None
                 self._logger.insert(TableName.COURIER_TABLE, self.id, self._dttm, Event.COURIER_ENDED)
 
     def done(self) -> bool:
         return self.status is Courier.Status.OFFLINE
 
     def to_numpy(self) -> np.ndarray:
+        assert self._dttm is not None
         status_num = self.status.value
         online_secs_num = (self._dttm - self.start_dttm).total_seconds()
         return np.array([self.position.x, self.position.y, status_num, online_secs_num])
@@ -244,6 +247,7 @@ class Claim(Item):
         if self.done():
             raise RuntimeError('Claim next when done')
         super().next(current_time)
+        assert self._dttm is not None
         if self.cancell_if_not_assigned_dttm < self._dttm and self.status is Claim.Status.UNASSIGNED:
             self.cancell()
 
@@ -258,33 +262,40 @@ class Claim(Item):
         if self._logger is not None:
             self._logger.insert(TableName.CLAIM_TABLE, self.id, self._dttm, Event.CLAIM_ASSIGNED)
 
-    def complete(self, seconds_to_act: int):
+    def complete(self, seconds_to_act: float):
         assert self.status is Claim.Status.ASSIGNED, (self.status.name, self.id, self._dttm)
         self.status = Claim.Status.COMPLETED
         if self._logger is not None:
+            assert self._dttm is not None
             self._logger.insert(TableName.CLAIM_TABLE, self.id,
                                 self._dttm - timedelta(seconds=seconds_to_act), Event.CLAIM_COMPLETED)
 
     def done(self) -> bool:
         return self.status in (Claim.Status.COMPLETED, Claim.Status.CANCELLED)
 
-    def to_numpy(self) -> np.ndarray:
+    def to_numpy(self, **kwargs) -> np.ndarray:
+        use_dist = kwargs['use_dist']
         status_num = self.status.value
+        assert self._dttm is not None
         online_secs_num = (self._dttm - self.creation_dttm).total_seconds()
-        return np.array([
+        features = [
             self.source_point.x,
             self.source_point.y,
             self.destination_point.x,
             self.destination_point.y,
             status_num,
             online_secs_num
-        ])
+        ]
+        if use_dist:
+            features.append(Point.distance(self.source_point, self.destination_point))
+        return np.array(features)
 
     @staticmethod
-    def numpy_feature_types() -> dict[tuple[int, int], str]:
+    def numpy_feature_types(**kwargs) -> dict[tuple[int, int], str]:
+        use_dist_int = int(kwargs['use_dist'])
         return {
             (0, 4): 'coords',
-            (4, 6): 'numbers',
+            (4, 6 + use_dist_int): 'numbers',
         }
 
 
@@ -317,7 +328,7 @@ class Order(Item):
             self._logger.insert(TableName.ORDER_TABLE, id, self.creation_dttm, Event.ORDER_CREATED, info)
 
         self._dttm = creation_dttm
-        self._seconds_to_wait = None
+        self._seconds_to_wait: typing.Optional[float] = None
 
     def done(self) -> bool:
         return self.status is Order.Status.COMPLETED
@@ -325,9 +336,11 @@ class Order(Item):
     def get_rest_distance(self) -> float:
         return self.route.distance_with_arrival(self.courier.position)
 
-    def next(self, current_time: datetime, speed: float) -> None:
+    def next(self, current_time: datetime, **kwargs) -> None:
+        speed = kwargs['speed']
         if self.done():
             raise RuntimeError('next called for order when done')
+        assert self._dttm is not None
         seconds_to_act = (current_time - self._dttm).total_seconds()
         super().next(current_time)
         self.courier.next(current_time)
@@ -341,14 +354,15 @@ class Order(Item):
             seconds_to_act = self._move_courier(seconds_to_act, speed)
             seconds_to_act = self._wait_on_point_func(seconds_to_act)
 
-    def _finish_order(self, seconds_to_act: int) -> None:
+    def _finish_order(self, seconds_to_act: float) -> None:
         self.status = Order.Status.COMPLETED
         self.courier.status = Courier.Status.OFFLINE if self.courier.is_time_off() else Courier.Status.FREE
         if self._logger is not None:
+            assert self._dttm is not None
             self._logger.insert(TableName.ORDER_TABLE, self.id,
                                 self._dttm - timedelta(seconds=seconds_to_act), Event.ORDER_FINISHED)
 
-    def _wait_on_point_func(self, seconds_to_act: int) -> int:
+    def _wait_on_point_func(self, seconds_to_act: float) -> float:
         '''
         Returns remeining seconds to act
         '''
@@ -364,7 +378,7 @@ class Order(Item):
         self.route.next()
         return seconds_to_act
 
-    def _move_courier(self, seconds_to_act: int, speed: float) -> int:
+    def _move_courier(self, seconds_to_act: float, speed: float) -> float:
         '''
         Returns remeining seconds to act
         '''
@@ -386,9 +400,12 @@ class Order(Item):
         self.status = Order.Status.IN_PROCESS
         return seconds_to_act
 
-    def to_numpy(self, max_num_points_in_route: int) -> np.ndarray:
+    def to_numpy(self, **kwargs) -> np.ndarray:
+        max_num_points_in_route = kwargs['max_num_points_in_route']
+        use_dist = kwargs['use_dist']
         crr_tens = self.courier.to_numpy()
         status_num = self.status.value
+        assert self._dttm is not None
         online_secs_num = (self._dttm - self.creation_dttm).total_seconds()
         assert len(self.route.route_points) <= max_num_points_in_route, len(self.route.route_points)
         point_coords = []
@@ -399,19 +416,23 @@ class Order(Item):
             else:
                 point_coords.append(0)
                 point_coords.append(0)
+        route_features = point_coords + [status_num, online_secs_num]
+        if use_dist:
+            route_features.append(self.get_rest_distance())
+        return np.concatenate([crr_tens, np.array(route_features)], axis=-1)
 
-        pts_tens = np.array([status_num, online_secs_num] + point_coords)
-        return np.concatenate([crr_tens, pts_tens], axis=-1)
-
-    def has_full_route(self, max_num_points_in_route: int) -> np.ndarray:
+    def has_full_route(self, max_num_points_in_route: int) -> bool:
         return len(self.route.route_points) > max_num_points_in_route - 2
 
     @staticmethod
-    def numpy_feature_types(max_num_points_in_route: int) -> dict[tuple[int, int], str]:
+    def numpy_feature_types(**kwargs) -> dict[tuple[int, int], str]:
         crr_np_dim = max(r for _, r in Courier.numpy_feature_types().keys())
+        use_dist_int = int(kwargs['use_dist'])
+        max_num_points_in_route = kwargs['max_num_points_in_route']
         return Courier.numpy_feature_types() | {
-            (crr_np_dim, crr_np_dim + 2): 'numbers',
-            (crr_np_dim + 2, crr_np_dim + 2 + 2 * max_num_points_in_route): 'coords',
+            (crr_np_dim, crr_np_dim + 2 * max_num_points_in_route): 'coords',
+            (crr_np_dim + 2 * max_num_points_in_route,
+             crr_np_dim + 2 * max_num_points_in_route + 2 + use_dist_int): 'numbers',
         }
 
 

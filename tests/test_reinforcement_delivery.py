@@ -131,7 +131,7 @@ def test_delivery_environment(tmp_path):
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
     rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0, coef_reward_distance=0.0,
                                 coef_reward_completed=0.0)
-    env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4,
+    env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4, use_dist=False,
                               num_gambles_in_day=6, device=None)
     state1 = env.reset()
     assert env._iter == 1, env._iter
@@ -163,7 +163,7 @@ def test_delivery_environment(tmp_path):
     assert np.isclose(state4.claim_emb, [0.0, 0.8, 0.0, 0.0, 0.0, 20.0]).all(), (state4.claim_emb)
     assert np.isclose(state4.couriers_embs, [[0.0, 1.0, 0.0, 150.0], [1.0, 1.0, 0.0, 150.0]]).all()
     assert len(state4.orders_embs) == 1
-    assert np.isclose(state4.orders_embs[0], [0.5, 0.2, 1.0, 140.0, 1.0, 60.0, 0.5, 1.0] + [0.0] * 6).all()
+    assert np.isclose(state4.orders_embs[0], [0.5, 0.2, 1.0, 140.0, 0.5, 1.0] + [0.0] * 6 + [1.0, 60.0]).all()
     assert state4.prev_idxs == []
 
     state5, reward, done, info = env.step(DeliveryAction(2))
@@ -183,7 +183,7 @@ def test_delivery_actor_critic_shape(tmp_path):
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
     rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0, coef_reward_distance=0.0,
                                 coef_reward_completed=0.0)
-    env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4,
+    env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4, use_dist=False,
                               num_gambles_in_day=6, device=None)
     gamble_encoder = GambleEncoder(
         route_embedding_dim=128,
@@ -192,6 +192,7 @@ def test_delivery_actor_critic_shape(tmp_path):
         cat_points_embedding_dim=8,
         courier_order_embedding_dim=32,
         max_num_points_in_route=4,
+        use_dist=False,
         device=None,
         use_pretrained_encoders=False,
     )
@@ -209,22 +210,22 @@ def test_delivery_actor_critic_shape(tmp_path):
     assert claim_emb.shape == (16,)
 
 
-class FakeGambleEncoder(GambleEncoder):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.claim_embedding_dim = kwargs['claim_embedding_dim']
+# class FakeGambleEncoder(GambleEncoder):
+#     def __init__(self, **kwargs) -> None:
+#         super().__init__(**kwargs)
+#         self.claim_embedding_dim = kwargs['claim_embedding_dim']
 
-    def forward(self, embs_dict: dict[str, np.ndarray | None]) -> dict[str, torch.FloatTensor | None]:
-        assert embs_dict['clm'].shape[0] == 1
-        n_crr = len(embs_dict['crr']) if embs_dict['crr'] is not None else None
-        n_ord = len(embs_dict['ord']) if embs_dict['ord'] is not None else None
-        return {
-            'clm': torch.arange(self.claim_embedding_dim, dtype=torch.float).reshape(1, -1),
-            'crr': torch.arange(2 * self.claim_embedding_dim,
-                                dtype=torch.float).repeat(n_crr, 1) if n_crr is not None else None,
-            'ord': torch.arange(2 * self.claim_embedding_dim,
-                                dtype=torch.float).repeat(n_ord, 1) if n_ord is not None else None,
-        }
+#     def forward(self, embs_dict: dict[str, np.ndarray | None]) -> dict[str, torch.FloatTensor | None]:
+#         assert embs_dict['clm'].shape[0] == 1
+#         n_crr = len(embs_dict['crr']) if embs_dict['crr'] is not None else None
+#         n_ord = len(embs_dict['ord']) if embs_dict['ord'] is not None else None
+#         return {
+#             'clm': torch.arange(self.claim_embedding_dim, dtype=torch.float).reshape(1, -1),
+#             'crr': torch.arange(2 * self.claim_embedding_dim,
+#                                 dtype=torch.float).repeat(n_crr, 1) if n_crr is not None else None,
+#             'ord': torch.arange(2 * self.claim_embedding_dim,
+#                                 dtype=torch.float).repeat(n_ord, 1) if n_ord is not None else None,
+#         }
 
 
 def test_delivery_actor_critic():
@@ -235,6 +236,7 @@ def test_delivery_actor_critic():
         cat_points_embedding_dim=8,
         courier_order_embedding_dim=32,
         max_num_points_in_route=4,
+        use_dist=False,
         device=None,
         use_pretrained_encoders=False,
     )

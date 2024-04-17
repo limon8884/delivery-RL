@@ -100,6 +100,7 @@ class DeliveryRewarder:
 class DeliveryEnvironment(BaseEnvironment):
     def __init__(self, simulator: Simulator, rewarder: DeliveryRewarder, **kwargs) -> None:
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
+        self.use_dist = kwargs['use_dist']
         self.num_gambles = kwargs['num_gambles_in_day']
         self.simulator = simulator
         self.device = kwargs['device']
@@ -110,22 +111,18 @@ class DeliveryEnvironment(BaseEnvironment):
             simulator=deepcopy(self.simulator),
             rewarder=self.rewarder,
             max_num_points_in_route=self.max_num_points_in_route,
+            use_dist=self.use_dist,
             num_gambles_in_day=self.num_gambles,
             device=self.device,
         )
 
-    def reset(self) -> DeliveryState:
+    def reset(self, seed: int | None = None) -> DeliveryState:
         self._iter = 0
-        self._gamble: typing.Optional[Gamble] = None
         self._claim_idx: int = 0
         self._prev_idxs: list[int] = []
         self._assignments: Assignment = Assignment([])
         self._base_gamble_reward: float = 0.0
-        self._assignment_statistics: dict[str, float] = {
-            # 'free_couriers': 0.0,
-            # 'free_claims': 0.0,
-            # 'active_routes': 0.0,
-        }
+        self._assignment_statistics: dict[str, float] = {}
         self.simulator.reset()
         self._update_next_gamble()
         state = self._make_state_from_gamble_dict()
@@ -136,7 +133,7 @@ class DeliveryEnvironment(BaseEnvironment):
             raise RuntimeError('Call reset before doing steps')
         # LOGGER.debug(f'fake assignment: {action.to_index() == len(self._gamble.orders) + len(self._gamble.couriers)}')
         self._update_assignments(action)
-        reward = 0
+        reward = 0.0
         done = False
         info = {}
         if self._claim_idx == len(self.embs_dict['clm']):
@@ -161,8 +158,8 @@ class DeliveryEnvironment(BaseEnvironment):
             'crr': np.stack([crr.to_numpy() for crr in self._gamble.couriers], axis=0)
             if len(self._gamble.couriers)
             else None,
-            'clm': np.stack([clm.to_numpy() for clm in self._gamble.claims], axis=0),
-            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.max_num_points_in_route)
+            'clm': np.stack([clm.to_numpy(use_dist=self.use_dist) for clm in self._gamble.claims], axis=0),
+            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist)
                              for ord in self._gamble.orders], axis=0)
             if len(self._gamble.orders) > 0
             else None,
@@ -250,20 +247,22 @@ class DeliveryActorCritic(BaseActorCritic):
             nn.Linear(coc_emb_size, 1),
         ).to(device)
 
-    def forward(self, state_list: list[DeliveryState]) -> None:
+    def forward(self, state_list: list[State]) -> None:
         policy_tens, val_tens = self._make_padded_policy_value_tensors(state_list)
         self.log_probs = nn.functional.log_softmax(policy_tens / self.temperature, dim=-1)
         self.values = val_tens
-        self._actions = None
+        self._actions: typing.Optional[torch.Tensor] = None
 
-    def _make_padded_policy_value_tensors(self, states: list[DeliveryState]
+    def _make_padded_policy_value_tensors(self, states: list[State]
                                           ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         policy_tens_list, value_tens_list = [], []
         for state in states:
+            assert isinstance(state, DeliveryState)
             prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
             co_embs, claim_emb = self._make_three_tensors_from_state(state)
             if self.use_dist_feature:
-                co_dists = torch.tensor(state.claim_to_couries_dists, dtype=torch.float, device=self.device).unsqueeze(-1)
+                co_dists = torch.tensor(state.claim_to_couries_dists, dtype=torch.float,
+                                        device=self.device).unsqueeze(-1)
                 coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1), co_dists], dim=-1)
             else:
                 coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1)], dim=-1)
@@ -283,8 +282,8 @@ class DeliveryActorCritic(BaseActorCritic):
                 value_tens[-1] = 0.0
             value_tens_list.append(value_tens.mean())
 
-        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=PAD_MASK_VALUE)
-        value_tens_result = torch.tensor(value_tens_list, device=self.device)
+        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=PAD_MASK_VALUE).float()
+        value_tens_result = torch.tensor(value_tens_list, device=self.device, dtype=torch.float)
         return policy_tens_result, value_tens_result
 
     def _make_full_order_mask(self, state: DeliveryState) -> torch.BoolTensor:
@@ -313,9 +312,11 @@ class DeliveryActorCritic(BaseActorCritic):
             self._actions = torch.argmax(self.log_probs, dim=-1)
         else:
             self._actions = torch.distributions.categorical.Categorical(logits=self.log_probs).sample()
+        assert self._actions is not None
         return [DeliveryAction(a) for a in self._actions.tolist()]
 
     def get_log_probs_list(self) -> list[float]:
+        assert self._actions is not None, 'call `get_actions_list` before'
         return self.log_probs[torch.arange(len(self._actions), device=self.device), self._actions].tolist()
 
     def get_values_list(self) -> list[float]:
@@ -332,6 +333,7 @@ class DeliveryMaker(BaseMaker):
     def __init__(self, **kwargs) -> None:
         batch_size = kwargs['batch_size']
         max_num_points_in_route = kwargs['max_num_points_in_route']
+        use_dist = kwargs['use_dist']
         device = kwargs['device']
 
         simulator_config_path = Path(kwargs['simulator_cfg_path'])

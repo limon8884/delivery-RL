@@ -1,7 +1,6 @@
 import json
 import torch
 import numpy as np
-import pandas as pd
 from pathlib import Path
 from collections import defaultdict
 from torch import nn

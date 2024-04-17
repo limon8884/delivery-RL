@@ -126,7 +126,7 @@ class Simulator(object):
     def _next_active_orders(self) -> None:
         for order_id in list(self.active_orders.keys()):
             order = self.active_orders[order_id]
-            order.next(self._current_gamble_end_dttm, self.speed)
+            order.next(self._current_gamble_end_dttm, speed=self.speed)
             if order.done():
                 del self.courier_id_to_order_id[order.courier.id]
                 if not order.courier.done():

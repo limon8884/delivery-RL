@@ -57,7 +57,7 @@ def test_append_router_cutoff_radius_activates():
     cl1 = make_claim(Point(0, 1.0), Point(0, 100.0))
     rt = Route.from_claim(cl1)
     ord = Order(0, BASE_DTTM, crr, rt, [])
-    ord.next(BASE_DTTM + timedelta(seconds=1), 0.6)
+    ord.next(BASE_DTTM + timedelta(seconds=1), speed=0.6)
 
     cl2 = make_claim(Point(0, 0.7), Point(0, 101.0))
     router.add_claim(rt, crr.position, cl2)
@@ -74,7 +74,7 @@ def test_append_router_cutoff_radius_not_activates():
     cl1 = make_claim(Point(0, 1.0), Point(0, 100.0))
     rt = Route.from_claim(cl1)
     ord = Order(0, BASE_DTTM, crr, rt, [])
-    ord.next(BASE_DTTM + timedelta(seconds=1), 0.4)
+    ord.next(BASE_DTTM + timedelta(seconds=1), speed=0.4)
 
     cl2 = make_claim(Point(0, 0.7), Point(0, 101.0))
     router.add_claim(rt, crr.position, cl2)

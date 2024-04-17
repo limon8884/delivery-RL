@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from datetime import datetime, timedelta
 
 from src.objects import Point, Courier, Order, Route, Claim, Gamble
 
@@ -31,12 +30,12 @@ class PointEncoder(nn.Module):
 
 
 class NumberEncoder(nn.Module):
-    def __init__(self, numbers_np_dim, number_embedding_dim, device) -> None:
+    def __init__(self, numbers_np_dim: int, number_embedding_dim: int, device) -> None:
         super().__init__()
         self.numbers_np_dim = numbers_np_dim
         self.number_embedding_dim = number_embedding_dim
         self.mlp = nn.Sequential(
-            nn.LayerNorm(normalized_shape=(numbers_np_dim,)),
+            nn.LayerNorm(normalized_shape=[numbers_np_dim]),
             nn.Linear(numbers_np_dim, number_embedding_dim),
             nn.LeakyReLU(),
             nn.Linear(number_embedding_dim, number_embedding_dim),
@@ -103,7 +102,7 @@ class ItemEncoder(nn.Module):
         self.number_encoder = NumberEncoder(numbers_np_dim=len(self.numbers_idxs),
                                             number_embedding_dim=number_embedding_dim,
                                             device=device)
-        self.mlp = self.mlp = nn.Sequential(
+        self.mlp = nn.Sequential(
             nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
             nn.LeakyReLU(),
             nn.Linear(item_embedding_dim, item_embedding_dim),
@@ -130,9 +129,10 @@ class GambleEncoder(nn.Module):
         point_embedding_dim = kwargs['point_embedding_dim']
         cat_points_embedding_dim = kwargs['cat_points_embedding_dim']
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
+        use_dist = kwargs['use_dist']
         device = kwargs['device']
         self.claim_encoder = ItemEncoder(
-            feature_types=Claim.numpy_feature_types(),
+            feature_types=Claim.numpy_feature_types(use_dist=use_dist),
             item_embedding_dim=claim_embedding_dim,
             point_embedding_dim=point_embedding_dim * 2,
             cat_points_embedding_dim=cat_points_embedding_dim,
@@ -146,7 +146,8 @@ class GambleEncoder(nn.Module):
             device=device,
         )
         self.order_encoder = ItemEncoder(
-            feature_types=Order.numpy_feature_types(max_num_points_in_route=self.max_num_points_in_route),
+            feature_types=Order.numpy_feature_types(max_num_points_in_route=self.max_num_points_in_route,
+                                                    use_dist=use_dist),
             item_embedding_dim=courier_order_embedding_dim,
             point_embedding_dim=point_embedding_dim * (1 + self.max_num_points_in_route),
             cat_points_embedding_dim=cat_points_embedding_dim,

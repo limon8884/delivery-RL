@@ -134,7 +134,7 @@ def test_with_logger():
 def test_to_numpy():
     clm = Claim(0, Point(0, 0), Point(1, 1),
                 CREATION_TIME, CREATION_TIME + timedelta(seconds=10), timedelta(seconds=1), timedelta(seconds=1))
-    assert clm.to_numpy().shape == (6,)
+    assert clm.to_numpy(use_dist=False).shape == (6,)
 
     crr = Courier(0, Point(0, 0), CREATION_TIME, CREATION_TIME + timedelta(seconds=2), 'auto')
     assert crr.to_numpy().shape == (4,)
@@ -151,7 +151,7 @@ def test_to_numpy():
         [Route.PointType.SOURCE] * 3 + [Route.PointType.DESTINATION] * 3
     )
     ord = Order(0, CREATION_TIME, crr, rt, claims)
-    assert ord.to_numpy(max_num_points_in_route=10).shape == (26,)
+    assert ord.to_numpy(max_num_points_in_route=10, use_dist=False).shape == (26,)
 
 
 def test_numpy_features_type():
@@ -162,13 +162,13 @@ def test_numpy_features_type():
     assert sorted(crr_values) == list(range(4))
 
     clm_values = []
-    for (l, r) in Claim.numpy_feature_types().keys():
+    for (l, r) in Claim.numpy_feature_types(use_dist=False).keys():
         for i in range(l, r):
             clm_values.append(i)
     assert sorted(clm_values) == list(range(6))
 
     ord_values = []
-    for (l, r) in Order.numpy_feature_types(10).keys():
+    for (l, r) in Order.numpy_feature_types(max_num_points_in_route=10, use_dist=False).keys():
         for i in range(l, r):
             ord_values.append(i)
     assert sorted(ord_values) == list(range(26))
