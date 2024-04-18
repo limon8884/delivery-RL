@@ -129,7 +129,7 @@ class GymMaker(BaseMaker):
         self._ppo = PPO(actor_critic=self._ac, opt=opt, scheduler=scheduler,
                         metric_logger=self._train_metric_logger, **kwargs)
         runner = Runner(environment=self._env, actor_critic=self._ac,
-                        n_envs=kwargs['n_envs'], trajectory_lenght=kwargs['trajectory_lenght'])
+                        n_envs=kwargs['n_envs'], trajectory_length=kwargs['trajectory_length'])
         # inference_metric_logger = InferenceMetricsRunner(runner=runner, metric_logger=self._train_metric_logger)
         gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
         normalizer = RewardNormalizer()

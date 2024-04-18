@@ -22,13 +22,13 @@ from src.evaluation import evaluate
 @click.option('-d', '--device', required=False, type=str, default='cuda')
 @click.option('-w', '--use_wandb', required=False, default=True, is_flag=True, type=bool)
 @click.option('-z', '--fix_zero_seed', required=False, default=False, is_flag=True, type=bool)
-@click.option('-t', '--use_train_logs', required=False, default=True, is_flag=True, type=bool)
+@click.option('-t', '--use_train_logs', required=False, default=False, is_flag=True, type=bool)
 @click.option('--mode', required=False, default='v1', type=str)
 @click.option('--use_pretrained_encoders', required=False, type=bool, default=True)
 @click.option('--mask_fake_crr', required=False, type=bool, default=False)
 @click.option('--use_dist', required=False, type=bool, default=True)
 @click.option('--n_envs', required=False, type=int, default=1)
-@click.option('T', '--trajectory_length', required=False, type=int, default=12_000)
+@click.option('-T', '--trajectory_length', required=False, type=int, default=12_000)
 @click.option('--batch_size', required=False, type=int, default=64)
 @click.option('--num_epochs_per_traj', required=False, type=int, default=10)
 @click.option('--max_num_points_in_route', required=False, type=int, default=2)
@@ -56,7 +56,7 @@ from src.evaluation import evaluate
 @click.option('--coef_reward_distance', required=False, type=float, default=1.0)
 @click.option('--eval_num_simulator_steps', required=False, type=int, default=200)
 @click.option('--eval_n_envs', required=False, type=int, default=2)
-@click.option('--eval_trajectory_lenght', required=False, type=int, default=2000)
+@click.option('--eval_trajectory_length', required=False, type=int, default=2000)
 @click.option('--eval_epochs_frequency', required=False, type=int, default=1000)
 @click.option('--eval_num_runs', required=False, type=int, default=5)
 @click.option('--num_gambles_in_day', required=False, type=int, default=2880)
@@ -85,7 +85,7 @@ def run_ppo(**kwargs):
     if not kwargs['use_train_logs']:
         maker.ppo.metric_logger = None
     eval_runner = Runner(environment=maker.environment.copy(), actor_critic=maker.actor_critic,
-                         n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
+                         n_envs=kwargs['eval_n_envs'], trajectory_length=kwargs['eval_trajectory_length'])
     inference_logger = InferenceMetricsRunner(runner=eval_runner, metric_logger=maker.metric_logger)
     dsp = NeuralSequantialDispatch(actor_critic=maker.actor_critic,
                                    max_num_points_in_route=kwargs['max_num_points_in_route'],

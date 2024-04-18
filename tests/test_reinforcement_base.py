@@ -133,7 +133,7 @@ def test_actor_critic():
 
 def test_runner():
     runner = Runner(environment=TestEnv(), actor_critic=TestActorCritic(),
-                    n_envs=4, trajectory_lenght=20)
+                    n_envs=4, trajectory_length=20)
     runner.reset()
     trajs = runner.run()
     assert len(trajs) == 4
@@ -144,7 +144,7 @@ def test_runner():
 
 def test_gae():
     runner = Runner(environment=TestEnv(), actor_critic=TestActorCritic(),
-                    n_envs=1, trajectory_lenght=100)
+                    n_envs=1, trajectory_length=100)
     runner.reset()
     traj = runner.run()[0]
     gae = GAE()
@@ -154,7 +154,7 @@ def test_gae():
 
 def test_buffer():
     runner = Runner(environment=TestEnv(), actor_critic=TestActorCritic(),
-                    n_envs=2, trajectory_lenght=100)
+                    n_envs=2, trajectory_length=100)
     runner.reset()
     trajs = runner.run()
     gae = GAE()
@@ -175,7 +175,7 @@ def test_ppo():
     ppo = PPO(actor_critic=ac, opt=opt, device=None, ppo_cliprange=0.2, ppo_value_loss_coef=0.25,
               ppo_entropy_loss_coef=0.01, max_grad_norm=1.0, debug_info_path='')
     runner = Runner(environment=TestEnv(), actor_critic=ac,
-                    n_envs=4, trajectory_lenght=10)
+                    n_envs=4, trajectory_length=10)
     runner.reset()
     trajs = runner.run()
     gae = GAE()

@@ -350,7 +350,7 @@ class DeliveryMaker2(BaseMaker):
             **kwargs
             )
         runner = Runner(environment=self._env, actor_critic=self._ac, n_envs=kwargs['n_envs'],
-                        trajectory_lenght=kwargs['trajectory_lenght'])
+                        trajectory_length=kwargs['trajectory_length'])
         gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
         normalizer = RewardNormalizer(gamma=kwargs['reward_norm_gamma'], cliprange=kwargs['reward_norm_cliprange'])
         buffer = Buffer(gae, reward_normalizer=normalizer, device=device)

@@ -19,7 +19,7 @@ from src.reinforcement.lunar_lander import GymMaker, GymEnv, GymActorCritic
 @click.option('--use_wandb', required=False, type=bool)
 @click.option('--fix_zero_seed', required=False, type=bool)
 @click.option('--n_envs', required=False, type=int)
-@click.option('--trajectory_lenght', required=False, type=int)
+@click.option('--trajectory_length', required=False, type=int)
 @click.option('--batch_size', required=False, type=int)
 @click.option('--num_epochs_per_traj', required=False, type=int)
 @click.option('--learning_rate', required=False, type=float)
@@ -36,7 +36,7 @@ from src.reinforcement.lunar_lander import GymMaker, GymEnv, GymActorCritic
 @click.option('--gae_lambda', required=False, type=float)
 @click.option('--eval_num_simulator_steps', required=False, type=int)
 @click.option('--eval_n_envs', required=False, type=int)
-@click.option('--eval_trajectory_lenght', required=False, type=int)
+@click.option('--eval_trajectory_length', required=False, type=int)
 @click.option('--eval_epochs_frequency', required=False, type=int)
 def make_kwargs(**kwargs):
     with open('configs/paths.json') as f:
@@ -90,7 +90,7 @@ def run_ppo(**kwargs):
     # maker.ppo.logger = None
 
     eval_runner = Runner(environment=maker.environment, actor_critic=maker.actor_critic,
-                         n_envs=kwargs['eval_n_envs'], trajectory_lenght=kwargs['eval_trajectory_lenght'])
+                         n_envs=kwargs['eval_n_envs'], trajectory_length=kwargs['eval_trajectory_length'])
     inference_logger = InferenceMetricsRunner(runner=eval_runner, metric_logger=maker.metric_logger)
 
     for iteration in tqdm(range(kwargs['total_iters'])):

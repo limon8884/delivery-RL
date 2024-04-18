@@ -1,7 +1,7 @@
 # torch
-# scikit-learn
 # colour
 # imageio
+scikit-learn
 scipy
 matplotlib
 numpy

@@ -157,13 +157,13 @@ class Runner:
                  environment: BaseEnvironment,
                  actor_critic: BaseActorCritic,
                  n_envs: int,
-                 trajectory_lenght: int,
+                 trajectory_length: int,
                  parallel: bool = False,
                  ) -> None:
         self.environment = environment.copy()
         self.actor_critic = actor_critic
         self.n_envs = n_envs
-        self.trajectory_lenght = trajectory_lenght
+        self.trajectory_length = trajectory_length
         self.parallel = parallel
         self.reset()
 
@@ -177,7 +177,7 @@ class Runner:
 
     def run(self, best_actions=False) -> list[Trajectory]:
         states = [traj.last_state for traj in self._trajectories]
-        for _ in range(self.trajectory_lenght):
+        for _ in range(self.trajectory_length):
             with torch.no_grad():
                 self.actor_critic(states)
             actions = self.actor_critic.get_actions_list(best_actions=best_actions)
@@ -364,7 +364,7 @@ class TrajectorySampler:
         self._iter = 0
 
     def sample(self) -> dict[str, torch.FloatTensor | list[State]]:
-        total_traj_len = self.runner.n_envs * self.runner.trajectory_lenght
+        total_traj_len = self.runner.n_envs * self.runner.trajectory_length
         if self._iter % (total_traj_len * self.num_epochs_per_traj // self.batch_size) == 0:
             self.runner.reset()
             trajs = self.runner.run()
@@ -468,7 +468,7 @@ class InferenceMetricsRunner:
             for k, v in info.items():
                 total_info[k] += v
         for k, v in total_info.items():
-            self.metric_logger.log('SIM: ' + k, v / self.runner.trajectory_lenght / self.runner.n_envs)
+            self.metric_logger.log('SIM: ' + k, v / self.runner.trajectory_length / self.runner.n_envs)
 
         self.metric_logger.commit(step=self.called_counter)
         self.called_counter += 1
