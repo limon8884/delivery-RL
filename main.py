@@ -13,6 +13,7 @@ from src.results import run_baselines, run_model
 @click.option('--n_runs', 'eval_num_runs', type=int, default=5)
 @click.option('--model_size', type=str, default='medium')
 @click.option('--use_dist_feature', type=bool, default=True)
+@click.option('--use_dist', type=bool, default=True)
 @click.option('--device', type=str, default='cpu')
 @click.option('--use_pretrained_encoders', type=bool, default=True)
 @click.argument('checkpoint_ids', nargs=-1)
