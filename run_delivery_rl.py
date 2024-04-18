@@ -27,7 +27,6 @@ from src.evaluation import evaluate
 @click.option('--use_pretrained_encoders', required=False, type=bool, default=True)
 @click.option('--mask_fake_crr', required=False, type=bool, default=False)
 @click.option('--use_dist', required=False, type=bool, default=True)
-@click.option('--use_dist_feature', required=False, type=bool, default=False)
 @click.option('--n_envs', required=False, type=int, default=8)
 @click.option('--trajectory_lenght', required=False, type=int, default=500)
 @click.option('--batch_size', required=False, type=int, default=64)

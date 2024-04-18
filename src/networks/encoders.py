@@ -39,7 +39,6 @@ class NumberEncoder(nn.Module):
             nn.Linear(numbers_np_dim, number_embedding_dim),
             nn.LeakyReLU(),
             nn.Linear(number_embedding_dim, number_embedding_dim),
-            nn.LeakyReLU(),
         ).to(device)
         self.device = device
 
@@ -150,7 +149,8 @@ class GambleEncoder(nn.Module):
         point_embedding_dim = kwargs['point_embedding_dim']
         cat_points_embedding_dim = kwargs['cat_points_embedding_dim']
         num_layers = kwargs['num_layers']
-        self.max_num_points_in_route = kwargs['max_num_points_in_route']
+        max_num_points_in_route = kwargs['max_num_points_in_route']
+        gamble_features_embedding_dim = kwargs['gamble_features_embedding_dim']
         use_dist = kwargs['use_dist']
         device = kwargs['device']
         self.claim_encoder = ItemEncoder(
@@ -170,13 +170,18 @@ class GambleEncoder(nn.Module):
             device=device,
         )
         self.order_encoder = ItemEncoder(
-            feature_types=Order.numpy_feature_types(max_num_points_in_route=self.max_num_points_in_route,
+            feature_types=Order.numpy_feature_types(max_num_points_in_route=max_num_points_in_route,
                                                     use_dist=use_dist),
             item_embedding_dim=courier_order_embedding_dim,
-            point_embedding_dim=point_embedding_dim * (1 + self.max_num_points_in_route),
+            point_embedding_dim=point_embedding_dim * (1 + max_num_points_in_route),
             cat_points_embedding_dim=cat_points_embedding_dim,
             num_layers=num_layers,
             device=device,
+        )
+        self.gamble_feature_encoder = NumberEncoder(
+            numbers_np_dim=Gamble.numpy_feature_size(),
+            number_embedding_dim=gamble_features_embedding_dim,
+            device=device
         )
 
         if kwargs['use_pretrained_encoders']:
@@ -192,9 +197,10 @@ class GambleEncoder(nn.Module):
                 p.requires_grad = False
             print('encoders pretrained loaded and freezed!')
 
-    def forward(self, gamble_np_dict: dict[str, np.ndarray | None]) -> dict[str, torch.FloatTensor | None]:
+    def forward(self, gamble_np_dict: dict[str, np.ndarray | None]) -> dict[str, torch.Tensor | None]:
         return {
             'crr': self.courier_encoder(gamble_np_dict['crr']) if gamble_np_dict['crr'] is not None else None,
             'clm': self.claim_encoder(gamble_np_dict['clm']),
             'ord': self.order_encoder(gamble_np_dict['ord']) if gamble_np_dict['ord'] is not None else None,
+            'gmb': self.gamble_feature_encoder(gamble_np_dict['gmb']),
         }

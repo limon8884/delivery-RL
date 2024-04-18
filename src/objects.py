@@ -444,6 +444,20 @@ class Gamble:
     dttm_start: datetime
     dttm_end: datetime
 
+    def to_numpy(self) -> np.ndarray:
+        num_crrs = len(self.couriers)
+        num_clms = len(self.claims)
+        num_ords = len(self.orders)
+        hour = self.dttm_end.hour
+        weekday = self.dttm_end.weekday()
+        features = np.array([num_clms, num_crrs, num_ords, hour, weekday])
+        assert len(features) == self.numpy_feature_size()
+        return features
+
+    @staticmethod
+    def numpy_feature_size() -> int:
+        return 5
+
 
 @dataclass
 class Assignment:

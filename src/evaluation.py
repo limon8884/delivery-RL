@@ -1,4 +1,5 @@
-import numpy as np
+# import numpy as np
+import typing
 from pathlib import Path
 
 from src.simulator.simulator import Simulator
@@ -16,7 +17,7 @@ def evaluate(
     run_id: int,
     eval_num_runs: int,
     **kwargs
-) -> dict[str, float]:
+) -> dict[str, typing.Optional[float]]:
     assert eval_num_runs <= MAX_NUM_EVAL_RUNS
     results: dict[str, list[float]] = {
         'CR': [],
@@ -38,4 +39,13 @@ def evaluate(
         results['CR'].append(db.get_metric(Metric.CR, local_run_id))
         results['CTD'].append(db.get_metric(Metric.CTD, local_run_id))
         results['arrival_dist'].append(db.get_metric(Metric.NOT_BATCHED_ARRIVAL_DISTANCE, local_run_id))
-    return {k: np.mean(v) for k, v in results.items()}
+    return {k: mean(v) for k, v in results.items()}
+
+
+def mean(values: list[typing.Optional[float]]) -> typing.Optional[float]:
+    summ = 0.0
+    for value in values:
+        if value is None:
+            return None
+        summ += value
+    return summ / len(values)

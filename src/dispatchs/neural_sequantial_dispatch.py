@@ -43,11 +43,13 @@ class NeuralSequantialDispatch(BaseDispatch):
 
             state = DeliveryState(
                 claim_emb=gamble.claims[claim_idx].to_numpy(use_dist=self.use_dist),
-                claim_to_couries_dists=claims_to_couriers_distances[claim_idx],
                 couriers_embs=couriers_embs,
                 orders_embs=orders_embs,
                 prev_idxs=prev_idxs,
-                orders_full_masks=orders_full_mask
+                orders_full_masks=orders_full_mask,
+                claim_to_couries_dists=claims_to_couriers_distances[claim_idx],
+                gamble_features=gamble.to_numpy(),
+                claim_idx=claim_idx,
             )
             with torch.no_grad():
                 self.actor_critic([state])

@@ -57,13 +57,15 @@ class DeliveryAction(Action):
 class DeliveryState(State):
     def __init__(self, claim_emb: np.ndarray, couriers_embs: typing.Optional[np.ndarray],
                  orders_embs: typing.Optional[np.ndarray], prev_idxs: list[int], orders_full_masks: list[bool],
-                 claim_to_couries_dists: np.ndarray) -> None:
+                 claim_to_couries_dists: np.ndarray, gamble_features: np.ndarray, claim_idx: int) -> None:
         self.claim_emb = claim_emb
         self.claim_to_couries_dists = claim_to_couries_dists
         self.couriers_embs = couriers_embs
         self.orders_embs = orders_embs
         self.prev_idxs = prev_idxs
         self.orders_full_masks = orders_full_masks
+        self.gamble_features = gamble_features
+        self.claim_idx = claim_idx
 
     def size(self) -> int:
         len_crr = len(self.couriers_embs) if self.couriers_embs is not None else 0
@@ -163,6 +165,7 @@ class DeliveryEnvironment(BaseEnvironment):
                              for ord in self._gamble.orders], axis=0)
             if len(self._gamble.orders) > 0
             else None,
+            'gmb': self._gamble.to_numpy(),
             'ord_masks': [ord.has_full_route(max_num_points_in_route=self.max_num_points_in_route)
                           for ord in self._gamble.orders],
             'dists': compulte_claims_to_couriers_distances(self._gamble),
@@ -195,8 +198,10 @@ class DeliveryEnvironment(BaseEnvironment):
             claim_to_couries_dists=claim_to_couries_dists,
             couriers_embs=self.embs_dict['crr'],
             orders_embs=self.embs_dict['ord'],
+            gamble_features=self.embs_dict['gmb'],
             prev_idxs=self._prev_idxs.copy(),
             orders_full_masks=self.embs_dict['ord_masks'],
+            claim_idx=self._claim_idx,
         )
 
     def _statistics_add(self, new_stats: dict[str, float]) -> None:
@@ -211,32 +216,28 @@ class DeliveryEnvironment(BaseEnvironment):
     def _statistics_update(self, new_stats: dict[str, float]) -> None:
         self._assignment_statistics = {}
         self._statistics_add(new_stats)
-        # self._assignment_statistics['free_couriers'] += new_stats['new_couriers'] \
-        #     - new_stats['assigned_couriers'] \
-        #     + new_stats['completed_orders'] \
-        #     - new_stats['finished_couriers']
-        # self._assignment_statistics['free_claims'] += new_stats['new_claims'] \
-        #     - new_stats['assigned_not_batched_claims'] \
-        #     - new_stats['assigned_batched_claims'] \
-        #     - new_stats['cancelled_claims']
-        # self._assignment_statistics['active_routes'] += new_stats['assigned_not_batched_claims'] \
-        #     - new_stats['completed_orders']
 
 
 class DeliveryActorCritic(BaseActorCritic):
-    def __init__(self, gamble_encoder: GambleEncoder, coc_emb_size: int, temperature: float,
-                 device, mask_fake_crr: bool = False, use_dist_feature: bool = False) -> None:
+    def __init__(self, gamble_encoder: GambleEncoder,
+                 clm_emb_size: int,
+                 co_emb_size: int,
+                 gmb_emb_size: int,
+                 temperature: float,
+                 device, mask_fake_crr: bool = False, use_dist: bool = False) -> None:
         super().__init__()
         self.gamble_encoder = gamble_encoder
-        # self.coc_emb_size = coc_emb_size
+        coc_emb_size = clm_emb_size + co_emb_size + gmb_emb_size + 2
         self.temperature = temperature
         self.mask_fake_crr = mask_fake_crr
-        self.use_dist_feature = use_dist_feature
+        self.use_dist = use_dist
         self.device = device
 
-        if self.use_dist_feature:
+        if self.use_dist:
             coc_emb_size += 1
         self.policy_head = nn.Sequential(
+            nn.Linear(coc_emb_size, coc_emb_size),
+            nn.LeakyReLU(),
             nn.Linear(coc_emb_size, coc_emb_size),
             nn.LeakyReLU(),
             nn.Linear(coc_emb_size, 1),
@@ -244,60 +245,75 @@ class DeliveryActorCritic(BaseActorCritic):
         self.value_head = nn.Sequential(
             nn.Linear(coc_emb_size, coc_emb_size),
             nn.LeakyReLU(),
+            nn.Linear(coc_emb_size, coc_emb_size),
+            nn.LeakyReLU(),
             nn.Linear(coc_emb_size, 1),
         ).to(device)
 
-    def forward(self, state_list: list[State]) -> None:
+    def forward(self, state_list: list[DeliveryState]) -> None:
         policy_tens, val_tens = self._make_padded_policy_value_tensors(state_list)
         self.log_probs = nn.functional.log_softmax(policy_tens / self.temperature, dim=-1)
         self.values = val_tens
         self._actions: typing.Optional[torch.Tensor] = None
 
-    def _make_padded_policy_value_tensors(self, states: list[State]
+    def _make_padded_policy_value_tensors(self, states: list[DeliveryState]
                                           ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         policy_tens_list, value_tens_list = [], []
         for state in states:
-            assert isinstance(state, DeliveryState)
-            prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
-            co_embs, claim_emb = self._make_three_tensors_from_state(state)
-            if self.use_dist_feature:
-                co_dists = torch.tensor(state.claim_to_couries_dists, dtype=torch.float,
-                                        device=self.device).unsqueeze(-1)
-                coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1), co_dists], dim=-1)
-            else:
-                coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1)], dim=-1)
+            co_embs, claim_emb, gamble_features_emb = self._make_embeddings_tensors_from_state(state)
+            additional_features = self._make_additional_features_from_state(state)
+            coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1),
+                                  gamble_features_emb.repeat(len(co_embs), 1),
+                                  additional_features], dim=-1)
             full_ord_masks = self._make_full_order_mask(state)
 
             policy_tens = self.policy_head(coc_embs).squeeze(-1)
-            policy_tens[prev_idxs] = PREV_CHOICE_MASK_VALUE
+            # policy_tens[prev_idxs] = PREV_CHOICE_MASK_VALUE
             policy_tens[full_ord_masks] = FULL_ORDER_MASK_VALUE
             if self.mask_fake_crr:
                 policy_tens[-1] = FAKE_MASK_VALUE
             policy_tens_list.append(policy_tens)
 
             value_tens = self.value_head(coc_embs).squeeze(-1)
-            value_tens[prev_idxs] = 0.0
+            # value_tens[prev_idxs] = 0.0
             value_tens[full_ord_masks] = 0.0
             if self.mask_fake_crr:
                 value_tens[-1] = 0.0
             value_tens_list.append(value_tens.mean())
 
-        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=PAD_MASK_VALUE).float()
+        policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=PAD_MASK_VALUE)
         value_tens_result = torch.tensor(value_tens_list, device=self.device, dtype=torch.float)
         return policy_tens_result, value_tens_result
 
-    def _make_full_order_mask(self, state: DeliveryState) -> torch.BoolTensor:
+    def _make_full_order_mask(self, state: DeliveryState) -> torch.Tensor:
         couriers_part = [False] * len(state.couriers_embs) if state.couriers_embs is not None else []
         orders_part = state.orders_full_masks
         mask = torch.tensor(couriers_part + orders_part + [False], device=self.device, dtype=torch.bool)
         return mask
 
-    def _make_three_tensors_from_state(self, state: DeliveryState
-                                       ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
+    def _make_additional_features_from_state(self, state: DeliveryState) -> torch.Tensor:
+        num_crr_ord_fake = (len(state.couriers_embs) if state.couriers_embs is not None else 0) + \
+            (len(state.orders_embs) if state.orders_embs is not None else 0) + 1
+
+        prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
+        prev_assigs = torch.zeros(size=(num_crr_ord_fake, 1), dtype=torch.float, device=self.device)
+        prev_assigs[prev_idxs] = 1.0
+
+        claim_idx = torch.ones(size=(num_crr_ord_fake, 1), dtype=torch.float, device=self.device) * state.claim_idx
+
+        if self.use_dist:
+            dists = torch.tensor(state.claim_to_couries_dists, dtype=torch.float,
+                                 device=self.device).unsqueeze(-1)
+            return torch.cat([prev_assigs, claim_idx, dists], dim=-1)
+        return torch.cat([prev_assigs, claim_idx], dim=-1)
+
+    def _make_embeddings_tensors_from_state(self, state: DeliveryState
+                                            ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         embs_dict = {
             'clm': state.claim_emb.reshape(1, -1),
             'crr': state.couriers_embs,
             'ord': state.orders_embs,
+            'gmb': state.gamble_features.reshape(1, -1),
         }
         encoded_dict = self.gamble_encoder(embs_dict)
         fake_crr = torch.ones(size=(1, self.gamble_encoder.courier_encoder.item_embedding_dim), device=self.device)
@@ -305,7 +321,10 @@ class DeliveryActorCritic(BaseActorCritic):
             ([encoded_dict['crr']] if encoded_dict['crr'] is not None else []) +
             ([encoded_dict['ord']] if encoded_dict['ord'] is not None else []) +
             [fake_crr], dim=0)
-        return co_embs, encoded_dict['clm'][0]
+        assert encoded_dict['clm'] is not None and encoded_dict['gmb'] is not None
+        clm_emb = encoded_dict['clm']
+        gmb_emb = encoded_dict['gmb']
+        return co_embs, clm_emb, gmb_emb
 
     def get_actions_list(self, best_actions=False) -> list[Action]:
         if best_actions:
@@ -322,10 +341,10 @@ class DeliveryActorCritic(BaseActorCritic):
     def get_values_list(self) -> list[float]:
         return self.values.tolist()
 
-    def get_log_probs_tensor(self) -> torch.FloatTensor:
+    def get_log_probs_tensor(self) -> torch.Tensor:
         return self.log_probs
 
-    def get_values_tensor(self) -> torch.FloatTensor:
+    def get_values_tensor(self) -> torch.Tensor:
         return self.values
 
 
@@ -349,11 +368,12 @@ class DeliveryMaker(BaseMaker):
         rewarder = DeliveryRewarder(**kwargs)
         self._train_metric_logger = MetricLogger(use_wandb=kwargs['use_wandb'])
         self._env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, **kwargs)
-        coc_emb_size = encoder_cfg['claim_embedding_dim'] + encoder_cfg['courier_order_embedding_dim']
         self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder,
-                                       coc_emb_size=coc_emb_size,
+                                       clm_emb_size=encoder_cfg['claim_embedding_dim'],
+                                       co_emb_size=encoder_cfg['courier_order_embedding_dim'],
+                                       gmb_emb_size=encoder_cfg['gamble_features_embedding_dim'],
                                        temperature=kwargs['exploration_temperature'],
-                                       use_dist_feature=kwargs['use_dist_feature'],
+                                       use_dist=kwargs['use_dist'],
                                        mask_fake_crr=kwargs['mask_fake_crr'], device=device)
         if kwargs['load_checkpoint']:
             self._ac.load_state_dict(torch.load(kwargs['load_checkpoint'], map_location=device))

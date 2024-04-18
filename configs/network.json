@@ -6,7 +6,8 @@
             "route_embedding_dim": 64,
             "claim_embedding_dim": 32,
             "courier_order_embedding_dim": 64,
-            "num_layers": 2
+            "num_layers": 2,
+            "gamble_features_embedding_dim": 4
         },
         "medium" : {
             "point_embedding_dim": 128,
@@ -14,7 +15,8 @@
             "route_embedding_dim": 128,
             "claim_embedding_dim": 32,
             "courier_order_embedding_dim": 64,
-            "num_layers": 4
+            "num_layers": 4,
+            "gamble_features_embedding_dim": 8
         },
         "big" : {
             "point_embedding_dim": 256,
@@ -22,7 +24,8 @@
             "route_embedding_dim": 256,
             "claim_embedding_dim": 64,
             "courier_order_embedding_dim": 128,
-            "num_layers": 6
+            "num_layers": 6,
+            "gamble_features_embedding_dim": 16
         }
     },
     "backbone": {
