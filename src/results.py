@@ -64,7 +64,8 @@ def run_model(checkpoint_id: str, **kwargs) -> dict:
     ac = DeliveryActorCritic(gamble_encoder=encoder, coc_emb_size=coc_emb_size, device=device,
                              temperature=1.0, use_dist_feature=use_dist_feature)
     ac.load_state_dict(torch.load(kwargs['checkpoint_path'] + checkpoint_id + '.pt', map_location=device))
-    dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=kwargs['max_num_points_in_route'])
+    dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=kwargs['max_num_points_in_route'],
+                                   use_dist=kwargs['use_dist'])
     return make_runs(checkpoint_id, dsp, **kwargs)
 
 
