@@ -22,26 +22,23 @@ def make_runs(
         sample_mode: str,
         max_num_points_in_route: int,
         eval_num_simulator_steps: int,
-        n_runs: int,
+        eval_num_runs: int,
         **kwargs
         ):
-    print(f'Start {name}, {n_runs} runs')
+    print(f'Start {name}, {eval_num_runs} runs')
     db = Database(Path('history.db'))
     db.clear()
-    results = defaultdict(list)
-    for run_id in range(n_runs):
-        res = evaluate(
-            dispatch=dsp,
-            run_id=run_id,
-            simulator_cfg_path=kwargs['simulator_cfg_path'],
-            sampler_mode=sample_mode,
-            max_num_points_in_route=max_num_points_in_route,
-            history_db_path='history.db',
-            eval_num_simulator_steps=eval_num_simulator_steps,
-        )
-        for k, v in res.items():
-            results[k].append(v)
-    return {k: np.mean(v_list) for k, v_list in results.items()}
+    results = evaluate(
+        dispatch=dsp,
+        run_id=0,
+        eval_num_runs=eval_num_runs,
+        simulator_cfg_path=kwargs['simulator_cfg_path'],
+        sampler_mode=sample_mode,
+        max_num_points_in_route=max_num_points_in_route,
+        history_db_path='history.db',
+        eval_num_simulator_steps=eval_num_simulator_steps,
+    )
+    return results
 
 
 def run_baselines(**kwargs) -> dict:

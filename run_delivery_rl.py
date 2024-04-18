@@ -59,6 +59,7 @@ from src.evaluation import evaluate
 @click.option('--eval_n_envs', required=False, type=int, default=2)
 @click.option('--eval_trajectory_lenght', required=False, type=int, default=2000)
 @click.option('--eval_epochs_frequency', required=False, type=int, default=1000)
+@click.option('--eval_num_runs', required=False, type=int, default=5)
 @click.option('--num_gambles_in_day', required=False, type=int, default=2880)
 @click.option('--sweep_id', type=str, default='')
 @click.option('--sweep_count', type=int, default=1)

@@ -10,7 +10,7 @@ from src.results import run_baselines, run_model
 @click.option('--s_mode', 'sample_mode', type=str, default="dummy_sampler")
 @click.option('--n_pts', 'max_num_points_in_route', type=int, default=2)
 @click.option('--steps', 'eval_num_simulator_steps', type=int, default=200)
-@click.option('--n_runs', type=int, default=5)
+@click.option('--n_runs', 'eval_num_runs', type=int, default=5)
 @click.option('--model_size', type=str, default='medium')
 @click.option('--use_dist_feature', type=bool, default=True)
 @click.option('--device', type=str, default='cpu')
