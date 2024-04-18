@@ -74,6 +74,20 @@ class CoordMLPEncoder(nn.Module):
         return self.mlp(points_embs)
 
 
+class ResidualBlock(nn.Module):
+    def __init__(self, hidden_size: int) -> None:
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.LayerNorm([hidden_size]),
+            nn.Linear(hidden_size, hidden_size),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_size, hidden_size),
+        )
+
+    def forward(self, x):
+        return x + self.block(x)
+
+
 class ItemEncoder(nn.Module):
     def __init__(self, feature_types: dict[tuple[int, int], str], item_embedding_dim: int, **kwargs) -> None:
         super().__init__()
@@ -102,13 +116,20 @@ class ItemEncoder(nn.Module):
         self.number_encoder = NumberEncoder(numbers_np_dim=len(self.numbers_idxs),
                                             number_embedding_dim=number_embedding_dim,
                                             device=device)
-        self.mlp = nn.Sequential(
-            nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
-            nn.LeakyReLU(),
-            nn.Linear(item_embedding_dim, item_embedding_dim),
-            nn.LeakyReLU(),
-            nn.Linear(item_embedding_dim, item_embedding_dim),
-        ).to(device)
+        num_layers = kwargs['num_layers']
+        if num_layers == 0:
+            self.mlp = nn.Sequential(
+                nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
+                nn.LeakyReLU(),
+                nn.Linear(item_embedding_dim, item_embedding_dim),
+                nn.LeakyReLU(),
+                nn.Linear(item_embedding_dim, item_embedding_dim),
+            ).to(device)
+        else:
+            self.mlp = nn.Sequential(
+                nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
+                *[ResidualBlock(item_embedding_dim) for _ in range(num_layers)]
+            ).to(device)
 
     def forward(self, item_np: np.ndarray) -> torch.FloatTensor:
         assert item_np.ndim == 2 and item_np.shape[1] == len(self.coords_idxs) + len(self.numbers_idxs), (
@@ -128,6 +149,7 @@ class GambleEncoder(nn.Module):
         courier_order_embedding_dim = kwargs['courier_order_embedding_dim']
         point_embedding_dim = kwargs['point_embedding_dim']
         cat_points_embedding_dim = kwargs['cat_points_embedding_dim']
+        num_layers = kwargs['num_layers']
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
         use_dist = kwargs['use_dist']
         device = kwargs['device']
@@ -136,6 +158,7 @@ class GambleEncoder(nn.Module):
             item_embedding_dim=claim_embedding_dim,
             point_embedding_dim=point_embedding_dim * 2,
             cat_points_embedding_dim=cat_points_embedding_dim,
+            num_layers=num_layers,
             device=device,
         )
         self.courier_encoder = ItemEncoder(
@@ -143,6 +166,7 @@ class GambleEncoder(nn.Module):
             item_embedding_dim=courier_order_embedding_dim,
             point_embedding_dim=point_embedding_dim * 1,
             cat_points_embedding_dim=cat_points_embedding_dim,
+            num_layers=num_layers,
             device=device,
         )
         self.order_encoder = ItemEncoder(
@@ -151,6 +175,7 @@ class GambleEncoder(nn.Module):
             item_embedding_dim=courier_order_embedding_dim,
             point_embedding_dim=point_embedding_dim * (1 + self.max_num_points_in_route),
             cat_points_embedding_dim=cat_points_embedding_dim,
+            num_layers=num_layers,
             device=device,
         )
 
