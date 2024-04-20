@@ -37,7 +37,8 @@ def test_number_encoder():
 
 def test_courier_encoder():
     enc = ItemEncoder(feature_types=Courier.numpy_feature_types(),
-                      item_embedding_dim=32, point_embedding_dim=16, cat_points_embedding_dim=4, device=None)
+                      item_embedding_dim=32, point_embedding_dim=16, cat_points_embedding_dim=4,
+                      num_layers=1, device=None)
     crr = Courier(
         id=0,
         position=Point(0.5, -1.5),
@@ -76,6 +77,7 @@ def test_order_encoder():
         item_embedding_dim=64,
         point_embedding_dim=32,
         cat_points_embedding_dim=4,
+        num_layers=1,
         device=None,
     )
 
@@ -103,6 +105,7 @@ def test_claim_encoder():
         item_embedding_dim=64,
         point_embedding_dim=32,
         cat_points_embedding_dim=4,
+        num_layers=1,
         device=None,
     )
     claim = Claim(
@@ -145,6 +148,8 @@ def test_gamble_encoder():
         cat_points_embedding_dim=4,
         max_num_points_in_route=10,
         use_dist=False,
+        num_layers=1,
+        gamble_features_embedding_dim=9,
         device=None,
         use_pretrained_encoders=False,
         )
@@ -164,9 +169,11 @@ def test_gamble_encoder():
         'crr': np.stack([crr.to_numpy() for crr in gamble.couriers], axis=0),
         'clm': np.stack([clm.to_numpy(use_dist=False) for clm in gamble.claims], axis=0),
         'ord': np.stack([ord.to_numpy(max_num_points_in_route=10, use_dist=False) for ord in gamble.orders], axis=0),
+        'gmb': gamble.to_numpy(),
     }
     emb_dict = enc(d)
     assert isinstance(emb_dict, dict)
     assert emb_dict['crr'].shape == (5, 64)
     assert emb_dict['clm'].shape == (4, 32)
     assert emb_dict['ord'].shape == (3, 64)
+    assert emb_dict['gmb'].shape == (9,)

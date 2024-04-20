@@ -224,13 +224,14 @@ class DeliveryActorCritic(BaseActorCritic):
                  co_emb_size: int,
                  gmb_emb_size: int,
                  temperature: float,
-                 device, mask_fake_crr: bool = False, use_dist: bool = False) -> None:
+                 device, mask_fake_crr: bool = False, use_dist: bool = False, use_masks: bool = False) -> None:
         super().__init__()
         self.gamble_encoder = gamble_encoder
         coc_emb_size = clm_emb_size + co_emb_size + gmb_emb_size + 2
         self.temperature = temperature
         self.mask_fake_crr = mask_fake_crr
         self.use_dist = use_dist
+        self.use_masks= use_masks
         self.device = device
 
         if self.use_dist:
@@ -265,18 +266,20 @@ class DeliveryActorCritic(BaseActorCritic):
             coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1),
                                   gamble_features_emb.repeat(len(co_embs), 1),
                                   additional_features], dim=-1)
-            full_ord_masks = self._make_full_order_mask(state)
+            masks = self._make_masks(state)
 
             policy_tens = self.policy_head(coc_embs).squeeze(-1)
             # policy_tens[prev_idxs] = PREV_CHOICE_MASK_VALUE
-            policy_tens[full_ord_masks] = FULL_ORDER_MASK_VALUE
+            if self.use_masks:
+                policy_tens[masks] = FULL_ORDER_MASK_VALUE
             if self.mask_fake_crr:
                 policy_tens[-1] = FAKE_MASK_VALUE
             policy_tens_list.append(policy_tens)
 
             value_tens = self.value_head(coc_embs).squeeze(-1)
             # value_tens[prev_idxs] = 0.0
-            value_tens[full_ord_masks] = 0.0
+            if self.use_masks:
+                value_tens[masks] = 0.0
             if self.mask_fake_crr:
                 value_tens[-1] = 0.0
             value_tens_list.append(value_tens.mean())
@@ -285,10 +288,16 @@ class DeliveryActorCritic(BaseActorCritic):
         value_tens_result = torch.tensor(value_tens_list, device=self.device, dtype=torch.float)
         return policy_tens_result, value_tens_result
 
-    def _make_full_order_mask(self, state: DeliveryState) -> torch.Tensor:
+    def _make_masks(self, state: DeliveryState) -> torch.Tensor:
+        # order full mask
         couriers_part = [False] * len(state.couriers_embs) if state.couriers_embs is not None else []
         orders_part = state.orders_full_masks
-        mask = torch.tensor(couriers_part + orders_part + [False], device=self.device, dtype=torch.bool)
+        order_full_mask = torch.tensor(couriers_part + orders_part + [False], device=self.device, dtype=torch.bool)
+        # prev assigned
+        prev_assigned_mask = torch.zeros(len(order_full_mask), dtype=torch.bool, device=self.device)
+        prev_assigned_mask[state.prev_idxs] = True
+
+        mask = prev_assigned_mask | order_full_mask
         return mask
 
     def _make_additional_features_from_state(self, state: DeliveryState) -> torch.Tensor:
@@ -374,6 +383,7 @@ class DeliveryMaker(BaseMaker):
                                        gmb_emb_size=encoder_cfg['gamble_features_embedding_dim'],
                                        temperature=kwargs['exploration_temperature'],
                                        use_dist=kwargs['use_dist'],
+                                       use_masks=kwargs['use_masks'],
                                        mask_fake_crr=kwargs['mask_fake_crr'], device=device)
         if kwargs['load_checkpoint']:
             self._ac.load_state_dict(torch.load(kwargs['load_checkpoint'], map_location=device))

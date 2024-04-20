@@ -1,6 +1,7 @@
 import typing as tp
 import json
 import logging
+import warnings
 from pathlib import Path
 from datetime import timedelta, datetime
 from tqdm import tqdm
@@ -161,9 +162,10 @@ class Simulator(object):
                 assert courier_id in self.courier_id_to_order_id
                 order = self.active_orders[self.courier_id_to_order_id[courier_id]]
                 if len(order.route.route_points) > self.route_maker.max_points_lenght - 2:
-                    LOGGER.warning(f'Assigning full courier {courier_id} with order {order.id} on claim {claim_id} \
-                        in gamble with start time {self._current_gamble_begin_dttm}. \
-                        Size of order: {len(order.route.route_points)}.')
+                    warnings.warn('assigned on order with to many points')
+                    # LOGGER.warning(f'Assigning full courier {courier_id} with order {order.id} on claim {claim_id} \
+                    #     in gamble with start time {self._current_gamble_begin_dttm}. \
+                    #     Size of order: {len(order.route.route_points)}.')
                     continue
                 if not order.courier.is_time_off():
                     prev_route_dist = order.route.distance_with_arrival(order.courier.position)

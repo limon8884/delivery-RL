@@ -192,40 +192,33 @@ def test_delivery_actor_critic_shape(tmp_path):
         cat_points_embedding_dim=8,
         courier_order_embedding_dim=32,
         max_num_points_in_route=4,
+        num_layers=2,
+        gamble_features_embedding_dim=8,
         use_dist=False,
         device=None,
         use_pretrained_encoders=False,
     )
-    ac = DeliveryActorCritic(gamble_encoder, coc_emb_size=16+32, temperature=1.0, device=None)
+    ac = DeliveryActorCritic(gamble_encoder, clm_emb_size=16, co_emb_size=32, gmb_emb_size=8, temperature=1.0,
+                             device=None)
     state1 = env.reset()  # (3, 0)
-    co_embs, claim_emb = ac._make_three_tensors_from_state(state1)
+    co_embs, claim_emb, gamble_emb = ac._make_embeddings_tensors_from_state(state1)
+    add_emb = ac._make_additional_features_from_state(state1)
     assert co_embs.shape == (4, 32), co_embs.shape
-    assert claim_emb.shape == (16,)
+    assert claim_emb.shape == (1, 16)
+    assert gamble_emb.shape == (1, 8)
+    assert add_emb.shape == (4, 2)
+    assert add_emb.isclose(torch.tensor([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=torch.float)).all()
 
     state2, reward, done, info = env.step(DeliveryAction(2))  # (3, 0)
+    add_emb = ac._make_additional_features_from_state(state2)
+    assert add_emb.shape == (4, 2)
+    assert add_emb.isclose(torch.tensor([[0, 1], [0, 1], [1, 1], [0, 1]], dtype=torch.float)).all()
     state3, reward, done, info = env.step(DeliveryAction(0))  # (3, 0)
     state4, reward, done, info = env.step(DeliveryAction(0))  # (2, 1)
-    co_embs, claim_emb = ac._make_three_tensors_from_state(state4)
+    co_embs, claim_emb, gamble_emb = ac._make_embeddings_tensors_from_state(state4)
     assert co_embs.shape == (4, 32), co_embs.shape
-    assert claim_emb.shape == (16,)
-
-
-# class FakeGambleEncoder(GambleEncoder):
-#     def __init__(self, **kwargs) -> None:
-#         super().__init__(**kwargs)
-#         self.claim_embedding_dim = kwargs['claim_embedding_dim']
-
-#     def forward(self, embs_dict: dict[str, np.ndarray | None]) -> dict[str, torch.FloatTensor | None]:
-#         assert embs_dict['clm'].shape[0] == 1
-#         n_crr = len(embs_dict['crr']) if embs_dict['crr'] is not None else None
-#         n_ord = len(embs_dict['ord']) if embs_dict['ord'] is not None else None
-#         return {
-#             'clm': torch.arange(self.claim_embedding_dim, dtype=torch.float).reshape(1, -1),
-#             'crr': torch.arange(2 * self.claim_embedding_dim,
-#                                 dtype=torch.float).repeat(n_crr, 1) if n_crr is not None else None,
-#             'ord': torch.arange(2 * self.claim_embedding_dim,
-#                                 dtype=torch.float).repeat(n_ord, 1) if n_ord is not None else None,
-#         }
+    assert claim_emb.shape == (1, 16)
+    assert gamble_emb.shape == (1, 8)
 
 
 def test_delivery_actor_critic():
@@ -237,36 +230,33 @@ def test_delivery_actor_critic():
         courier_order_embedding_dim=32,
         max_num_points_in_route=4,
         use_dist=False,
+        num_layers=2,
+        gamble_features_embedding_dim=8,
         device=None,
         use_pretrained_encoders=False,
     )
-    ac = DeliveryActorCritic(gamble_encoder, coc_emb_size=16+32, temperature=1.0, device=None)
+    ac = DeliveryActorCritic(gamble_encoder, clm_emb_size=16, co_emb_size=32, gmb_emb_size=8, temperature=1.0,
+                             device=None)
     state1 = DeliveryState(
-        claim_emb=np.zeros((1, 6)),
+        claim_emb=np.zeros((6,)),
         couriers_embs=np.zeros((5, 4)),
         orders_embs=None,
         prev_idxs=[2, 3],
         orders_full_masks=[],
-        claim_to_couries_dists=np.array([])
+        claim_to_couries_dists=np.array(list(range(5))),
+        gamble_features=np.zeros((5,)),
+        claim_idx=0
     )
     state2 = DeliveryState(
-        claim_emb=np.zeros((1, 6)),
+        claim_emb=np.zeros((6,)),
         couriers_embs=np.zeros((2, 4)),
         orders_embs=np.zeros((1, 14)),
         prev_idxs=[],
         orders_full_masks=[False],
-        claim_to_couries_dists=np.array([])
+        claim_to_couries_dists=np.array(list(range(3))),
+        gamble_features=np.zeros((5,)),
+        claim_idx=1
     )
     pol_tens, val_tens = ac._make_padded_policy_value_tensors([state1, state2])
     assert pol_tens.shape == (2, 6)
-    # crr_ord_val = (torch.arange(16, dtype=torch.float)**2).sum()
-    # fake_crr_val = torch.arange(16, dtype=torch.float).sum()
-    # pad_val = -1e9
-    # assert torch.isclose(pol_tens[0, :],
-    #                      torch.tensor([crr_ord_val] * 2 + [pad_val] * 2 + [crr_ord_val, fake_crr_val])).all()
-    # assert torch.isclose(pol_tens[1, :], torch.tensor([crr_ord_val] * 3 + [fake_crr_val] + [pad_val] * 2)).all()
-
-    # crr_ord_val = (torch.arange(16, dtype=torch.float) * torch.arange(16, 32)).sum()
     assert val_tens.shape == (2,)
-    # assert torch.isclose(val_tens[0], torch.tensor(crr_ord_val * 3 / 6 + fake_crr_val / 6)).all()
-    # assert torch.isclose(val_tens[1], torch.tensor(crr_ord_val * 3 / 4 + fake_crr_val / 4)).all()

@@ -116,19 +116,20 @@ class ItemEncoder(nn.Module):
                                             number_embedding_dim=number_embedding_dim,
                                             device=device)
         num_layers = kwargs['num_layers']
-        if num_layers == 0:
-            self.mlp = nn.Sequential(
-                nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
-                nn.LeakyReLU(),
-                nn.Linear(item_embedding_dim, item_embedding_dim),
-                nn.LeakyReLU(),
-                nn.Linear(item_embedding_dim, item_embedding_dim),
-            ).to(device)
-        else:
-            self.mlp = nn.Sequential(
-                nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
-                *[ResidualBlock(item_embedding_dim) for _ in range(num_layers)]
-            ).to(device)
+        # if num_layers == 0:
+        #     self.mlp = nn.Sequential(
+        #         nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
+        #         nn.LeakyReLU(),
+        #         nn.Linear(item_embedding_dim, item_embedding_dim),
+        #         nn.LeakyReLU(),
+        #         nn.Linear(item_embedding_dim, item_embedding_dim),
+        #     ).to(device)
+        # else:
+        self.mlp = nn.Sequential(
+            nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
+            *[nn.Sequential(nn.LeakyReLU(), nn.Linear(item_embedding_dim, item_embedding_dim))
+                for _ in range(num_layers)]
+        ).to(device)
 
     def forward(self, item_np: np.ndarray) -> torch.FloatTensor:
         assert item_np.ndim == 2 and item_np.shape[1] == len(self.coords_idxs) + len(self.numbers_idxs), (

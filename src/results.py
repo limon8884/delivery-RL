@@ -56,13 +56,17 @@ def run_baselines(**kwargs) -> dict:
 def run_model(checkpoint_id: str, **kwargs) -> dict:
     device = kwargs['device']
     model_size = kwargs['model_size']
-    use_dist_feature = kwargs['use_dist_feature']
     with open(kwargs['network_cfg_path']) as f:
         net_cfg = json.load(f)['encoder'][model_size]
     encoder = GambleEncoder(**net_cfg, **kwargs)
-    coc_emb_size = net_cfg['claim_embedding_dim'] + net_cfg['courier_order_embedding_dim']
-    ac = DeliveryActorCritic(gamble_encoder=encoder, coc_emb_size=coc_emb_size, device=device,
-                             temperature=1.0, use_dist_feature=use_dist_feature)
+    ac = DeliveryActorCritic(gamble_encoder=encoder,
+                             clm_emb_size=net_cfg['claim_embedding_dim'],
+                             co_emb_size=net_cfg['courier_order_embedding_dim'],
+                             gmb_emb_size=net_cfg['gamble_features_embedding_dim'],
+                             device=device,
+                             temperature=1.0,
+                             use_dist=kwargs['use_dist'],
+                             use_masks=kwargs['use_masks'])
     ac.load_state_dict(torch.load(kwargs['checkpoint_path'] + checkpoint_id + '.pt', map_location=device))
     dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=kwargs['max_num_points_in_route'],
                                    use_dist=kwargs['use_dist'])
