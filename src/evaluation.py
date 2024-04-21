@@ -16,6 +16,7 @@ def evaluate(
     dispatch: BaseDispatch,
     run_id: int,
     eval_num_runs: int,
+    reduce='mean',
     **kwargs
 ) -> dict[str, typing.Optional[float]]:
     assert eval_num_runs <= MAX_NUM_EVAL_RUNS
@@ -39,7 +40,12 @@ def evaluate(
         results['CR'].append(db.get_metric(Metric.CR, local_run_id))
         results['CTD'].append(db.get_metric(Metric.CTD, local_run_id))
         results['arrival_dist'].append(db.get_metric(Metric.NOT_BATCHED_ARRIVAL_DISTANCE, local_run_id))
-    return {k: mean(v) for k, v in results.items()}
+    if reduce == 'mean':
+        return {k: mean(v) for k, v in results.items()}
+    elif reduce is None:
+        return results
+    else:
+        raise RuntimeError()
 
 
 def mean(values: list[typing.Optional[float]]) -> typing.Optional[float]:

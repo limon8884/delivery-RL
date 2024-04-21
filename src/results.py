@@ -4,6 +4,7 @@ import numpy as np
 from pathlib import Path
 from collections import defaultdict
 from torch import nn
+from scipy import stats
 
 from src.database.database import Database, Metric, DatabaseLogger
 from src.dispatchs.hungarian_dispatch import HungarianDispatch, BaseDispatch
@@ -23,6 +24,7 @@ def make_runs(
         max_num_points_in_route: int,
         eval_num_simulator_steps: int,
         eval_num_runs: int,
+        reduce='mean',
         **kwargs
         ):
     print(f'Start {name}, {eval_num_runs} runs')
@@ -31,6 +33,7 @@ def make_runs(
     results = evaluate(
         dispatch=dsp,
         run_id=0,
+        reduce=reduce,
         eval_num_runs=eval_num_runs,
         simulator_cfg_path=kwargs['simulator_cfg_path'],
         sampler_mode=sample_mode,
@@ -71,6 +74,36 @@ def run_model(checkpoint_id: str, **kwargs) -> dict:
     dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=kwargs['max_num_points_in_route'],
                                    use_dist=kwargs['use_dist'])
     return make_runs(checkpoint_id, dsp, **kwargs)
+
+
+def compute_significancy(baseline_runs: dict[str, dict[str, list[float]]], model_runs: dict[str, list[float]],
+                         metric: str, better_more: bool = True) -> str:
+    best_baseline, best_value = '', -1e9
+    for baseline_name, baseline_results in baseline_runs.items():
+        value = float(np.mean(baseline_results[metric]))
+        if (better_more and value > best_value) or (not better_more and value < best_value):
+            best_value = value
+            best_baseline = baseline_name
+
+    baseline_values = baseline_runs[best_baseline][metric]
+    model_values = model_runs[metric]
+    pv = stats.ttest_ind(baseline_values, model_values, equal_var=False, nan_policy='raise', alternative='less').pvalue
+    print('p-value:', pv)
+    if pv < 0.01:
+        return '***'
+    elif pv < 0.05:
+        return '**'
+    elif pv < 0.1:
+        return '*'
+    return ''
+
+
+def reduce_metrics(data: dict[str, list[float]], reduce='mean') -> dict[str, float]:
+    result = {}
+    for key, values in data.items():
+        if reduce == 'mean':
+            result[key] = np.mean(values)
+    return result
 
 
 def model_size(model: nn.Module):
