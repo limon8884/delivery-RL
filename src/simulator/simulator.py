@@ -110,7 +110,7 @@ class Simulator(object):
         )
 
     def run(self, dispatch: BaseDispatch, num_iters: int,
-            visualization: Visualization | None = None, vis_freq: int = 0) -> None:
+            visualization: Visualization | None = None) -> None:
         """Runs simulations using a dispatch
 
         Args:
@@ -121,7 +121,7 @@ class Simulator(object):
             gamble = self.get_state()
             assignments = dispatch(gamble)
             self.next(assignments)
-            if visualization is not None and iter % vis_freq == 0:
+            if visualization is not None:
                 visualization.visualize(gamble, assignments, iter)
 
     def _get_next_order_id(self) -> int:

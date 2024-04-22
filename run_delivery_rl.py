@@ -98,7 +98,7 @@ def run_ppo(**kwargs):
         maker.ppo.step(sample)
         if (iteration + 1) % kwargs['eval_epochs_frequency'] == 0:
             maker.actor_critic.eval()
-            metrics = evaluate(dispatch=dsp, run_id=iteration, **kwargs)
+            metrics = evaluate(dispatch=dsp, run_id=iteration, visualize=False, **kwargs)
             for k, v in metrics.items():
                 maker.metric_logger.log(k, v)
             inference_logger()

@@ -20,14 +20,17 @@ from src.objects import (
 
 
 class Visualization:
-    def __init__(self, config_path: Path, plot_ords: bool = False, figsize=(10, 10)) -> None:
+    def __init__(self, config_path: Path, plot_ords: bool = False, vis_freq: int = 1, figsize=(10, 10)) -> None:
         self.images: list[np.ndarray] = []
         self.plot_ords = plot_ords
         self.figsize = figsize
+        self.vis_freq = vis_freq
         with open(config_path) as f:
             self.config = json.load(f)
 
     def visualize(self, gamble: Gamble, assignment: Assignment, step: int):
+        if step % self.vis_freq != 0:
+            return
         fig, ax = plt.subplots()
         ax.set_title(f'Step {step}')
         plot_claims(gamble.claims, ax, self.config['claim'])
