@@ -20,21 +20,20 @@ from src.objects import (
 
 
 class Visualization:
-    def __init__(self, config_path: Path, mute: bool = False, figsize=(10, 10)) -> None:
+    def __init__(self, config_path: Path, plot_ords: bool = False, figsize=(10, 10)) -> None:
         self.images: list[np.ndarray] = []
-        self.mute = mute
+        self.plot_ords = plot_ords
         self.figsize = figsize
         with open(config_path) as f:
             self.config = json.load(f)
 
     def visualize(self, gamble: Gamble, assignment: Assignment, step: int):
-        if self.mute:
-            return
         fig, ax = plt.subplots()
         ax.set_title(f'Step {step}')
         plot_claims(gamble.claims, ax, self.config['claim'])
         plot_couriers(gamble.couriers, ax, self.config['courier'])
-        plot_orders(gamble.orders, ax, self.config['order'])
+        if self.plot_ords:
+            plot_orders(gamble.orders, ax, self.config['order'])
         plot_assignment(gamble, assignment, ax, self.config['assignment'])
         fig.canvas.draw()
         image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
@@ -60,6 +59,8 @@ def plot_assignment(gamble: Gamble, assignment: Assignment, ax: typing.Any, cfg:
     crrs_coords = {crr.id: crr.position for crr in gamble.couriers}
     clms_coords = {clm.id: clm.source_point for clm in gamble.claims}
     for crr_id, clm_id in assignment.ids:
+        if crr_id not in crrs_coords:
+            continue
         crr_x, crr_y = crrs_coords[crr_id].x, crrs_coords[crr_id].y
         clm_x, clm_y = clms_coords[clm_id].x, clms_coords[clm_id].y
         line = Line2D([crr_x, clm_x], [crr_y, clm_y], **cfg)

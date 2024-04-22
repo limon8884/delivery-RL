@@ -16,6 +16,7 @@ from src.objects import (
     Assignment,
     Point,
 )
+from src.visualization import Visualization
 from src.dispatchs.base_dispatch import BaseDispatch
 from src.simulator.data_reader import DataReader
 from src.router_makers import BaseRouteMaker
@@ -46,6 +47,7 @@ class Simulator(object):
             'assigned_batched_claims': 0.0,
             'assigned_not_batched_orders_arrival_distance': 0.0,
             'assigned_batched_orders_distance_increase': 0.0,
+            'prohibited_assignments': 0.0,
             'finished_couriers': 0.0,
             'cancelled_claims': 0.0,
             'completed_claims': 0.0,
@@ -107,7 +109,8 @@ class Simulator(object):
             dttm_end=self._current_gamble_end_dttm
         )
 
-    def run(self, dispatch: BaseDispatch, num_iters: int) -> None:
+    def run(self, dispatch: BaseDispatch, num_iters: int,
+            visualization: Visualization | None = None, vis_freq: int = 0) -> None:
         """Runs simulations using a dispatch
 
         Args:
@@ -118,6 +121,8 @@ class Simulator(object):
             gamble = self.get_state()
             assignments = dispatch(gamble)
             self.next(assignments)
+            if visualization is not None and iter % vis_freq == 0:
+                visualization.visualize(gamble, assignments, iter)
 
     def _get_next_order_id(self) -> int:
         order_id = self._next_order_id
@@ -163,9 +168,7 @@ class Simulator(object):
                 order = self.active_orders[self.courier_id_to_order_id[courier_id]]
                 if len(order.route.route_points) > self.route_maker.max_points_lenght - 2:
                     warnings.warn('assigned on order with to many points')
-                    # LOGGER.warning(f'Assigning full courier {courier_id} with order {order.id} on claim {claim_id} \
-                    #     in gamble with start time {self._current_gamble_begin_dttm}. \
-                    #     Size of order: {len(order.route.route_points)}.')
+                    self.assignment_statistics['prohibited_assignments'] += 1
                     continue
                 if not order.courier.is_time_off():
                     prev_route_dist = order.route.distance_with_arrival(order.courier.position)

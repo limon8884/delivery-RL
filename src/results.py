@@ -40,6 +40,10 @@ def make_runs(
         max_num_points_in_route=max_num_points_in_route,
         history_db_path='history.db',
         eval_num_simulator_steps=eval_num_simulator_steps,
+        gif_path=kwargs['visualizations_path'] + name + '.gif',
+        visualize=kwargs['visualize'],
+        visualization_frequency=kwargs['visualization_frequency'],
+        visualization_cgf_path=kwargs['visualization_cgf_path']
     )
     return results
 
@@ -51,6 +55,7 @@ def run_baselines(**kwargs) -> dict:
         'Random': RandomDispatch(),
     }
     result_dict = {}
+    kwargs['visualize'] = False
     for name, dsp in baseline_dispatches.items():
         result_dict[name] = make_runs(name, dsp, **kwargs)
     return result_dict
@@ -102,7 +107,7 @@ def reduce_metrics(data: dict[str, list[float]], reduce='mean') -> dict[str, flo
     result = {}
     for key, values in data.items():
         if reduce == 'mean':
-            result[key] = np.mean(values)
+            result[key] = mean(values)
     return result
 
 
@@ -116,3 +121,12 @@ def model_size(model: nn.Module):
 
     size_all_mb = (param_size + buffer_size) / 1000**2
     print('model size: {:.3f}M params'.format(size_all_mb))
+
+
+def mean(values: list[float | None]) -> float | None:
+    summ = 0.0
+    for value in values:
+        if value is None:
+            return None
+        summ += value
+    return summ / len(values)

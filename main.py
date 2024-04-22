@@ -1,7 +1,6 @@
 import json
 import click
 import pandas as pd
-import numpy as np
 from pprint import pprint
 
 from src.results import run_baselines, run_model, compute_significancy, reduce_metrics
@@ -17,6 +16,8 @@ from src.results import run_baselines, run_model, compute_significancy, reduce_m
 @click.option('--use_dist', type=bool, default=True)
 @click.option('--device', type=str, default='cpu')
 @click.option('--use_pretrained_encoders', type=bool, default=True)
+@click.option('--vis_freq', 'visualization_frequency', type=int, default=10)
+@click.option('-v', '--visualize', type=bool, is_flag=True, default=False)
 @click.argument('checkpoint_ids', nargs=-1)
 def results(checkpoint_ids, **kwargs):
     print(f'Evaluating checkpoints: {checkpoint_ids} with kwargs:\n')

@@ -231,7 +231,7 @@ class DeliveryActorCritic(BaseActorCritic):
         self.temperature = temperature
         self.mask_fake_crr = mask_fake_crr
         self.use_dist = use_dist
-        self.use_masks= use_masks
+        self.use_masks = use_masks
         self.device = device
 
         if self.use_dist:

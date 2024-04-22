@@ -236,7 +236,7 @@ def test_delivery_actor_critic():
         use_pretrained_encoders=False,
     )
     ac = DeliveryActorCritic(gamble_encoder, clm_emb_size=16, co_emb_size=32, gmb_emb_size=8, temperature=1.0,
-                             device=None)
+                             device=None, use_masks=True)
     state1 = DeliveryState(
         claim_emb=np.zeros((6,)),
         couriers_embs=np.zeros((5, 4)),
@@ -252,7 +252,7 @@ def test_delivery_actor_critic():
         couriers_embs=np.zeros((2, 4)),
         orders_embs=np.zeros((1, 14)),
         prev_idxs=[],
-        orders_full_masks=[False],
+        orders_full_masks=[True],
         claim_to_couries_dists=np.array(list(range(3))),
         gamble_features=np.zeros((5,)),
         claim_idx=1
@@ -260,3 +260,8 @@ def test_delivery_actor_critic():
     pol_tens, val_tens = ac._make_padded_policy_value_tensors([state1, state2])
     assert pol_tens.shape == (2, 6)
     assert val_tens.shape == (2,)
+
+    masks1 = ac._make_masks(state1)
+    masks2 = ac._make_masks(state2)
+    assert (masks1 == torch.tensor([False, False, True, True, False, False])).all(), masks1
+    assert (masks2 == torch.tensor([False, False, True, False])).all(), masks2

@@ -3,6 +3,8 @@
     "pretrained_path": "pretrained/",
     "history_db_path": "histories/",
     "debug_info_path": "debug_info/",
+    "visualizations_path": "visualizations/",
     "simulator_cfg_path": "configs/simulator.json",
-    "network_cfg_path": "configs/network.json"
+    "network_cfg_path": "configs/network.json",
+    "visualization_cgf_path": "configs/visualization.json"
 }
