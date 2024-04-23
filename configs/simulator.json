@@ -197,7 +197,7 @@
         }
     },
     "distr_big": {
-        "sampler_mode": "distribution",
+        "sampler_mode": "big distribution",
         "num_sampler": {
             "couriers": {
                 "epsilon_variation": 0.1,
