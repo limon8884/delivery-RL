@@ -1,11 +1,13 @@
-name: distr_sampler_long_traj
+name: distr
 method: random
 metric:
   goal: maximize
   name: CR
 parameters:
   group_run:
-    value: "distr_sampler_long_traj"
+    value: "distr"
+  load_checkpoint:
+    value: "checkpoints\2966072b611b45d4bac1497bfbb2602b.pt"
   n_envs: 
     value: 1
   trajectory_length:
@@ -22,18 +24,23 @@ parameters:
   optimizer: 
     value: "adam"
   scheduler_max_lr:
-    distribution: "log_uniform"
-    min: -10.0
-    max: -7.0
+    value: 0.0003
+    # distribution: "log_uniform"
+    # min: -10.0
+    # max: -7.0
   scheduler_pct_start: 
     value: 0.3
   exploration_temperature:
-    value: 1.0
+    min: 0.5
+    max: 2.0
   ppo_cliprange:
       min: 0.1
       max: 0.3
   ppo_value_loss_coef:
-    value: 10
+    distribution: "log_uniform"
+    min: -2.0
+    max: 2.0
+    # value: 10
   ppo_entropy_loss_coef:
     value: 0.0
   max_grad_norm:
@@ -47,15 +54,15 @@ parameters:
   reward_norm_cliprange:
     value: 10.0
   coef_reward_assigned:
-    value: 1.0
+    value: 0.0
   coef_reward_cancelled:
-    value: 0
+    value: 0.0
   coef_reward_completed:
-    value: 0
-  coef_reward_distance:
     value: 1.0
+  coef_reward_distance:
+    value: 0.0
   total_iters:
-    value: 150_000
+    value: 100_000
   device: 
     value: "cuda"
   use_wandb: 
@@ -65,4 +72,5 @@ parameters:
   eval_epochs_frequency: 
     value: 1000
   model_size:
-    values: ["medium", "big"]
+    value: "medium"
+    # values: ["medium", "big"]
