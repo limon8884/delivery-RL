@@ -34,6 +34,7 @@ def results(checkpoint_ids, **kwargs):
         results[checkpoint_id] = reduce_metrics(model_runs)
         results[checkpoint_id]['significancy'] = compute_significancy(baseline_runs, model_runs,
                                                                       metric='CR', better_more=True)
+        print(results[checkpoint_id])
 
     print('-' * 50)
     print('Results', end='\n\n')

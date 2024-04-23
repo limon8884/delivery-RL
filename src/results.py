@@ -92,7 +92,8 @@ def compute_significancy(baseline_runs: dict[str, dict[str, list[float]]], model
 
     baseline_values = baseline_runs[best_baseline][metric]
     model_values = model_runs[metric]
-    pv = stats.ttest_ind(baseline_values, model_values, equal_var=False, nan_policy='raise', alternative='less').pvalue
+    pv = stats.ttest_ind(baseline_values, model_values, equal_var=False, nan_policy='raise',
+                         alternative='two-sided').pvalue
     print('p-value:', pv)
     if pv < 0.01:
         return '***'
