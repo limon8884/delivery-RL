@@ -3,11 +3,11 @@ import click
 import pandas as pd
 from pprint import pprint
 
-from src.results import run_baselines, eval_model
+from src.results import eval_model
 
 
 @click.command()
-@click.option('--s_mode', 'sampler_mode', type=str, default="dummy_sampler")
+@click.option('-s', 'sampler_mode', type=str, default="dummy_sampler")
 @click.option('--n_pts', 'max_num_points_in_route', type=int, default=2)
 @click.option('--steps', 'eval_num_simulator_steps', type=int, default=200)
 @click.option('--n_runs', 'eval_num_runs', type=int, default=5)
@@ -32,4 +32,3 @@ def results(checkpoint_id, **kwargs):
 
 if __name__ == '__main__':
     results()
-    # run_baselines()

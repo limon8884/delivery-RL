@@ -13,3 +13,4 @@ launch.json
 history.db
 develop.ipynb
 *.gif
+*.db

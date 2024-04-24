@@ -51,27 +51,6 @@ def make_evatuation_runs(
     return results
 
 
-def run_baselines() -> None:
-    with open('configs/paths.json') as f:
-        kwargs = json.load(f)
-    for name, dsp in BASELINES.items():
-        # if name != 'Random':
-        #     continue
-        print(f'Baseline {name}')
-        res = make_evatuation_runs(
-            name,
-            dsp,
-            eval_num_runs=10,
-            visualize=False,
-            visualization_frequency=10,
-            sampler_mode='distr_adopted',
-            max_num_points_in_route=2,
-            eval_num_simulator_steps=2880,
-            **kwargs
-        )
-        print(f'Results: {res}')
-
-
 def run_model(checkpoint_id: str, **kwargs) -> None:
     device = kwargs['device']
     model_size = kwargs['model_size']
@@ -101,14 +80,13 @@ def eval_model(model_id: str, **kwargs) -> dict[str, dict[str, typing.Any]]:
                                         history_db_path=model_hist_path)
     results[model_id] = {k: mean(v) for k, v in model_results.items()}
     for baseline in BASELINES:
+        baseline_hist_path = make_hist_path(baseline, history_db_path=kwargs['history_db_path'],
+                                            sampler_mode=kwargs['sampler_mode'], eval_num_runs=BASELINE_NUM_RUNS,
+                                            eval_num_simulator_steps=kwargs['eval_num_simulator_steps'])
         baseline_results = evaluate_by_history(run_id=DEFAULT_RUN_ID,
-                                               history_db_path=make_hist_path(baseline,
-                                                                              history_db_path=kwargs['history_db_path'],
-                                                                              sampler_mode=kwargs['sampler_mode'],
-                                                                              eval_num_runs=BASELINE_NUM_RUNS,
-                                                                              eval_num_simulator_steps=2880),
+                                               history_db_path=baseline_hist_path,
                                                eval_num_runs=BASELINE_NUM_RUNS)
-        print(baseline, baseline_results)
+        # print(baseline, baseline_results)
         results[baseline] = compute_significancy(baseline_results, model_results)
     return results
 

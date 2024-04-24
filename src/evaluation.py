@@ -62,6 +62,8 @@ def evaluate_by_history(
         'CTD': [],
         'arrival_dist': [],
     }
+    if not history_db_path.exists():
+        raise RuntimeError(f'Path {history_db_path} does not exist')
     db = Database(history_db_path)
     for run_index in range(eval_num_runs):
         local_run_id = run_id * MAX_NUM_EVAL_RUNS + run_index
