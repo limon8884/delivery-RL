@@ -111,10 +111,10 @@ def represent_significancy(value: float, pvalue: float) -> str:
     if pvalue < 0.01:
         return f'{value:.3f}***'
     elif pvalue < 0.05:
-        return f'{value:.3f}**'
+        return f'{value:.3f} **'
     elif pvalue < 0.1:
-        return f'{value:.3f}*'
-    return f'{value:.3f}'
+        return f'{value:.3f}  *'
+    return f'{value:.3f}   '
 
 
 def make_hist_path(model_id: str, history_db_path: str, sampler_mode: str, eval_num_runs: int,

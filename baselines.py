@@ -2,7 +2,7 @@ import click
 import json
 import pandas as pd
 from src.results import BASELINES, BASELINE_NUM_RUNS, DEFAULT_RUN_ID
-from src.results import make_evatuation_runs, evaluate_by_history, make_hist_path, mean
+from src.results import make_evatuation_runs, evaluate_by_history, make_hist_path, mean, compute_significancy
 
 
 def run_baselines(**kwargs) -> None:
@@ -18,6 +18,7 @@ def run_baselines(**kwargs) -> None:
 
 def eval_baselines(**kwargs):
     results = {}
+    run_values = {}
     for baseline in BASELINES:
         baseline_hist_path = make_hist_path(baseline, history_db_path=kwargs['history_db_path'],
                                             sampler_mode=kwargs['sampler_mode'], eval_num_runs=BASELINE_NUM_RUNS,
@@ -25,7 +26,13 @@ def eval_baselines(**kwargs):
         baseline_results = evaluate_by_history(run_id=DEFAULT_RUN_ID,
                                                history_db_path=baseline_hist_path,
                                                eval_num_runs=BASELINE_NUM_RUNS)
+        run_values[baseline] = baseline_results
         results[baseline] = {k: mean(v) for k, v in baseline_results.items()}
+
+    for baseline in BASELINES:
+        for vs_baseline in BASELINES:
+            results[baseline][vs_baseline] = compute_significancy(run_values[vs_baseline],
+                                                                  run_values[baseline])['CR'][-3:]
     return results
 
 
