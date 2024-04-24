@@ -219,6 +219,11 @@ class CityStampSampler:
             self._pos_sampler = DistributionPositionSampler(cfg['pos_sampler'])
             self._done_dttm_sampler = DistributionDoneDTTMSampler(cfg['done_dttm_sampler'])
             self._waiting_time_sampler = DistributionWaitingTimeSampler(cfg['waiting_time_sampler'])
+        elif cfg['sampler_mode'] == 'adopted':
+            self._num_sampler = DistributionNumSampler(cfg['num_sampler'])
+            self._pos_sampler = DistributionPositionSampler(cfg['pos_sampler'])
+            self._done_dttm_sampler = DistributionDoneDTTMSampler(cfg['done_dttm_sampler'])
+            self._waiting_time_sampler = DistributionWaitingTimeSampler(cfg['waiting_time_sampler'])
         else:
             raise RuntimeError('No such sampler mode')
 

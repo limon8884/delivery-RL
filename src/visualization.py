@@ -32,7 +32,7 @@ class Visualization:
         if step % self.vis_freq != 0:
             return
         fig, ax = plt.subplots()
-        ax.set_title(f'Step {step}')
+        ax.set_title(f'Step {step}, time {gamble.dttm_start.hour}:{gamble.dttm_start.minute}')
         plot_claims(gamble.claims, ax, self.config['claim'])
         plot_couriers(gamble.couriers, ax, self.config['courier'])
         if self.plot_ords:
@@ -42,6 +42,7 @@ class Visualization:
         image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
         ncols, nrows = fig.canvas.get_width_height()
         self.images.append(image.reshape(nrows, ncols, 3))
+        plt.close(fig)
 
     def to_gif(self, save_path: Path, duration_sec: int):
         assert len(self.images) > 0

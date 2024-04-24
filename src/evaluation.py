@@ -17,20 +17,20 @@ def evaluate(
     dispatch: BaseDispatch,
     run_id: int,
     eval_num_runs: int,
-    reduce='mean',
+    visualize: bool = False,
     **kwargs
 ) -> dict[str, typing.Optional[float]]:
     assert eval_num_runs <= MAX_NUM_EVAL_RUNS
-    results: dict[str, list[float]] = {
+    results: dict[str, list[typing.Optional[float]]] = {
         'CR': [],
         'CTD': [],
         'arrival_dist': [],
-    }        
+    }
     for run_index in range(eval_num_runs):
         visualizer = Visualization(
             config_path=kwargs['visualization_cgf_path'],
             vis_freq=kwargs['visualization_frequency']
-            ) if (kwargs['visualize'] and run_index == 0) else None
+            ) if (visualize and run_index == 0) else None
         local_run_id = run_id * MAX_NUM_EVAL_RUNS + run_index
         db_logger = DatabaseLogger(run_id=local_run_id)
         reader = DataReader.from_config(config_path=Path(kwargs['simulator_cfg_path']),
@@ -47,12 +47,28 @@ def evaluate(
         results['arrival_dist'].append(db.get_metric(Metric.NOT_BATCHED_ARRIVAL_DISTANCE, local_run_id))
         if visualizer is not None:
             visualizer.to_gif(kwargs['gif_path'], duration_sec=1)
-    if reduce == 'mean':
-        return {k: mean(v) for k, v in results.items()}
-    elif reduce is None:
-        return results
-    else:
-        raise RuntimeError()
+
+    return {k: mean(v) for k, v in results.items()}
+
+
+def evaluate_by_history(
+    run_id: int,
+    eval_num_runs: int,
+    history_db_path: Path,
+) -> dict[str, list[typing.Optional[float]]]:
+    assert eval_num_runs <= MAX_NUM_EVAL_RUNS
+    results: dict[str, list[typing.Optional[float]]] = {
+        'CR': [],
+        'CTD': [],
+        'arrival_dist': [],
+    }
+    db = Database(history_db_path)
+    for run_index in range(eval_num_runs):
+        local_run_id = run_id * MAX_NUM_EVAL_RUNS + run_index
+        results['CR'].append(db.get_metric(Metric.CR, local_run_id))
+        results['CTD'].append(db.get_metric(Metric.CTD, local_run_id))
+        results['arrival_dist'].append(db.get_metric(Metric.NOT_BATCHED_ARRIVAL_DISTANCE, local_run_id))
+    return results
 
 
 def mean(values: list[typing.Optional[float]]) -> typing.Optional[float]:

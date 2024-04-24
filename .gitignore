@@ -9,6 +9,7 @@ lib64
 settings.json
 ideas.txt
 launch.json
-information.txt
+# information.txt
 history.db
 develop.ipynb
+*.gif

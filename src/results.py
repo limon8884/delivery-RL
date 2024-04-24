@@ -1,5 +1,6 @@
 import json
 import torch
+import typing
 import numpy as np
 from pathlib import Path
 from collections import defaultdict
@@ -14,54 +15,64 @@ from src.dispatchs.scorers import DistanceScorer
 from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src.networks.encoders import GambleEncoder
 from src.reinforcement.delivery import DeliveryActorCritic
-from src.evaluation import evaluate
+from src.evaluation import evaluate, evaluate_by_history
 
 
-def make_runs(
-        name: str,
+BASELINES = {
+    'Hungarian': HungarianDispatch(DistanceScorer()),
+    'Greedy': GreedyDispatch(DistanceScorer()),
+    'Random': RandomDispatch(),
+}
+DEFAULT_RUN_ID = 0
+BASELINE_NUM_RUNS = 10
+# SIGNIFICANCY_METRIC = 'CR'
+
+
+def make_evatuation_runs(
+        model_id: str,
         dsp: BaseDispatch,
-        sample_mode: str,
-        max_num_points_in_route: int,
-        eval_num_simulator_steps: int,
-        eval_num_runs: int,
-        reduce='mean',
         **kwargs
-        ):
-    print(f'Start {name}, {eval_num_runs} runs')
-    db = Database(Path('history.db'))
+        ) -> dict[str, typing.Optional[float]]:
+    '''
+    history_db_path - path to folder, not file
+    '''
+    print(f'Start {model_id}, {kwargs["eval_num_runs"]} runs')
+    db_path = make_hist_path(model_id, **kwargs)
+    kwargs['history_db_path'] = db_path
+    db = Database(db_path)
     db.clear()
     results = evaluate(
         dispatch=dsp,
-        run_id=0,
-        reduce=reduce,
-        eval_num_runs=eval_num_runs,
-        simulator_cfg_path=kwargs['simulator_cfg_path'],
-        sampler_mode=sample_mode,
-        max_num_points_in_route=max_num_points_in_route,
-        history_db_path='history.db',
-        eval_num_simulator_steps=eval_num_simulator_steps,
-        gif_path=kwargs['visualizations_path'] + name + '.gif',
-        visualize=kwargs['visualize'],
-        visualization_frequency=kwargs['visualization_frequency'],
-        visualization_cgf_path=kwargs['visualization_cgf_path']
+        run_id=DEFAULT_RUN_ID,
+        gif_path=make_gif_path(model_id, **kwargs),
+        **kwargs
     )
+    print('Results:', results)
     return results
 
 
-def run_baselines(**kwargs) -> dict:
-    baseline_dispatches = {
-        'Hungarian': HungarianDispatch(DistanceScorer()),
-        'Greedy': GreedyDispatch(DistanceScorer()),
-        'Random': RandomDispatch(),
-    }
-    result_dict = {}
-    kwargs['visualize'] = False
-    for name, dsp in baseline_dispatches.items():
-        result_dict[name] = make_runs(name, dsp, **kwargs)
-    return result_dict
+def run_baselines() -> None:
+    with open('configs/paths.json') as f:
+        kwargs = json.load(f)
+    for name, dsp in BASELINES.items():
+        # if name != 'Random':
+        #     continue
+        print(f'Baseline {name}')
+        res = make_evatuation_runs(
+            name,
+            dsp,
+            eval_num_runs=10,
+            visualize=False,
+            visualization_frequency=10,
+            sampler_mode='distr_adopted',
+            max_num_points_in_route=2,
+            eval_num_simulator_steps=2880,
+            **kwargs
+        )
+        print(f'Results: {res}')
 
 
-def run_model(checkpoint_id: str, **kwargs) -> dict:
+def run_model(checkpoint_id: str, **kwargs) -> None:
     device = kwargs['device']
     model_size = kwargs['model_size']
     with open(kwargs['network_cfg_path']) as f:
@@ -78,38 +89,64 @@ def run_model(checkpoint_id: str, **kwargs) -> dict:
     ac.load_state_dict(torch.load(kwargs['checkpoint_path'] + checkpoint_id + '.pt', map_location=device))
     dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=kwargs['max_num_points_in_route'],
                                    use_dist=kwargs['use_dist'])
-    return make_runs(checkpoint_id, dsp, **kwargs)
+    make_evatuation_runs(checkpoint_id, dsp, **kwargs)
 
 
-def compute_significancy(baseline_runs: dict[str, dict[str, list[float]]], model_runs: dict[str, list[float]],
-                         metric: str, better_more: bool = True) -> str:
-    best_baseline, best_value = '', -1e9
-    for baseline_name, baseline_results in baseline_runs.items():
-        value = float(np.mean(baseline_results[metric]))
-        if (better_more and value > best_value) or (not better_more and value < best_value):
-            best_value = value
-            best_baseline = baseline_name
-
-    baseline_values = baseline_runs[best_baseline][metric]
-    model_values = model_runs[metric]
-    pv = stats.ttest_ind(baseline_values, model_values, equal_var=False, nan_policy='raise',
-                         alternative='two-sided').pvalue
-    print('p-value:', pv)
-    if pv < 0.01:
-        return '***'
-    elif pv < 0.05:
-        return '**'
-    elif pv < 0.1:
-        return '*'
-    return ''
+def eval_model(model_id: str, **kwargs) -> dict[str, dict[str, typing.Any]]:
+    results: dict[str, dict[str, typing.Any]] = {}
+    model_hist_path = make_hist_path(model_id, **kwargs)
+    if not model_hist_path.is_file():
+        run_model(model_id, **kwargs)
+    model_results = evaluate_by_history(run_id=DEFAULT_RUN_ID, eval_num_runs=kwargs['eval_num_runs'],
+                                        history_db_path=model_hist_path)
+    results[model_id] = {k: mean(v) for k, v in model_results.items()}
+    for baseline in BASELINES:
+        baseline_results = evaluate_by_history(run_id=DEFAULT_RUN_ID,
+                                               history_db_path=make_hist_path(baseline,
+                                                                              history_db_path=kwargs['history_db_path'],
+                                                                              sampler_mode=kwargs['sampler_mode'],
+                                                                              eval_num_runs=BASELINE_NUM_RUNS,
+                                                                              eval_num_simulator_steps=2880),
+                                               eval_num_runs=BASELINE_NUM_RUNS)
+        print(baseline, baseline_results)
+        results[baseline] = compute_significancy(baseline_results, model_results)
+    return results
 
 
-def reduce_metrics(data: dict[str, list[float]], reduce='mean') -> dict[str, float]:
-    result = {}
-    for key, values in data.items():
-        if reduce == 'mean':
-            result[key] = mean(values)
-    return result
+def compute_significancy(baseline_runs: dict[str, list[typing.Optional[float]]],
+                         model_runs: dict[str, list[typing.Optional[float]]]) -> dict[str, str]:
+    results: dict[str, str] = {}
+    for metric in model_runs:
+        baseline_values = baseline_runs[metric]
+        model_values = model_runs[metric]
+        mean_value = mean(baseline_values)
+        if mean_value is None:
+            results[metric] = 'NAN'
+            continue
+        pvalue = stats.ttest_ind(baseline_values, model_values, equal_var=False, nan_policy='raise',
+                                 alternative='two-sided').pvalue
+        results[metric] = represent_significancy(mean_value, pvalue)
+    return results
+
+
+def represent_significancy(value: float, pvalue: float) -> str:
+    if pvalue < 0.01:
+        return f'{value:.3f}***'
+    elif pvalue < 0.05:
+        return f'{value:.3f}**'
+    elif pvalue < 0.1:
+        return f'{value:.3f}*'
+    return f'{value:.3f}'
+
+
+def make_hist_path(model_id: str, history_db_path: str, sampler_mode: str, eval_num_runs: int,
+                   eval_num_simulator_steps: int, **kwargs) -> Path:
+    file_name = '_'.join([model_id, str(eval_num_simulator_steps), str(eval_num_runs)]) + '.pt'
+    return Path(history_db_path + sampler_mode + '/' + file_name)
+
+
+def make_gif_path(model_id: str, visualizations_path: str, sampler_mode: str, **kwargs) -> Path:
+    return Path(visualizations_path + sampler_mode + '/' + model_id + '.gif')
 
 
 def model_size(model: nn.Module):
