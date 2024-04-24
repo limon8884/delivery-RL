@@ -141,7 +141,7 @@ def represent_significancy(value: float, pvalue: float) -> str:
 
 def make_hist_path(model_id: str, history_db_path: str, sampler_mode: str, eval_num_runs: int,
                    eval_num_simulator_steps: int, **kwargs) -> Path:
-    file_name = '_'.join([model_id, str(eval_num_simulator_steps), str(eval_num_runs)]) + '.pt'
+    file_name = '_'.join([model_id, str(eval_num_simulator_steps), str(eval_num_runs)]) + '.db'
     return Path(history_db_path + sampler_mode + '/' + file_name)
 
 

@@ -1,6 +1,6 @@
 # torch
-# colour
-# imageio
+colour
+imageio
 scikit-learn
 scipy
 matplotlib
