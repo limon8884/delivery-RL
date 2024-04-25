@@ -59,7 +59,7 @@ def run_model(checkpoint_id: str, **kwargs) -> None:
         net_cfg = json.load(f)
         encoder_cfg = net_cfg['encoder'][model_size]
         attn_cfg = net_cfg['attention'][model_size]
-    encoder = GambleEncoder(**net_cfg, **kwargs)
+    encoder = GambleEncoder(**encoder_cfg, **kwargs)
     claim_attention = ClaimAttention(**kwargs, **attn_cfg) if kwargs['use_attn'] else None
     ac = DeliveryActorCritic(gamble_encoder=encoder, claim_attention=claim_attention,
                              clm_emb_size=net_cfg['claim_embedding_dim'],
