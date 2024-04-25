@@ -62,9 +62,9 @@ def run_model(checkpoint_id: str, **kwargs) -> None:
     encoder = GambleEncoder(**encoder_cfg, **kwargs)
     claim_attention = ClaimAttention(**kwargs, **attn_cfg) if kwargs['use_attn'] else None
     ac = DeliveryActorCritic(gamble_encoder=encoder, claim_attention=claim_attention,
-                             clm_emb_size=net_cfg['claim_embedding_dim'],
-                             co_emb_size=net_cfg['courier_order_embedding_dim'],
-                             gmb_emb_size=net_cfg['gamble_features_embedding_dim'],
+                             clm_emb_size=encoder_cfg['claim_embedding_dim'],
+                             co_emb_size=encoder_cfg['courier_order_embedding_dim'],
+                             gmb_emb_size=encoder_cfg['gamble_features_embedding_dim'],
                              exploration_temperature=1.0,
                              **kwargs)
     ac.load_state_dict(torch.load(kwargs['checkpoint_path'] + checkpoint_id + '.pt', map_location=device))
