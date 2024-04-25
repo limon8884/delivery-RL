@@ -28,6 +28,14 @@
             "gamble_features_embedding_dim": 16
         }
     },
+    "attention": {
+        "medium": {
+            "claim_embedding_dim": 32,
+            "nhead": 4,
+            "dim_feedforward": 256,
+            "num_attention_layers": 2 
+        }
+    },
     "backbone": {
         "small": {
             "nhead": 2,

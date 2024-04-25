@@ -14,6 +14,7 @@ from src.dispatchs.random_dispatch import RandomDispatch
 from src.dispatchs.scorers import DistanceScorer
 from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src.networks.encoders import GambleEncoder
+from src.networks.claim_attention import ClaimAttention
 from src.reinforcement.delivery import DeliveryActorCritic
 from src.evaluation import evaluate, evaluate_by_history
 
@@ -55,16 +56,17 @@ def run_model(checkpoint_id: str, **kwargs) -> None:
     device = kwargs['device']
     model_size = kwargs['model_size']
     with open(kwargs['network_cfg_path']) as f:
-        net_cfg = json.load(f)['encoder'][model_size]
+        net_cfg = json.load(f)
+        encoder_cfg = net_cfg['encoder'][model_size]
+        attn_cfg = net_cfg['attention'][model_size]
     encoder = GambleEncoder(**net_cfg, **kwargs)
-    ac = DeliveryActorCritic(gamble_encoder=encoder,
+    claim_attention = ClaimAttention(**kwargs, **attn_cfg) if kwargs['use_attn'] else None
+    ac = DeliveryActorCritic(gamble_encoder=encoder, claim_attention=claim_attention,
                              clm_emb_size=net_cfg['claim_embedding_dim'],
                              co_emb_size=net_cfg['courier_order_embedding_dim'],
                              gmb_emb_size=net_cfg['gamble_features_embedding_dim'],
-                             device=device,
-                             temperature=1.0,
-                             use_dist=kwargs['use_dist'],
-                             use_masks=kwargs['use_masks'])
+                             exploration_temperature=1.0,
+                             **kwargs)
     ac.load_state_dict(torch.load(kwargs['checkpoint_path'] + checkpoint_id + '.pt', map_location=device))
     dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=kwargs['max_num_points_in_route'],
                                    use_dist=kwargs['use_dist'])

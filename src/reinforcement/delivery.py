@@ -16,6 +16,7 @@ from src.simulator.simulator import Simulator
 from src.simulator.data_reader import DataReader
 from src.router_makers import AppendRouteMaker
 from src.networks.encoders import GambleEncoder
+from src.networks.claim_attention import ClaimAttention
 from src.utils import compulte_claims_to_couriers_distances
 
 
@@ -219,20 +220,22 @@ class DeliveryEnvironment(BaseEnvironment):
 
 
 class DeliveryActorCritic(BaseActorCritic):
-    def __init__(self, gamble_encoder: GambleEncoder,
+    def __init__(self,
+                 gamble_encoder: GambleEncoder,
+                 claim_attention: typing.Optional[ClaimAttention],
                  clm_emb_size: int,
                  co_emb_size: int,
                  gmb_emb_size: int,
-                 temperature: float,
-                 device, mask_fake_crr: bool = False, use_dist: bool = False, use_masks: bool = False) -> None:
+                 **kwargs) -> None:
         super().__init__()
         self.gamble_encoder = gamble_encoder
+        self.claim_attention = claim_attention
         coc_emb_size = clm_emb_size + co_emb_size + gmb_emb_size + 2
-        self.temperature = temperature
-        self.mask_fake_crr = mask_fake_crr
-        self.use_dist = use_dist
-        self.use_masks = use_masks
-        self.device = device
+        self.temperature = kwargs['exploration_temperature']
+        self.mask_fake_crr = kwargs['mask_fake_crr']
+        self.use_dist = kwargs['use_dist']
+        self.use_masks = kwargs['use_masks']
+        self.device = kwargs['device']
 
         if self.use_dist:
             coc_emb_size += 1
@@ -242,14 +245,14 @@ class DeliveryActorCritic(BaseActorCritic):
             nn.Linear(coc_emb_size, coc_emb_size),
             nn.LeakyReLU(),
             nn.Linear(coc_emb_size, 1),
-        ).to(device)
+        ).to(self.device)
         self.value_head = nn.Sequential(
             nn.Linear(coc_emb_size, coc_emb_size),
             nn.LeakyReLU(),
             nn.Linear(coc_emb_size, coc_emb_size),
             nn.LeakyReLU(),
             nn.Linear(coc_emb_size, 1),
-        ).to(device)
+        ).to(self.device)
 
     def forward(self, state_list: list[DeliveryState]) -> None:
         policy_tens, val_tens = self._make_padded_policy_value_tensors(state_list)
@@ -269,7 +272,6 @@ class DeliveryActorCritic(BaseActorCritic):
             masks = self._make_masks(state)
 
             policy_tens = self.policy_head(coc_embs).squeeze(-1)
-            # policy_tens[prev_idxs] = PREV_CHOICE_MASK_VALUE
             if self.use_masks:
                 policy_tens[masks] = FULL_ORDER_MASK_VALUE
             if self.mask_fake_crr:
@@ -277,7 +279,6 @@ class DeliveryActorCritic(BaseActorCritic):
             policy_tens_list.append(policy_tens)
 
             value_tens = self.value_head(coc_embs).squeeze(-1)
-            # value_tens[prev_idxs] = 0.0
             if self.use_masks:
                 value_tens[masks] = 0.0
             if self.mask_fake_crr:
@@ -333,6 +334,8 @@ class DeliveryActorCritic(BaseActorCritic):
         assert encoded_dict['clm'] is not None and encoded_dict['gmb'] is not None
         clm_emb = encoded_dict['clm']
         gmb_emb = encoded_dict['gmb']
+        if self.claim_attention is not None:
+            clm_emb = self.claim_attention(clm_emb)
         return co_embs, clm_emb, gmb_emb
 
     def get_actions_list(self, best_actions=False) -> list[Action]:
@@ -367,9 +370,12 @@ class DeliveryMaker(BaseMaker):
         model_size = kwargs['model_size']
         network_config_path = Path(kwargs['network_cfg_path'])
         with open(network_config_path) as f:
-            encoder_cfg = json.load(f)['encoder'][model_size]
+            net_cfg = json.load(f)
+            encoder_cfg = net_cfg['encoder'][model_size]
+            attn_cfg = net_cfg['attention'][model_size]
 
         gamble_encoder = GambleEncoder(**kwargs, **encoder_cfg)
+        claim_attention = ClaimAttention(**kwargs, **attn_cfg) if kwargs['use_attn'] else None
         reader = DataReader.from_config(config_path=simulator_config_path,
                                         sampler_mode=kwargs['sampler_mode'], db_logger=None)
         route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
@@ -377,14 +383,11 @@ class DeliveryMaker(BaseMaker):
         rewarder = DeliveryRewarder(**kwargs)
         self._train_metric_logger = MetricLogger(use_wandb=kwargs['use_wandb'])
         self._env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, **kwargs)
-        self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder,
+        self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, claim_attention=claim_attention,
                                        clm_emb_size=encoder_cfg['claim_embedding_dim'],
                                        co_emb_size=encoder_cfg['courier_order_embedding_dim'],
                                        gmb_emb_size=encoder_cfg['gamble_features_embedding_dim'],
-                                       temperature=kwargs['exploration_temperature'],
-                                       use_dist=kwargs['use_dist'],
-                                       use_masks=kwargs['use_masks'],
-                                       mask_fake_crr=kwargs['mask_fake_crr'], device=device)
+                                       **kwargs)
         if kwargs['load_checkpoint']:
             self._ac.load_state_dict(torch.load(kwargs['load_checkpoint'], map_location=device))
         opt = make_optimizer(self._ac.parameters(), **kwargs)
