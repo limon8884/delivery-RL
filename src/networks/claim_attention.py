@@ -10,7 +10,8 @@ class ClaimAttention(nn.Module):
         attention_layer = nn.TransformerEncoderLayer(
             d_model=self.clm_emb_dim,
             nhead=kwargs['nhead'],
-            dim_feedforward=kwargs['dim_feedforward']
+            dim_feedforward=kwargs['dim_feedforward'],
+            batch_first=True,
         )
         self.attention = nn.TransformerEncoder(attention_layer, num_layers=kwargs['num_attention_layers']).to(device)
 
