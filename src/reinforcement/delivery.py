@@ -2,6 +2,7 @@ import typing
 import torch
 import json
 import logging
+import warnings
 import numpy as np
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
@@ -14,11 +15,13 @@ from src.objects import (
 )
 from src.simulator.simulator import Simulator
 from src.simulator.data_reader import DataReader
+from src.dispatchs.base_dispatch import BaseDispatch
+from src.dispatchs.hungarian_dispatch import HungarianDispatch
+from src.dispatchs.scorers import DistanceScorer
 from src.router_makers import AppendRouteMaker
 from src.networks.encoders import GambleEncoder
 from src.networks.claim_attention import ClaimAttention
 from src.utils import compulte_claims_to_couriers_distances
-
 
 from src.reinforcement.base import (
     Action,
@@ -29,6 +32,8 @@ from src.reinforcement.base import (
     GAE,
     Buffer,
     PPO,
+    CloningPPO,
+    Trajectory,
     MetricLogger,
     TrajectorySampler,
     RewardNormalizer,
@@ -124,7 +129,6 @@ class DeliveryEnvironment(BaseEnvironment):
         self._claim_idx: int = 0
         self._prev_idxs: list[int] = []
         self._assignments: Assignment = Assignment([])
-        self._base_gamble_reward: float = 0.0
         self._assignment_statistics: dict[str, float] = {}
         self.simulator.reset()
         self._update_next_gamble()
@@ -146,6 +150,7 @@ class DeliveryEnvironment(BaseEnvironment):
         new_state = self._make_state_from_gamble_dict()
         if self._iter == self.num_gambles:
             done = True
+            self._iter = 0
         return new_state, reward, done, info
 
     def _update_next_gamble(self):
@@ -403,6 +408,11 @@ class DeliveryMaker(BaseMaker):
             )
         runner = Runner(environment=self._env, actor_critic=self._ac, n_envs=kwargs['n_envs'],
                         trajectory_length=kwargs['trajectory_length'])
+        if kwargs['use_cloning']:
+            self._ppo = CloningPPO(actor_critic=self._ac, opt=opt, scheduler=scheduler,
+                                   metric_logger=self._train_metric_logger, **kwargs)
+            runner = CloningDeliveryRunner(dispatch=HungarianDispatch(DistanceScorer()),
+                                           simulator=sim, rewarder=rewarder, **kwargs)
         gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
         normalizer = RewardNormalizer(gamma=kwargs['reward_norm_gamma'], cliprange=kwargs['reward_norm_cliprange'])
         buffer = Buffer(gae, reward_normalizer=normalizer, device=device)
@@ -428,3 +438,145 @@ class DeliveryMaker(BaseMaker):
     @property
     def metric_logger(self) -> MetricLogger:
         return self._train_metric_logger
+
+
+class CloningDeliveryRunner:
+    def __init__(self, dispatch: BaseDispatch, simulator: Simulator, rewarder: DeliveryRewarder, **kwargs) -> None:
+        assert kwargs['n_envs'] == 1
+        self.n_envs = 1
+        self.dispatch = dispatch
+        self.simulator: Simulator = deepcopy(simulator)
+        self.rewarder = rewarder
+        self.max_num_points_in_route = kwargs['max_num_points_in_route']
+        self.use_dist = kwargs['use_dist']
+        self.num_gambles = kwargs['num_gambles_in_day']
+        # self.device = kwargs['device']
+        self.trajectory_length = kwargs['trajectory_length']
+
+    def run(self) -> list[Trajectory]:
+        state = self.reset()
+        trajectory = Trajectory(state)
+        for _ in range(self.trajectory_length):
+            new_state, reward, done, info, action = self.step()
+            trajectory.append(state, action, reward, done, 0.0, 0.0, 0.0)
+            self._statistics.append(info)
+            state = new_state
+        trajectory.last_state = state
+        trajectory.last_state_value = 0.0
+        return [trajectory]
+
+    def reset(self) -> DeliveryState:
+        self._statistics = []
+        self._iter = 0
+        self._claim_idx: int = 0
+        self._prev_idxs: list[int] = []
+        self._assignments: Assignment = Assignment([])
+        self._assignment_dict: dict[int, int] = {}
+        self._assignment_statistics: dict[str, float] = {}
+        self.simulator.reset()
+        self._gamble = self.simulator.get_state()
+        self._crr_id_to_index: dict[int, int] = {}
+        self._update_next_gamble()
+        return self._make_state_from_gamble_dict()
+
+    def step(self) -> tuple[DeliveryState, float, bool, dict[str, float], DeliveryAction]:
+        if self.__getattribute__('_iter') is None:
+            raise RuntimeError('Call reset before doing steps')
+        # self._update_assignments(action)
+        action = self._make_action()
+        self._claim_idx += 1
+        reward = 0.0
+        done = False
+        info = {}
+        if self._claim_idx == len(self.embs_dict['clm']):
+            self._update_next_gamble()
+            reward = self.rewarder(self._assignment_statistics)
+            info = self._assignment_statistics
+        new_state = self._make_state_from_gamble_dict()
+        if self._iter == self.num_gambles:
+            done = True
+            self._iter = 0
+        return new_state, reward, done, info, action
+
+    def _make_action(self) -> DeliveryAction:
+        clm_id = self._gamble.claims[self._claim_idx].id
+        if clm_id in self._assignment_dict:
+            crr_id = self._assignment_dict[clm_id]
+        else:
+            crr_id = -1
+        act_index = self._crr_id_to_index[crr_id]
+        self._prev_idxs.append(act_index)
+        return DeliveryAction(act_index)
+
+    def _make_crr_id_dict(self, gamble: Gamble) -> dict[int, int]:
+        pad = 0
+        d = {}
+        for i, crr in enumerate(gamble.couriers):
+            d[crr.id] = i + pad
+        pad = len(gamble.couriers)
+        for i, ord in enumerate(gamble.orders):
+            d[ord.courier.id] = i + pad
+        pad += len(gamble.orders)
+        d[-1] = pad
+        return d
+
+    def _update_next_gamble(self):
+        self.simulator.next(self._assignments)
+        self._statistics_update(self.simulator.assignment_statistics)
+        self._gamble = self.simulator.get_state()
+        self._crr_id_to_index = self._make_crr_id_dict(self._gamble)
+        self._assignments = self.dispatch(self._gamble)
+        self._assignment_dict = {clm_id: crr_id for crr_id, clm_id in self._assignments.ids}
+        while len(self._gamble.claims) == 0:
+            self.simulator.next(Assignment([]))
+            self._statistics_add(self.simulator.assignment_statistics)
+            self._gamble = self.simulator.get_state()
+            self._crr_id_to_index = self._make_crr_id_dict(self._gamble)
+            self._assignments = self.dispatch(self._gamble)
+            self._assignment_dict = {clm_id: crr_id for crr_id, clm_id in self._assignments.ids}
+            self._iter += 1
+        self.embs_dict = {
+            'crr': np.stack([crr.to_numpy() for crr in self._gamble.couriers], axis=0)
+            if len(self._gamble.couriers)
+            else None,
+            'clm': np.stack([clm.to_numpy(use_dist=self.use_dist) for clm in self._gamble.claims], axis=0),
+            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist)
+                             for ord in self._gamble.orders], axis=0)
+            if len(self._gamble.orders) > 0
+            else None,
+            'gmb': self._gamble.to_numpy(),
+            'ord_masks': [ord.has_full_route(max_num_points_in_route=self.max_num_points_in_route)
+                          for ord in self._gamble.orders],
+            'dists': compulte_claims_to_couriers_distances(self._gamble),
+        }
+        # self._assignments = Assignment([])
+        self._claim_idx = 0
+        self._prev_idxs = []
+        self._iter += 1
+
+    def _make_state_from_gamble_dict(self) -> DeliveryState:
+        claim_emb = self.embs_dict['clm'][self._claim_idx]
+        claim_to_couries_dists = self.embs_dict['dists'][self._claim_idx]
+        return DeliveryState(
+            claim_emb=claim_emb,
+            claim_to_couries_dists=claim_to_couries_dists,
+            couriers_embs=self.embs_dict['crr'],
+            orders_embs=self.embs_dict['ord'],
+            gamble_features=self.embs_dict['gmb'],
+            prev_idxs=self._prev_idxs.copy(),
+            orders_full_masks=self.embs_dict['ord_masks'],
+            claim_idx=self._claim_idx,
+        )
+
+    def _statistics_add(self, new_stats: dict[str, float]) -> None:
+        for k, v in new_stats.items():
+            if k not in self._assignment_statistics:
+                self._assignment_statistics[k] = 0.0
+            self._assignment_statistics[k] += v
+        if 'num steps' not in self._assignment_statistics:
+            self._assignment_statistics['num steps'] = 0
+        self._assignment_statistics['num steps'] += 1
+
+    def _statistics_update(self, new_stats: dict[str, float]) -> None:
+        self._assignment_statistics = {}
+        self._statistics_add(new_stats)

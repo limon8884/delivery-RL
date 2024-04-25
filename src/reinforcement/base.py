@@ -1,4 +1,6 @@
 import typing
+from torch.optim.lr_scheduler import _LRScheduler
+from torch.optim.optimizer import Optimizer as Optimizer
 import wandb
 import numpy as np
 import torch
@@ -280,17 +282,6 @@ class Buffer:
         self.device = device
         self.replace = replace
         self.lenght = 0
-        # self.reset()
-
-    # def reset(self) -> None:
-    #     self.lenght = 0
-    #     self._advantages: typing.Optional[torch.FloatTensor] = None
-    #     # self._target_values: typing.Optional[torch.FloatTensor] = None
-    #     self._log_probs_chosen: typing.Optional[torch.FloatTensor] = None
-    #     self._values: typing.Optional[torch.FloatTensor] = None
-    #     self._states: typing.Optional[list[State]] = None
-    #     self._actions_chosen: typing.Optional[torch.LongTensor] = None
-    #     self._rewards: typing.Optional[np.ndarray] = None
 
     def update(self, trajectories: list[Trajectory]) -> None:
         '''
@@ -494,7 +485,7 @@ class PPO:
         self.debug_file_path = kwargs['debug_info_path']
         self._step = 0
 
-    def _policy_loss(self, sample: dict[str, torch.FloatTensor | list[State]], new_log_probs: torch.FloatTensor):
+    def _policy_loss(self, sample: dict[str, torch.Tensor | list[State]], new_log_probs: torch.Tensor):
         """ Computes and returns policy loss on a given trajectory. """
         a = sample['advantages']
         old_log_probs_chosen = sample['log_probs_chosen']
@@ -528,7 +519,7 @@ class PPO:
     def _entropy_loss(self, new_log_probs: torch.FloatTensor):
         return (torch.exp(new_log_probs) * new_log_probs).sum(dim=-1).mean()
 
-    def _loss(self, sample: dict[str, torch.FloatTensor | list[State]]):
+    def _loss(self, sample: dict[str, torch.Tensor | list[State]]):
         self.actor_critic(sample['states'])
 
         if self.metric_logger:
@@ -563,6 +554,25 @@ class PPO:
         self.opt.step()
         if self.scheduler is not None:
             self.scheduler.step()
+
+
+class CloningPPO(PPO):
+    def __init__(self, actor_critic: BaseActorCritic, opt: Optimizer, scheduler: _LRScheduler | None = None,
+                 metric_logger: MetricLogger | None = None, **kwargs):
+        super().__init__(actor_critic, opt, scheduler, metric_logger, **kwargs)
+        self.value_loss_coef = 0.0
+        self.entropy_loss_coef = 0.0
+
+    def _policy_loss(self, sample: dict[str, torch.Tensor | list[State]], new_log_probs: torch.Tensor):
+        actions_chosen = sample['actions_chosen']
+        new_log_probs_chosen = torch.gather(
+            new_log_probs, dim=-1, index=actions_chosen.unsqueeze(-1)
+        ).squeeze(-1)
+        loss = -new_log_probs_chosen.mean()
+        if self.metric_logger:
+            self.metric_logger.log('policy_loss', loss.item())
+            self.metric_logger.log('new_mean_prob_chosen', new_log_probs_chosen.exp().mean().item())
+        return loss
 
 
 class BaseMaker:

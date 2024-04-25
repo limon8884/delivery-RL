@@ -10,10 +10,14 @@ from src.reinforcement.delivery import (
     DeliveryEnvironment,
     DeliveryActorCritic,
     DeliveryRewarder,
+    CloningDeliveryRunner
 )
 from src.simulator.simulator import Simulator, DataReader
 from src.router_makers import BaseRouteMaker
 from src.networks.encoders import GambleEncoder
+from src.networks.claim_attention import ClaimAttention
+from src.dispatchs.hungarian_dispatch import HungarianDispatch
+from src.dispatchs.scorers import DistanceScorer
 
 
 BASE_DTTM = datetime.min
@@ -198,8 +202,11 @@ def test_delivery_actor_critic_shape(tmp_path):
         device=None,
         use_pretrained_encoders=False,
     )
-    ac = DeliveryActorCritic(gamble_encoder, clm_emb_size=16, co_emb_size=32, gmb_emb_size=8, temperature=1.0,
-                             device=None)
+    claim_attention = ClaimAttention(claim_embedding_dim=16, nhead=2, dim_feedforward=128,
+                                     num_attention_layers=2, device=None)
+    ac = DeliveryActorCritic(gamble_encoder, claim_attention=claim_attention, clm_emb_size=16, co_emb_size=32,
+                             gmb_emb_size=8, exploration_temperature=1.0, mask_fake_crr=False, use_dist=False,
+                             use_masks=False, device=None)
     state1 = env.reset()  # (3, 0)
     co_embs, claim_emb, gamble_emb = ac._make_embeddings_tensors_from_state(state1)
     add_emb = ac._make_additional_features_from_state(state1)
@@ -235,8 +242,11 @@ def test_delivery_actor_critic():
         device=None,
         use_pretrained_encoders=False,
     )
-    ac = DeliveryActorCritic(gamble_encoder, clm_emb_size=16, co_emb_size=32, gmb_emb_size=8, temperature=1.0,
-                             device=None, use_masks=True)
+    claim_attention = ClaimAttention(claim_embedding_dim=16, nhead=2, dim_feedforward=128,
+                                     num_attention_layers=2, device=None)
+    ac = DeliveryActorCritic(gamble_encoder, claim_attention=claim_attention, clm_emb_size=16, co_emb_size=32,
+                             gmb_emb_size=8, exploration_temperature=1.0, mask_fake_crr=False, use_dist=False,
+                             use_masks=True, device=None)
     state1 = DeliveryState(
         claim_emb=np.zeros((6,)),
         couriers_embs=np.zeros((5, 4)),
@@ -265,3 +275,60 @@ def test_delivery_actor_critic():
     masks2 = ac._make_masks(state2)
     assert (masks1 == torch.tensor([False, False, True, True, False, False])).all(), masks1
     assert (masks2 == torch.tensor([False, False, True, False])).all(), masks2
+
+
+def test_cloning_runner(tmp_path):
+    config_path = tmp_path / 'tmp.json'
+    with open(config_path, 'w') as f:
+        config = {
+            'gamble_duration_interval_sec': 30,
+            'courier_speed': 0.02
+        }
+        json.dump(config, f)
+    reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, db_logger=None)
+    route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
+    sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
+    rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0, coef_reward_distance=0.0,
+                                coef_reward_completed=0.0)
+    dsp = HungarianDispatch(DistanceScorer())
+    cloning_runner = CloningDeliveryRunner(dispatch=dsp, simulator=sim, rewarder=rewarder,
+                                           num_gambles_in_day=10,
+                                           max_num_points_in_route=4,
+                                           n_envs=1, trajectory_length=3, use_dist=False)
+    traj = cloning_runner.run()
+    assert traj.lenght == 3, traj.lenght
+
+    state1 = traj.states[0]
+    assert isinstance(state1, DeliveryState)
+    assert np.isclose(state1.claim_emb, [0.0, 0.2, 0.0, 1.0, 0.0, 20.0]).all(), (state1.claim_emb)
+    assert state1.couriers_embs.shape == (3, 4)
+    assert np.isclose(state1.couriers_embs, [[1.0, 0.0, 0.0, 30.0], [0.5, 1.0, 0.0, 20.0], [0.0, 0.0, 0.0, 30.0]]).all()
+    assert state1.orders_embs is None, state1.orders_embs
+    assert state1.prev_idxs == []
+    assert traj.actions[0].to_index() == 2
+
+    state2 = traj.states[1]
+    assert isinstance(state2, DeliveryState)
+    assert not traj.resets[1]
+    assert np.isclose(state2.claim_emb, [1.0, 0.2, 1.0, 1.0, 0.0, 30.0]).all(), (state2.claim_emb)
+    assert np.isclose(state2.couriers_embs, [[1.0, 0.0, 0.0, 30.0], [0.5, 1.0, 0.0, 20.0], [0.0, 0.0, 0.0, 30.0]]).all()
+    assert state2.orders_embs is None, state2.orders_embs
+    assert state2.prev_idxs == [2]
+    assert traj.actions[1].to_index() == 0
+
+    state3 = traj.states[2]
+    assert isinstance(state3, DeliveryState)
+    assert not traj.resets[2]
+    assert np.isclose(state3.claim_emb, [0.5, 0.0, 0.5, 1.0, 0.0, 20.0]).all(), (state3.claim_emb)
+    assert state3.orders_embs is None, state3.orders_embs
+    assert np.isclose(state3.couriers_embs, [[0.5, 1.0, 0.0, 80.0], [1.0, 1.0, 0.0, 90.0], [0.0, 1.0, 0.0, 90.0]]).all()
+    assert state3.prev_idxs == []
+    assert traj.actions[2].to_index() == 0
+
+    state4 = traj.last_state
+    assert isinstance(state4, DeliveryState)
+    assert np.isclose(state4.claim_emb, [0.0, 0.8, 0.0, 0.0, 0.0, 20.0]).all(), (state4.claim_emb)
+    assert np.isclose(state4.couriers_embs, [[1.0, 1.0, 0.0, 150.0], [0.0, 1.0, 0.0, 150.0]]).all()
+    assert len(state4.orders_embs) == 1
+    assert np.isclose(state4.orders_embs[0], [0.5, 0.2, 1.0, 140.0, 0.5, 1.0] + [0.0] * 6 + [1.0, 60.0]).all()
+    assert state4.prev_idxs == []
