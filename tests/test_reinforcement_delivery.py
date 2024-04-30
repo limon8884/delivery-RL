@@ -136,7 +136,7 @@ def test_delivery_environment(tmp_path):
     rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0, coef_reward_distance=0.0,
                                 coef_reward_completed=0.0)
     env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4, use_dist=False,
-                              num_gambles_in_day=6, device=None)
+                              use_route=True, num_gambles_in_day=6, device=None)
     state1 = env.reset()
     assert env._iter == 1, env._iter
     assert np.isclose(state1.claim_emb, [0.0, 0.2, 0.0, 1.0, 0.0, 20.0]).all(), (state1.claim_emb)
@@ -188,7 +188,7 @@ def test_delivery_actor_critic_shape(tmp_path):
     rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0, coef_reward_distance=0.0,
                                 coef_reward_completed=0.0)
     env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4, use_dist=False,
-                              num_gambles_in_day=6, device=None)
+                              use_route=True, num_gambles_in_day=6, device=None)
     gamble_encoder = GambleEncoder(
         route_embedding_dim=128,
         claim_embedding_dim=16,
@@ -199,6 +199,7 @@ def test_delivery_actor_critic_shape(tmp_path):
         num_layers=2,
         gamble_features_embedding_dim=8,
         use_dist=False,
+        use_route=True,
         device=None,
         use_pretrained_encoders=False,
     )
@@ -237,6 +238,7 @@ def test_delivery_actor_critic():
         courier_order_embedding_dim=32,
         max_num_points_in_route=4,
         use_dist=False,
+        use_route=True,
         num_layers=2,
         gamble_features_embedding_dim=8,
         device=None,
@@ -294,8 +296,8 @@ def test_cloning_runner(tmp_path):
     cloning_runner = CloningDeliveryRunner(dispatch=dsp, simulator=sim, rewarder=rewarder,
                                            num_gambles_in_day=10,
                                            max_num_points_in_route=4,
-                                           n_envs=1, trajectory_length=3, use_dist=False)
-    traj = cloning_runner.run()
+                                           n_envs=1, trajectory_length=3, use_dist=False, use_route=True)
+    traj = cloning_runner.run()[0]
     assert traj.lenght == 3, traj.lenght
 
     state1 = traj.states[0]

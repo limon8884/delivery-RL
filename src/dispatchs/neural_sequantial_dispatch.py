@@ -22,6 +22,7 @@ class NeuralSequantialDispatch(BaseDispatch):
         self.actor_critic = actor_critic
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
         self.use_dist = kwargs['use_dist']
+        self.use_route = kwargs['use_route']
 
     def __call__(self, gamble: Gamble) -> Assignment:
         num_claims = len(gamble.claims)
@@ -34,8 +35,8 @@ class NeuralSequantialDispatch(BaseDispatch):
         claims_to_couriers_distances = compulte_claims_to_couriers_distances(gamble)
         for claim_idx in range(num_claims):
             couriers_embs_list = [c.to_numpy() for c in available_couriers]
-            orders_embs_list = [o.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist)
-                                for o in available_orders]
+            orders_embs_list = [o.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist,
+                                           use_route=self.use_route) for o in available_orders]
             couriers_embs = np.stack(couriers_embs_list, axis=0) if len(couriers_embs_list) > 0 else None
             orders_embs = np.stack(orders_embs_list, axis=0) if len(orders_embs_list) > 0 else None
             orders_full_mask = [o.has_full_route(max_num_points_in_route=self.max_num_points_in_route)

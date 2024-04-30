@@ -151,7 +151,7 @@ def test_to_numpy():
         [Route.PointType.SOURCE] * 3 + [Route.PointType.DESTINATION] * 3
     )
     ord = Order(0, CREATION_TIME, crr, rt, claims)
-    assert ord.to_numpy(max_num_points_in_route=10, use_dist=False).shape == (26,)
+    assert ord.to_numpy(max_num_points_in_route=10, use_dist=False, use_route=True).shape == (26,)
 
 
 def test_numpy_features_type():
@@ -168,7 +168,7 @@ def test_numpy_features_type():
     assert sorted(clm_values) == list(range(6))
 
     ord_values = []
-    for (l, r) in Order.numpy_feature_types(max_num_points_in_route=10, use_dist=False).keys():
+    for (l, r) in Order.numpy_feature_types(max_num_points_in_route=10, use_dist=False, use_route=True).keys():
         for i in range(l, r):
             ord_values.append(i)
     assert sorted(ord_values) == list(range(26))

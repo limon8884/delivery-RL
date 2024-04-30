@@ -403,19 +403,24 @@ class Order(Item):
     def to_numpy(self, **kwargs) -> np.ndarray:
         max_num_points_in_route = kwargs['max_num_points_in_route']
         use_dist = kwargs['use_dist']
+        use_route = kwargs['use_route']
         crr_tens = self.courier.to_numpy()
         status_num = self.status.value
         assert self._dttm is not None
         online_secs_num = (self._dttm - self.creation_dttm).total_seconds()
         assert len(self.route.route_points) <= max_num_points_in_route, len(self.route.route_points)
-        point_coords = []
-        for point_idx in range(max_num_points_in_route):
-            if point_idx < len(self.route.route_points):
-                point_coords.append(self.route.route_points[point_idx].point.x)
-                point_coords.append(self.route.route_points[point_idx].point.y)
-            else:
-                point_coords.append(0)
-                point_coords.append(0)
+        if use_route:
+            point_coords = []
+            for point_idx in range(max_num_points_in_route):
+                if point_idx < len(self.route.route_points):
+                    point_coords.append(self.route.route_points[point_idx].point.x)
+                    point_coords.append(self.route.route_points[point_idx].point.y)
+                else:
+                    point_coords.append(0)
+                    point_coords.append(0)
+        else:
+            last_point = self.route.route_points[-1].point
+            point_coords = [last_point.x, last_point.y]
         route_features = point_coords + [status_num, online_secs_num]
         if use_dist:
             route_features.append(self.get_rest_distance())
@@ -429,10 +434,12 @@ class Order(Item):
         crr_np_dim = max(r for _, r in Courier.numpy_feature_types().keys())
         use_dist_int = int(kwargs['use_dist'])
         max_num_points_in_route = kwargs['max_num_points_in_route']
+        use_route = kwargs['use_route']
+        route_emb_size = 2 * max_num_points_in_route if use_route else 2
         return Courier.numpy_feature_types() | {
-            (crr_np_dim, crr_np_dim + 2 * max_num_points_in_route): 'coords',
-            (crr_np_dim + 2 * max_num_points_in_route,
-             crr_np_dim + 2 * max_num_points_in_route + 2 + use_dist_int): 'numbers',
+            (crr_np_dim, crr_np_dim + route_emb_size): 'coords',
+            (crr_np_dim + route_emb_size,
+             crr_np_dim + route_emb_size + 2 + use_dist_int): 'numbers',
         }
 
 

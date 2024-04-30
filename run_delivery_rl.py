@@ -30,6 +30,7 @@ from src.evaluation import evaluate
 @click.option('--mask_fake_crr', required=False, type=bool, default=False)
 @click.option('--use_dist', required=False, type=bool, default=True)
 @click.option('--use_masks', required=False, type=bool, default=False)
+@click.option('--use_route', required=False, type=bool, default=False)
 @click.option('--n_envs', required=False, type=int, default=1)
 @click.option('-T', '--trajectory_length', required=False, type=int, default=12_000)
 @click.option('--batch_size', required=False, type=int, default=64)
@@ -92,7 +93,7 @@ def run_ppo(**kwargs):
     inference_logger = InferenceMetricsRunner(runner=eval_runner, metric_logger=maker.metric_logger)
     dsp = NeuralSequantialDispatch(actor_critic=maker.actor_critic,
                                    max_num_points_in_route=kwargs['max_num_points_in_route'],
-                                   use_dist=kwargs['use_dist'])
+                                   use_dist=kwargs['use_dist'], use_route=kwargs['use_route'])
 
     for iteration in tqdm(range(kwargs['total_iters'])):
         maker.actor_critic.train()

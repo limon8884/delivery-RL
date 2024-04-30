@@ -73,7 +73,7 @@ TEST_ROUTE = Route.from_points(
 
 def test_order_encoder():
     enc = ItemEncoder(
-        feature_types=Order.numpy_feature_types(max_num_points_in_route=8, use_dist=False),
+        feature_types=Order.numpy_feature_types(max_num_points_in_route=8, use_dist=False, use_route=True),
         item_embedding_dim=64,
         point_embedding_dim=32,
         cat_points_embedding_dim=4,
@@ -95,7 +95,7 @@ def test_order_encoder():
         route=TEST_ROUTE,
         claims=[],
     )
-    ord_emb = enc(order.to_numpy(max_num_points_in_route=8, use_dist=False).reshape(1, -1))
+    ord_emb = enc(order.to_numpy(max_num_points_in_route=8, use_dist=False, use_route=True).reshape(1, -1))
     assert ord_emb.shape == (1, 64)
 
 
@@ -148,6 +148,7 @@ def test_gamble_encoder():
         cat_points_embedding_dim=4,
         max_num_points_in_route=10,
         use_dist=False,
+        use_route=True,
         num_layers=1,
         gamble_features_embedding_dim=9,
         device=None,
@@ -168,7 +169,7 @@ def test_gamble_encoder():
     d = {
         'crr': np.stack([crr.to_numpy() for crr in gamble.couriers], axis=0),
         'clm': np.stack([clm.to_numpy(use_dist=False) for clm in gamble.claims], axis=0),
-        'ord': np.stack([ord.to_numpy(max_num_points_in_route=10, use_dist=False) for ord in gamble.orders], axis=0),
+        'ord': np.stack([ord.to_numpy(max_num_points_in_route=10, use_dist=False, use_route=True) for ord in gamble.orders], axis=0),
         'gmb': gamble.to_numpy(),
     }
     emb_dict = enc(d)

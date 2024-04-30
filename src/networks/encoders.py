@@ -153,6 +153,7 @@ class GambleEncoder(nn.Module):
         max_num_points_in_route = kwargs['max_num_points_in_route']
         gamble_features_embedding_dim = kwargs['gamble_features_embedding_dim']
         use_dist = kwargs['use_dist']
+        use_route = kwargs['use_route']
         device = kwargs['device']
         self.claim_encoder = ItemEncoder(
             feature_types=Claim.numpy_feature_types(use_dist=use_dist),
@@ -172,7 +173,7 @@ class GambleEncoder(nn.Module):
         )
         self.order_encoder = ItemEncoder(
             feature_types=Order.numpy_feature_types(max_num_points_in_route=max_num_points_in_route,
-                                                    use_dist=use_dist),
+                                                    use_dist=use_dist, use_route=use_route),
             item_embedding_dim=courier_order_embedding_dim,
             point_embedding_dim=point_embedding_dim * (1 + max_num_points_in_route),
             cat_points_embedding_dim=cat_points_embedding_dim,

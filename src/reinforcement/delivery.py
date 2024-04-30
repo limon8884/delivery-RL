@@ -109,6 +109,7 @@ class DeliveryEnvironment(BaseEnvironment):
     def __init__(self, simulator: Simulator, rewarder: DeliveryRewarder, **kwargs) -> None:
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
         self.use_dist = kwargs['use_dist']
+        self.use_route = kwargs['use_route']
         self.num_gambles = kwargs['num_gambles_in_day']
         self.simulator = simulator
         self.device = kwargs['device']
@@ -120,6 +121,7 @@ class DeliveryEnvironment(BaseEnvironment):
             rewarder=self.rewarder,
             max_num_points_in_route=self.max_num_points_in_route,
             use_dist=self.use_dist,
+            use_route=self.use_route,
             num_gambles_in_day=self.num_gambles,
             device=self.device,
         )
@@ -167,8 +169,8 @@ class DeliveryEnvironment(BaseEnvironment):
             if len(self._gamble.couriers)
             else None,
             'clm': np.stack([clm.to_numpy(use_dist=self.use_dist) for clm in self._gamble.claims], axis=0),
-            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist)
-                             for ord in self._gamble.orders], axis=0)
+            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist,
+                                          use_route=self.use_route) for ord in self._gamble.orders], axis=0)
             if len(self._gamble.orders) > 0
             else None,
             'gmb': self._gamble.to_numpy(),
@@ -449,6 +451,7 @@ class CloningDeliveryRunner:
         self.rewarder = rewarder
         self.max_num_points_in_route = kwargs['max_num_points_in_route']
         self.use_dist = kwargs['use_dist']
+        self.use_route = kwargs['use_route']
         self.num_gambles = kwargs['num_gambles_in_day']
         # self.device = kwargs['device']
         self.trajectory_length = kwargs['trajectory_length']
@@ -540,8 +543,8 @@ class CloningDeliveryRunner:
             if len(self._gamble.couriers)
             else None,
             'clm': np.stack([clm.to_numpy(use_dist=self.use_dist) for clm in self._gamble.claims], axis=0),
-            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist)
-                             for ord in self._gamble.orders], axis=0)
+            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist,
+                                          use_route=self.use_route) for ord in self._gamble.orders], axis=0)
             if len(self._gamble.orders) > 0
             else None,
             'gmb': self._gamble.to_numpy(),
