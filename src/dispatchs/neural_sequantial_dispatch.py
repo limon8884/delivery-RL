@@ -33,6 +33,7 @@ class NeuralSequantialDispatch(BaseDispatch):
         available_orders = gamble.orders
         prev_idxs: list[int] = []
         claims_to_couriers_distances = compulte_claims_to_couriers_distances(gamble)
+        claim_embs = np.stack([c.to_numpy(use_dist=self.use_dist) for c in gamble.claims], axis=0)
         for claim_idx in range(num_claims):
             couriers_embs_list = [c.to_numpy() for c in available_couriers]
             orders_embs_list = [o.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist,
@@ -43,7 +44,7 @@ class NeuralSequantialDispatch(BaseDispatch):
                                 for o in available_orders]
 
             state = DeliveryState(
-                claim_emb=gamble.claims[claim_idx].to_numpy(use_dist=self.use_dist),
+                claim_embs=claim_embs,
                 couriers_embs=couriers_embs,
                 orders_embs=orders_embs,
                 prev_idxs=prev_idxs,

@@ -139,7 +139,7 @@ def test_delivery_environment(tmp_path):
                               use_route=True, num_gambles_in_day=6, device=None)
     state1 = env.reset()
     assert env._iter == 1, env._iter
-    assert np.isclose(state1.claim_emb, [0.0, 0.2, 0.0, 1.0, 0.0, 20.0]).all(), (state1.claim_emb)
+    assert np.isclose(state1.claim_embs[state1.claim_idx], [0.0, 0.2, 0.0, 1.0, 0.0, 20.0]).all(), (state1.claim_embs)
     assert state1.couriers_embs.shape == (3, 4)
     assert np.isclose(state1.couriers_embs, [[1.0, 0.0, 0.0, 30.0], [0.5, 1.0, 0.0, 20.0], [0.0, 0.0, 0.0, 30.0]]).all()
     assert state1.orders_embs is None, state1.orders_embs
@@ -148,7 +148,7 @@ def test_delivery_environment(tmp_path):
     state2, reward, done, info = env.step(DeliveryAction(2))
     assert env._iter == 1, env._iter
     assert not done
-    assert np.isclose(state2.claim_emb, [1.0, 0.2, 1.0, 1.0, 0.0, 30.0]).all(), (state2.claim_emb)
+    assert np.isclose(state2.claim_embs[state2.claim_idx], [1.0, 0.2, 1.0, 1.0, 0.0, 30.0]).all(), (state2.claim_embs)
     assert np.isclose(state2.couriers_embs, [[1.0, 0.0, 0.0, 30.0], [0.5, 1.0, 0.0, 20.0], [0.0, 0.0, 0.0, 30.0]]).all()
     assert state2.orders_embs is None, state2.orders_embs
     assert state2.prev_idxs == [2]
@@ -156,7 +156,7 @@ def test_delivery_environment(tmp_path):
     state3, reward, done, info = env.step(DeliveryAction(0))
     assert env._iter == 3, env._iter
     assert not done
-    assert np.isclose(state3.claim_emb, [0.5, 0.0, 0.5, 1.0, 0.0, 20.0]).all(), (state3.claim_emb)
+    assert np.isclose(state3.claim_embs[state3.claim_idx], [0.5, 0.0, 0.5, 1.0, 0.0, 20.0]).all(), (state3.claim_embs)
     assert state3.orders_embs is None, state3.orders_embs
     assert np.isclose(state3.couriers_embs, [[0.5, 1.0, 0.0, 80.0], [0.0, 1.0, 0.0, 90.0], [1.0, 1.0, 0.0, 90.0]]).all()
     assert state3.prev_idxs == []
@@ -164,7 +164,7 @@ def test_delivery_environment(tmp_path):
     state4, reward, done, info = env.step(DeliveryAction(0))
     assert env._iter == 5, env._iter
     assert not done
-    assert np.isclose(state4.claim_emb, [0.0, 0.8, 0.0, 0.0, 0.0, 20.0]).all(), (state4.claim_emb)
+    assert np.isclose(state4.claim_embs[state4.claim_idx], [0.0, 0.8, 0.0, 0.0, 0.0, 20.0]).all(), (state4.claim_embs)
     assert np.isclose(state4.couriers_embs, [[0.0, 1.0, 0.0, 150.0], [1.0, 1.0, 0.0, 150.0]]).all()
     assert len(state4.orders_embs) == 1
     assert np.isclose(state4.orders_embs[0], [0.5, 0.2, 1.0, 140.0, 0.5, 1.0] + [0.0] * 6 + [1.0, 60.0]).all()
@@ -250,7 +250,7 @@ def test_delivery_actor_critic():
                              gmb_emb_size=8, exploration_temperature=1.0, mask_fake_crr=False, use_dist=False,
                              use_masks=True, device=None)
     state1 = DeliveryState(
-        claim_emb=np.zeros((6,)),
+        claim_embs=np.zeros((2, 6)),
         couriers_embs=np.zeros((5, 4)),
         orders_embs=None,
         prev_idxs=[2, 3],
@@ -260,7 +260,7 @@ def test_delivery_actor_critic():
         claim_idx=0
     )
     state2 = DeliveryState(
-        claim_emb=np.zeros((6,)),
+        claim_embs=np.zeros((2, 6)),
         couriers_embs=np.zeros((2, 4)),
         orders_embs=np.zeros((1, 14)),
         prev_idxs=[],
@@ -302,7 +302,7 @@ def test_cloning_runner(tmp_path):
 
     state1 = traj.states[0]
     assert isinstance(state1, DeliveryState)
-    assert np.isclose(state1.claim_emb, [0.0, 0.2, 0.0, 1.0, 0.0, 20.0]).all(), (state1.claim_emb)
+    assert np.isclose(state1.claim_embs[state1.claim_idx], [0.0, 0.2, 0.0, 1.0, 0.0, 20.0]).all(), (state1.claim_embs)
     assert state1.couriers_embs.shape == (3, 4)
     assert np.isclose(state1.couriers_embs, [[1.0, 0.0, 0.0, 30.0], [0.5, 1.0, 0.0, 20.0], [0.0, 0.0, 0.0, 30.0]]).all()
     assert state1.orders_embs is None, state1.orders_embs
@@ -312,7 +312,7 @@ def test_cloning_runner(tmp_path):
     state2 = traj.states[1]
     assert isinstance(state2, DeliveryState)
     assert not traj.resets[1]
-    assert np.isclose(state2.claim_emb, [1.0, 0.2, 1.0, 1.0, 0.0, 30.0]).all(), (state2.claim_emb)
+    assert np.isclose(state2.claim_embs[state2.claim_idx], [1.0, 0.2, 1.0, 1.0, 0.0, 30.0]).all(), (state2.claim_embs)
     assert np.isclose(state2.couriers_embs, [[1.0, 0.0, 0.0, 30.0], [0.5, 1.0, 0.0, 20.0], [0.0, 0.0, 0.0, 30.0]]).all()
     assert state2.orders_embs is None, state2.orders_embs
     assert state2.prev_idxs == [2]
@@ -321,7 +321,7 @@ def test_cloning_runner(tmp_path):
     state3 = traj.states[2]
     assert isinstance(state3, DeliveryState)
     assert not traj.resets[2]
-    assert np.isclose(state3.claim_emb, [0.5, 0.0, 0.5, 1.0, 0.0, 20.0]).all(), (state3.claim_emb)
+    assert np.isclose(state3.claim_embs[state3.claim_idx], [0.5, 0.0, 0.5, 1.0, 0.0, 20.0]).all(), (state3.claim_embs)
     assert state3.orders_embs is None, state3.orders_embs
     assert np.isclose(state3.couriers_embs, [[0.5, 1.0, 0.0, 80.0], [1.0, 1.0, 0.0, 90.0], [0.0, 1.0, 0.0, 90.0]]).all()
     assert state3.prev_idxs == []
@@ -329,7 +329,7 @@ def test_cloning_runner(tmp_path):
 
     state4 = traj.last_state
     assert isinstance(state4, DeliveryState)
-    assert np.isclose(state4.claim_emb, [0.0, 0.8, 0.0, 0.0, 0.0, 20.0]).all(), (state4.claim_emb)
+    assert np.isclose(state4.claim_embs[state4.claim_idx], [0.0, 0.8, 0.0, 0.0, 0.0, 20.0]).all(), (state4.claim_embs)
     assert np.isclose(state4.couriers_embs, [[1.0, 1.0, 0.0, 150.0], [0.0, 1.0, 0.0, 150.0]]).all()
     assert len(state4.orders_embs) == 1
     assert np.isclose(state4.orders_embs[0], [0.5, 0.2, 1.0, 140.0, 0.5, 1.0] + [0.0] * 6 + [1.0, 60.0]).all()

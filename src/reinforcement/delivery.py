@@ -61,14 +61,14 @@ class DeliveryAction(Action):
 
 
 class DeliveryState(State):
-    def __init__(self, claim_emb: np.ndarray, couriers_embs: typing.Optional[np.ndarray],
+    def __init__(self, claim_embs: np.ndarray, couriers_embs: typing.Optional[np.ndarray],
                  orders_embs: typing.Optional[np.ndarray], prev_idxs: list[int], orders_full_masks: list[bool],
                  claim_to_couries_dists: np.ndarray, gamble_features: np.ndarray, claim_idx: int) -> None:
-        self.claim_emb = claim_emb
-        self.claim_to_couries_dists = claim_to_couries_dists
+        self.claim_embs = claim_embs
         self.couriers_embs = couriers_embs
         self.orders_embs = orders_embs
         self.prev_idxs = prev_idxs
+        self.claim_to_couries_dists = claim_to_couries_dists
         self.orders_full_masks = orders_full_masks
         self.gamble_features = gamble_features
         self.claim_idx = claim_idx
@@ -80,7 +80,7 @@ class DeliveryState(State):
 
     def __hash__(self) -> int:
         return hash(
-            hash(tuple(self.claim_emb)) +
+            hash(tuple(map(tuple, self.claim_embs))) +
             (hash(tuple(map(tuple, self.couriers_embs))) if self.couriers_embs is not None else 0) +
             (hash(tuple(map(tuple, self.orders_embs))) if self.orders_embs is not None else 0)
         )
@@ -199,10 +199,9 @@ class DeliveryEnvironment(BaseEnvironment):
         self._claim_idx += 1
 
     def _make_state_from_gamble_dict(self) -> DeliveryState:
-        claim_emb = self.embs_dict['clm'][self._claim_idx]
         claim_to_couries_dists = self.embs_dict['dists'][self._claim_idx]
         return DeliveryState(
-            claim_emb=claim_emb,
+            claim_embs=self.embs_dict['clm'],
             claim_to_couries_dists=claim_to_couries_dists,
             couriers_embs=self.embs_dict['crr'],
             orders_embs=self.embs_dict['ord'],
@@ -326,8 +325,15 @@ class DeliveryActorCritic(BaseActorCritic):
 
     def _make_embeddings_tensors_from_state(self, state: DeliveryState
                                             ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        '''
+        Returns 3 tensors:
+        * co_embs: (n_crr + n_ord + 1, co_emb_size)
+        * clm_emb: (1, clm_emb_size)
+        * gmb_emb: (1, gmb_emb_size)
+        '''
+        claim_embs = state.claim_embs if self.claim_attention else state.claim_embs[state.claim_idx][None, :]
         embs_dict = {
-            'clm': state.claim_emb.reshape(1, -1),
+            'clm': claim_embs,
             'crr': state.couriers_embs,
             'ord': state.orders_embs,
             'gmb': state.gamble_features.reshape(1, -1),
@@ -339,10 +345,11 @@ class DeliveryActorCritic(BaseActorCritic):
             ([encoded_dict['ord']] if encoded_dict['ord'] is not None else []) +
             [fake_crr], dim=0)
         assert encoded_dict['clm'] is not None and encoded_dict['gmb'] is not None
-        clm_emb = encoded_dict['clm']
         gmb_emb = encoded_dict['gmb']
         if self.claim_attention is not None:
-            clm_emb = self.claim_attention(clm_emb)
+            clm_emb = self.claim_attention(encoded_dict['clm'], state.claim_idx)
+        else:
+            clm_emb = encoded_dict['clm']
         return co_embs, clm_emb, gmb_emb
 
     def get_actions_list(self, best_actions=False) -> list[Action]:
@@ -558,10 +565,9 @@ class CloningDeliveryRunner:
         self._iter += 1
 
     def _make_state_from_gamble_dict(self) -> DeliveryState:
-        claim_emb = self.embs_dict['clm'][self._claim_idx]
         claim_to_couries_dists = self.embs_dict['dists'][self._claim_idx]
         return DeliveryState(
-            claim_emb=claim_emb,
+            claim_embs=self.embs_dict['clm'],
             claim_to_couries_dists=claim_to_couries_dists,
             couriers_embs=self.embs_dict['crr'],
             orders_embs=self.embs_dict['ord'],
