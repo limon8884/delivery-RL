@@ -7,8 +7,8 @@ import random
 import wandb
 from tqdm import tqdm
 
-from src.reinforcement.base import Runner, InferenceMetricsRunner
-from src.reinforcement.delivery import DeliveryMaker
+from src.reinforcement.base import Runner
+from src.reinforcement.delivery import DeliveryMaker, DeliveryInferenceMetricsRunner
 from src.reinforcement.delivery2 import DeliveryMaker2
 from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src.evaluation import evaluate
@@ -90,7 +90,7 @@ def run_ppo(**kwargs):
         maker.ppo.metric_logger = None
     eval_runner = Runner(environment=maker.environment.copy(), actor_critic=maker.actor_critic,
                          n_envs=kwargs['eval_n_envs'], trajectory_length=kwargs['eval_trajectory_length'])
-    inference_logger = InferenceMetricsRunner(runner=eval_runner, metric_logger=maker.metric_logger)
+    inference_logger = DeliveryInferenceMetricsRunner(runner=eval_runner, metric_logger=maker.metric_logger)
     dsp = NeuralSequantialDispatch(actor_critic=maker.actor_critic,
                                    max_num_points_in_route=kwargs['max_num_points_in_route'],
                                    use_dist=kwargs['use_dist'], use_route=kwargs['use_route'])

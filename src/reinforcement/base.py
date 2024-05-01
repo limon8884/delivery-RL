@@ -30,9 +30,6 @@ class State:
     '''
     def __init__(self, *args, **kwargs) -> None:
         raise NotImplementedError
-    
-    def size(self) -> int:
-        raise NotImplementedError
 
     def __hash__(self) -> int:
         raise NotImplementedError
@@ -425,34 +422,11 @@ class InferenceMetricsRunner:
         self.called_counter = 0
 
     def __call__(self) -> None:
-        cumulative_metrics = defaultdict(float)
         self.runner.actor_critic.eval()
         self.runner.reset()
         trajs = self.runner.run()
-        for traj in trajs:
-            for reward, reset, log_prob_chosen, entropy, action, state in zip(
-                    traj.rewards, traj.resets, traj.log_probs_chosen, traj.entropies, traj.actions, traj.states):
-                cumulative_metrics['total_length'] += 1
-                cumulative_metrics['total_reward'] += reward
-                cumulative_metrics['prob_chosen'] += np.exp(log_prob_chosen)
-                cumulative_metrics['entropy'] += entropy
-                cumulative_metrics['last action'] += int(action.to_index() == state.size())
-                cumulative_metrics['empty action'] += int(state.size() == 0)
-                # if reset:
-                #     break
-
-        self.metric_logger.log('PPO: episode reward', cumulative_metrics['total_reward'] / self.runner.n_envs)
-        self.metric_logger.log('PPO: episode length', cumulative_metrics['total_length'] / self.runner.n_envs)
-        self.metric_logger.log('PPO: step reward', cumulative_metrics['total_reward']
-                               / cumulative_metrics['total_length'])
-        self.metric_logger.log('PPO: chosen prob', cumulative_metrics['prob_chosen']
-                               / cumulative_metrics['total_length'])
-        self.metric_logger.log('PPO: entropy', cumulative_metrics['entropy']
-                               / cumulative_metrics['total_length'])
-        self.metric_logger.log('PPO: last action', cumulative_metrics['last action']
-                               / cumulative_metrics['total_length'])
-        self.metric_logger.log('PPO: empty action', cumulative_metrics['empty action']
-                               / cumulative_metrics['total_length'])
+        for k, v in self.get_metrics_from_trajectory(trajs).items():
+            self.metric_logger.log(k, v)
 
         total_info = defaultdict(float)
         for info in self.runner._statistics:
@@ -463,6 +437,10 @@ class InferenceMetricsRunner:
 
         self.metric_logger.commit(step=self.called_counter)
         self.called_counter += 1
+
+    @staticmethod
+    def get_metrics_from_trajectory(trajs: list[Trajectory]) -> dict[str, float]:
+        raise NotImplementedError
 
 
 class PPO:

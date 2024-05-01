@@ -334,3 +334,26 @@ def test_cloning_runner(tmp_path):
     assert len(state4.orders_embs) == 1
     assert np.isclose(state4.orders_embs[0], [0.5, 0.2, 1.0, 140.0, 0.5, 1.0] + [0.0] * 6 + [1.0, 60.0]).all()
     assert state4.prev_idxs == []
+
+
+def test_delivery_state_greedy():
+    state = DeliveryState(
+        claim_embs=np.zeros((2, 6)),
+        couriers_embs=np.zeros((5, 4)),
+        orders_embs=None,
+        prev_idxs=[],
+        orders_full_masks=[],
+        claim_to_couries_dists=np.array(list(range(5))[::-1]),
+        gamble_features=np.zeros((5,)),
+        claim_idx=0
+    )
+    assert state.greedy() == 4, state.greedy()
+    assert state.has_free_couriers()
+    state.prev_idxs.append(4)
+    assert state.greedy() == 3, state.greedy()
+    assert state.has_free_couriers()
+    state.prev_idxs.append(2)
+    assert state.greedy() == 3, state.greedy()
+    assert state.has_free_couriers()
+    state.prev_idxs.extend([1, 0, 3])
+    assert not state.has_free_couriers()

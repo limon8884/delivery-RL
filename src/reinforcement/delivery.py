@@ -8,6 +8,7 @@ from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 from pathlib import Path
 from copy import deepcopy
+from collections import defaultdict
 
 from src.objects import (
     Gamble,
@@ -37,7 +38,7 @@ from src.reinforcement.base import (
     MetricLogger,
     TrajectorySampler,
     RewardNormalizer,
-    # InferenceMetricsRunner,
+    InferenceMetricsRunner,
     make_optimizer,
     BaseMaker,
 )
@@ -73,10 +74,28 @@ class DeliveryState(State):
         self.gamble_features = gamble_features
         self.claim_idx = claim_idx
 
-    def size(self) -> int:
+    def last(self) -> int:
         len_crr = len(self.couriers_embs) if self.couriers_embs is not None else 0
         len_ord = len(self.orders_embs) if self.orders_embs is not None else 0
         return len_crr + len_ord
+
+    def greedy(self) -> int:
+        mask = np.zeros(self.last() + 1)
+        mask[-1] = 1e9
+        mask[np.array(self.prev_idxs, dtype=np.int32)] = 1e9
+        idx = np.argmin(self.claim_to_couries_dists + mask)
+        return idx
+
+    def is_courier(self, idx: int) -> bool:
+        len_crr = len(self.couriers_embs) if self.couriers_embs is not None else 0
+        return idx < len_crr
+
+    def has_free_couriers(self) -> bool:
+        if self.couriers_embs is None:
+            return False
+        prev_idxs = set(self.prev_idxs)
+        all_free_couriers = set(range(len(self.couriers_embs)))
+        return len(all_free_couriers - prev_idxs) > 0
 
     def __hash__(self) -> int:
         return hash(
@@ -372,6 +391,32 @@ class DeliveryActorCritic(BaseActorCritic):
 
     def get_values_tensor(self) -> torch.Tensor:
         return self.values
+
+
+class DeliveryInferenceMetricsRunner(InferenceMetricsRunner):
+    @staticmethod
+    def get_metrics_from_trajectory(trajs: list[Trajectory]) -> dict[str, float]:
+        cumulative_metrics: dict[str, float] = defaultdict(float)
+        total_iters = 0
+        for traj in trajs:
+            for reward, log_prob_chosen, entropy, action, state in zip(
+                    traj.rewards, traj.log_probs_chosen, traj.entropies, traj.actions, traj.states):
+                assert isinstance(state, DeliveryState)
+                total_iters += 1
+                cumulative_metrics['step reward'] += reward
+                cumulative_metrics['chosen prob'] += np.exp(log_prob_chosen)
+                cumulative_metrics['entropy'] += entropy
+                cumulative_metrics['has available couriers'] += int(state.has_free_couriers())
+
+                # has available couriers and not assigned
+                cumulative_metrics['not assigned'] += int(
+                    action.to_index() == state.last() and state.has_free_couriers())
+
+                # has available couriers and greedy assigned
+                cumulative_metrics['greedy'] += int(
+                    action.to_index() == state.greedy() and state.has_free_couriers())
+        results = {('PPO: ' + metric): (value / total_iters) for metric, value in cumulative_metrics.items()}
+        return results
 
 
 class DeliveryMaker(BaseMaker):
