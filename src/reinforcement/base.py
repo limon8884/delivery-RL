@@ -503,11 +503,11 @@ class PPO:
         if self.metric_logger:
             log_probs = self.actor_critic.get_log_probs_tensor()
             self.metric_logger.log('entropy', -(torch.exp(log_probs) * log_probs).sum(dim=-1).mean().item())
-            is_last_action = sum([(state.size() == act_idx.item()) for act_idx, state
-                                 in zip(sample['actions_chosen'], sample['states'])]) / len(sample['states'])
-            empty_action = sum([(state.size() == 0) for state in sample['states']]) / len(sample['states'])
-            self.metric_logger.log('last action', is_last_action)
-            self.metric_logger.log('empty action', empty_action)
+            # is_last_action = sum([(state.last() == act_idx.item() and state.has_) for act_idx, state
+            #                      in zip(sample['actions_chosen'], sample['states'])]) / len(sample['states'])
+            # empty_action = sum([(state.size() == 0) for state in sample['states']]) / len(sample['states'])
+            # self.metric_logger.log('last action', is_last_action)
+            # self.metric_logger.log('empty action', empty_action)
 
         policy_loss = self._policy_loss(sample, self.actor_critic.get_log_probs_tensor())
         value_loss = self._value_loss(sample, self.actor_critic.get_values_tensor())
