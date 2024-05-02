@@ -25,11 +25,11 @@ class PointEncoder(nn.Module):
         for param in self.parameters():
             param.requires_grad = False
 
-    def forward(self, points: torch.FloatTensor):
+    def forward(self, points: torch.Tensor):
         assert points.shape[-1] == 2, points.shape
         if self.normalize_coords:
-            mean = np.array([X_COORD_MEAN, Y_COORD_MEAN])[None, :]
-            std = np.array([X_COORD_STD, Y_COORD_STD])[None, :]
+            mean = torch.tensor([X_COORD_MEAN, Y_COORD_MEAN]).unsqueeze(0).to(self.device)
+            std = torch.tensor([X_COORD_STD, Y_COORD_STD]).unsqueeze(0).to(self.device)
             points = (points - mean) / std
         with torch.no_grad():
             return torch.cat([
