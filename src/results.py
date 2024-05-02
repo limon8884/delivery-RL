@@ -68,8 +68,7 @@ def run_model(checkpoint_id: str, **kwargs) -> None:
                              exploration_temperature=1.0,
                              **kwargs)
     ac.load_state_dict(torch.load(kwargs['checkpoint_path'] + checkpoint_id + '.pt', map_location=device))
-    dsp = NeuralSequantialDispatch(actor_critic=ac, max_num_points_in_route=kwargs['max_num_points_in_route'],
-                                   use_dist=kwargs['use_dist'])
+    dsp = NeuralSequantialDispatch(actor_critic=ac, **kwargs)
     make_evatuation_runs(checkpoint_id, dsp, **kwargs)
 
 
