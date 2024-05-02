@@ -27,6 +27,7 @@ from src.evaluation import evaluate
 @click.option('--use_cloning', required=False, default=False, type=bool)
 @click.option('--mode', required=False, default='v1', type=str)
 @click.option('--use_pretrained_encoders', required=False, type=bool, default=True)
+@click.option('--normalize_coords', required=False, type=bool, default=False)
 @click.option('--mask_fake_crr', required=False, type=bool, default=False)
 @click.option('--use_dist', required=False, type=bool, default=True)
 @click.option('--use_masks', required=False, type=bool, default=False)
@@ -65,6 +66,9 @@ from src.evaluation import evaluate
 @click.option('-e', '--eval_epochs_frequency', required=False, type=int, default=1000)
 @click.option('--eval_num_runs', required=False, type=int, default=2)
 @click.option('--num_gambles_in_day', required=False, type=int, default=2880)
+@click.option('--distance_norm_constant', required=False, type=float, default=1.0)
+@click.option('--time_norm_constant', required=False, type=float, default=600.0)
+@click.option('--num_norm_constant', required=False, type=float, default=100.0)
 @click.option('--sweep_id', type=str, default='')
 @click.option('--sweep_count', type=int, default=1)
 def make_kwargs(**cfg):
@@ -92,9 +96,7 @@ def run_ppo(**kwargs):
     eval_runner = Runner(environment=maker.environment.copy(), actor_critic=maker.actor_critic,
                          n_envs=kwargs['eval_n_envs'], trajectory_length=kwargs['eval_trajectory_length'])
     inference_logger = DeliveryInferenceMetricsRunner(runner=eval_runner, metric_logger=maker.metric_logger)
-    dsp = NeuralSequantialDispatch(actor_critic=maker.actor_critic,
-                                   max_num_points_in_route=kwargs['max_num_points_in_route'],
-                                   use_dist=kwargs['use_dist'], use_route=kwargs['use_route'])
+    dsp = NeuralSequantialDispatch(actor_critic=maker.actor_critic, **kwargs)
 
     for iteration in tqdm(range(kwargs['total_iters'])):
         maker.actor_critic.train()

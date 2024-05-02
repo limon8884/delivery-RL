@@ -199,11 +199,18 @@ class Courier(Item):
     def done(self) -> bool:
         return self.status is Courier.Status.OFFLINE
 
-    def to_numpy(self) -> np.ndarray:
+    def to_numpy(self, **kwargs) -> np.ndarray:
         assert self._dttm is not None
+        time_norm_constant = kwargs['time_norm_constant']
         status_num = self.status.value
         online_secs_num = (self._dttm - self.start_dttm).total_seconds()
-        return np.array([self.position.x, self.position.y, status_num, online_secs_num])
+        features = [
+            self.position.x,
+            self.position.y,
+            status_num,
+            online_secs_num / time_norm_constant
+        ]
+        return np.array(features)
 
     @staticmethod
     def numpy_feature_types() -> dict[tuple[int, int], str]:
@@ -275,6 +282,8 @@ class Claim(Item):
 
     def to_numpy(self, **kwargs) -> np.ndarray:
         use_dist = kwargs['use_dist']
+        # distance_norm_constant = kwargs['distance_norm_constant']
+        time_norm_constant = kwargs['time_norm_constant']
         status_num = self.status.value
         assert self._dttm is not None
         online_secs_num = (self._dttm - self.creation_dttm).total_seconds()
@@ -284,7 +293,7 @@ class Claim(Item):
             self.destination_point.x,
             self.destination_point.y,
             status_num,
-            online_secs_num
+            online_secs_num / time_norm_constant,
         ]
         if use_dist:
             features.append(Point.distance(self.source_point, self.destination_point))
@@ -401,10 +410,12 @@ class Order(Item):
         return seconds_to_act
 
     def to_numpy(self, **kwargs) -> np.ndarray:
+        distance_norm_constant = kwargs['distance_norm_constant']
+        time_norm_constant = kwargs['time_norm_constant']
         max_num_points_in_route = kwargs['max_num_points_in_route']
         use_dist = kwargs['use_dist']
         use_route = kwargs['use_route']
-        crr_tens = self.courier.to_numpy()
+        crr_tens = self.courier.to_numpy(**kwargs)
         status_num = self.status.value
         assert self._dttm is not None
         online_secs_num = (self._dttm - self.creation_dttm).total_seconds()
@@ -421,9 +432,9 @@ class Order(Item):
         else:
             last_point = self.route.route_points[-1].point
             point_coords = [last_point.x, last_point.y]
-        route_features = point_coords + [status_num, online_secs_num]
+        route_features = point_coords + [status_num, online_secs_num / time_norm_constant]
         if use_dist:
-            route_features.append(self.get_rest_distance())
+            route_features.append(self.get_rest_distance() / distance_norm_constant)
         return np.concatenate([crr_tens, np.array(route_features)], axis=-1)
 
     def has_full_route(self, max_num_points_in_route: int) -> bool:
@@ -451,19 +462,26 @@ class Gamble:
     dttm_start: datetime
     dttm_end: datetime
 
-    def to_numpy(self) -> np.ndarray:
+    def to_numpy(self, **kwargs) -> np.ndarray:
+        num_norm_constant = kwargs['num_norm_constant']
         num_crrs = len(self.couriers)
         num_clms = len(self.claims)
         num_ords = len(self.orders)
-        hour = self.dttm_end.hour
-        weekday = self.dttm_end.weekday()
-        features = np.array([num_clms, num_crrs, num_ords, hour, weekday])
+        hour_ohe = [0] * 24
+        hour_ohe[self.dttm_end.hour] = 1
+        weekday_ohe = [0] * 7
+        weekday_ohe[self.dttm_end.weekday()] = 1
+        features = np.array(
+            [num_clms / num_norm_constant, num_crrs / num_norm_constant, num_ords / num_norm_constant]\
+            + hour_ohe\
+            + weekday_ohe
+        )
         assert len(features) == self.numpy_feature_size()
         return features
 
     @staticmethod
     def numpy_feature_size() -> int:
-        return 5
+        return 3 + 7 + 24
 
 
 @dataclass

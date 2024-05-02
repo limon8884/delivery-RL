@@ -20,9 +20,10 @@ class NeuralSequantialDispatch(BaseDispatch):
     def __init__(self, actor_critic: BaseActorCritic, **kwargs) -> None:
         super().__init__()
         self.actor_critic = actor_critic
-        self.max_num_points_in_route = kwargs['max_num_points_in_route']
-        self.use_dist = kwargs['use_dist']
-        self.use_route = kwargs['use_route']
+        self.kwargs = kwargs
+        # self.max_num_points_in_route = kwargs['max_num_points_in_route']
+        # self.use_dist = kwargs['use_dist']
+        # self.use_route = kwargs['use_route']
 
     def __call__(self, gamble: Gamble) -> Assignment:
         num_claims = len(gamble.claims)
@@ -33,14 +34,13 @@ class NeuralSequantialDispatch(BaseDispatch):
         available_orders = gamble.orders
         prev_idxs: list[int] = []
         claims_to_couriers_distances = compulte_claims_to_couriers_distances(gamble)
-        claim_embs = np.stack([c.to_numpy(use_dist=self.use_dist) for c in gamble.claims], axis=0)
+        claim_embs = np.stack([c.to_numpy(**self.kwargs) for c in gamble.claims], axis=0)
         for claim_idx in range(num_claims):
-            couriers_embs_list = [c.to_numpy() for c in available_couriers]
-            orders_embs_list = [o.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist,
-                                           use_route=self.use_route) for o in available_orders]
+            couriers_embs_list = [c.to_numpy(**self.kwargs) for c in available_couriers]
+            orders_embs_list = [o.to_numpy(**self.kwargs) for o in available_orders]
             couriers_embs = np.stack(couriers_embs_list, axis=0) if len(couriers_embs_list) > 0 else None
             orders_embs = np.stack(orders_embs_list, axis=0) if len(orders_embs_list) > 0 else None
-            orders_full_mask = [o.has_full_route(max_num_points_in_route=self.max_num_points_in_route)
+            orders_full_mask = [o.has_full_route(max_num_points_in_route=self.kwargs['max_num_points_in_route'])
                                 for o in available_orders]
 
             state = DeliveryState(
@@ -50,7 +50,7 @@ class NeuralSequantialDispatch(BaseDispatch):
                 prev_idxs=prev_idxs,
                 orders_full_masks=orders_full_mask,
                 claim_to_couries_dists=claims_to_couriers_distances[claim_idx],
-                gamble_features=gamble.to_numpy(),
+                gamble_features=gamble.to_numpy(**self.kwargs),
                 claim_idx=claim_idx,
             )
             with torch.no_grad():

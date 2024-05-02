@@ -126,9 +126,10 @@ class DeliveryRewarder:
 
 class DeliveryEnvironment(BaseEnvironment):
     def __init__(self, simulator: Simulator, rewarder: DeliveryRewarder, **kwargs) -> None:
-        self.max_num_points_in_route = kwargs['max_num_points_in_route']
-        self.use_dist = kwargs['use_dist']
-        self.use_route = kwargs['use_route']
+        self.kwargs = kwargs
+        # self.max_num_points_in_route = kwargs['max_num_points_in_route']
+        # self.use_dist = kwargs['use_dist']
+        # self.use_route = kwargs['use_route']
         self.num_gambles = kwargs['num_gambles_in_day']
         self.simulator = simulator
         self.device = kwargs['device']
@@ -138,11 +139,7 @@ class DeliveryEnvironment(BaseEnvironment):
         return DeliveryEnvironment(
             simulator=deepcopy(self.simulator),
             rewarder=self.rewarder,
-            max_num_points_in_route=self.max_num_points_in_route,
-            use_dist=self.use_dist,
-            use_route=self.use_route,
-            num_gambles_in_day=self.num_gambles,
-            device=self.device,
+            **self.kwargs
         )
 
     def reset(self, seed: int | None = None) -> DeliveryState:
@@ -184,16 +181,15 @@ class DeliveryEnvironment(BaseEnvironment):
             self._gamble = self.simulator.get_state()
             self._iter += 1
         self.embs_dict = {
-            'crr': np.stack([crr.to_numpy() for crr in self._gamble.couriers], axis=0)
+            'crr': np.stack([crr.to_numpy(**self.kwargs) for crr in self._gamble.couriers], axis=0)
             if len(self._gamble.couriers)
             else None,
-            'clm': np.stack([clm.to_numpy(use_dist=self.use_dist) for clm in self._gamble.claims], axis=0),
-            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist,
-                                          use_route=self.use_route) for ord in self._gamble.orders], axis=0)
+            'clm': np.stack([clm.to_numpy(**self.kwargs) for clm in self._gamble.claims], axis=0),
+            'ord': np.stack([ord.to_numpy(**self.kwargs) for ord in self._gamble.orders], axis=0)
             if len(self._gamble.orders) > 0
             else None,
-            'gmb': self._gamble.to_numpy(),
-            'ord_masks': [ord.has_full_route(max_num_points_in_route=self.max_num_points_in_route)
+            'gmb': self._gamble.to_numpy(**self.kwargs),
+            'ord_masks': [ord.has_full_route(max_num_points_in_route=self.kwargs['max_num_points_in_route'])
                           for ord in self._gamble.orders],
             'dists': compulte_claims_to_couriers_distances(self._gamble),
         }
@@ -416,6 +412,10 @@ class DeliveryInferenceMetricsRunner(InferenceMetricsRunner):
                 cumulative_metrics['greedy'] += int(
                     action.to_index() == state.greedy() and state.has_free_couriers())
         results = {('PPO: ' + metric): (value / total_iters) for metric, value in cumulative_metrics.items()}
+        results.update({
+            'not assigned | has available': cumulative_metrics['not assigned'] / cumulative_metrics['has available couriers'],
+            'greedy | has available': cumulative_metrics['greedy'] / cumulative_metrics['has available couriers'],
+        })
         return results
 
 
@@ -501,9 +501,10 @@ class CloningDeliveryRunner:
         self.dispatch = dispatch
         self.simulator: Simulator = deepcopy(simulator)
         self.rewarder = rewarder
-        self.max_num_points_in_route = kwargs['max_num_points_in_route']
-        self.use_dist = kwargs['use_dist']
-        self.use_route = kwargs['use_route']
+        self.kwargs = kwargs
+        # self.max_num_points_in_route = kwargs['max_num_points_in_route']
+        # self.use_dist = kwargs['use_dist']
+        # self.use_route = kwargs['use_route']
         self.num_gambles = kwargs['num_gambles_in_day']
         # self.device = kwargs['device']
         self.trajectory_length = kwargs['trajectory_length']
@@ -591,16 +592,15 @@ class CloningDeliveryRunner:
             self._assignment_dict = {clm_id: crr_id for crr_id, clm_id in self._assignments.ids}
             self._iter += 1
         self.embs_dict = {
-            'crr': np.stack([crr.to_numpy() for crr in self._gamble.couriers], axis=0)
+            'crr': np.stack([crr.to_numpy(**self.kwargs) for crr in self._gamble.couriers], axis=0)
             if len(self._gamble.couriers)
             else None,
-            'clm': np.stack([clm.to_numpy(use_dist=self.use_dist) for clm in self._gamble.claims], axis=0),
-            'ord': np.stack([ord.to_numpy(max_num_points_in_route=self.max_num_points_in_route, use_dist=self.use_dist,
-                                          use_route=self.use_route) for ord in self._gamble.orders], axis=0)
+            'clm': np.stack([clm.to_numpy(**self.kwargs) for clm in self._gamble.claims], axis=0),
+            'ord': np.stack([ord.to_numpy(**self.kwargs) for ord in self._gamble.orders], axis=0)
             if len(self._gamble.orders) > 0
             else None,
-            'gmb': self._gamble.to_numpy(),
-            'ord_masks': [ord.has_full_route(max_num_points_in_route=self.max_num_points_in_route)
+            'gmb': self._gamble.to_numpy(**self.kwargs),
+            'ord_masks': [ord.has_full_route(max_num_points_in_route=self.kwargs['max_num_points_in_route'])
                           for ord in self._gamble.orders],
             'dists': compulte_claims_to_couriers_distances(self._gamble),
         }

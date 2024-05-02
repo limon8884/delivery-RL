@@ -5,8 +5,14 @@ import numpy as np
 from src.objects import Point, Courier, Order, Route, Claim, Gamble
 
 
+X_COORD_MEAN = 37.60
+Y_COORD_MEAN = 55.75
+X_COORD_STD = 0.25
+Y_COORD_STD = 0.17
+
+
 class PointEncoder(nn.Module):
-    def __init__(self, point_emb_dim: int, device):
+    def __init__(self, point_emb_dim: int, device, normalize_coords=False):
         super().__init__()
         assert point_emb_dim % 4 == 0
         self.sin_layer_x = nn.Linear(1, point_emb_dim // 4, device=device)
@@ -14,12 +20,17 @@ class PointEncoder(nn.Module):
         self.sin_layer_y = nn.Linear(1, point_emb_dim // 4, device=device)
         self.cos_layer_y = nn.Linear(1, point_emb_dim // 4, device=device)
         self.device = device
+        self.normalize_coords = normalize_coords
 
         for param in self.parameters():
             param.requires_grad = False
 
     def forward(self, points: torch.FloatTensor):
         assert points.shape[-1] == 2, points.shape
+        if self.normalize_coords:
+            mean = np.array([X_COORD_MEAN, Y_COORD_MEAN])[None, :]
+            std = np.array([X_COORD_STD, Y_COORD_STD])[None, :]
+            points = (points - mean) / std
         with torch.no_grad():
             return torch.cat([
                 torch.sin(self.sin_layer_x(points[..., 0].unsqueeze(-1))),
@@ -42,17 +53,17 @@ class NumberEncoder(nn.Module):
         ).to(device)
         self.device = device
 
-    def forward(self, numbers_np: np.ndarray) -> torch.FloatTensor:
+    def forward(self, numbers_np: np.ndarray) -> torch.Tensor:
         x = torch.tensor(numbers_np, device=self.device, dtype=torch.float)
         x = self.mlp(x)
         return x
 
 
 class CoordMLPEncoder(nn.Module):
-    def __init__(self, coords_np_dim, point_embedding_dim, coords_embedding_dim, device):
+    def __init__(self, coords_np_dim, point_embedding_dim, coords_embedding_dim, device, normalize_coords):
         super().__init__()
         assert point_embedding_dim % 4 == 0
-        self.pe = PointEncoder(point_embedding_dim, device=device)
+        self.pe = PointEncoder(point_embedding_dim, device=device, normalize_coords=normalize_coords)
         self.coords_np_dim = coords_np_dim
         input_dim = coords_np_dim // 2 * point_embedding_dim
         self.mlp = nn.Sequential(
@@ -64,7 +75,7 @@ class CoordMLPEncoder(nn.Module):
         ).to(device)
         self.device = device
 
-    def forward(self, coords_np: np.ndarray) -> torch.FloatTensor:
+    def forward(self, coords_np: np.ndarray) -> torch.Tensor:
         assert coords_np.ndim == 2 and coords_np.shape[1] == self.coords_np_dim
         bs = coords_np.shape[0]
         points = torch.tensor(coords_np.reshape(bs, self.coords_np_dim // 2, 2),
@@ -92,6 +103,7 @@ class ItemEncoder(nn.Module):
         super().__init__()
         # dropout = kwargs['dropout']
         device = kwargs['device']
+        normalize_coords = kwargs['normalize_coords']
         self.item_embedding_dim = item_embedding_dim
         coords_idxs = []
         numbers_idxs = []
@@ -111,7 +123,7 @@ class ItemEncoder(nn.Module):
         self.coord_encoder = CoordMLPEncoder(coords_np_dim=len(self.coords_idxs),
                                              point_embedding_dim=point_embedding_dim,
                                              coords_embedding_dim=coords_embedding_dim,
-                                             device=device)
+                                             device=device, normalize_coords=normalize_coords)
         self.number_encoder = NumberEncoder(numbers_np_dim=len(self.numbers_idxs),
                                             number_embedding_dim=number_embedding_dim,
                                             device=device)
@@ -154,6 +166,7 @@ class GambleEncoder(nn.Module):
         gamble_features_embedding_dim = kwargs['gamble_features_embedding_dim']
         use_dist = kwargs['use_dist']
         use_route = kwargs['use_route']
+        normalize_coords = kwargs['normalize_coords']
         self.device = kwargs['device']
         self.disable_features = kwargs['disable_features']
         self.claim_encoder = ItemEncoder(
@@ -163,6 +176,7 @@ class GambleEncoder(nn.Module):
             cat_points_embedding_dim=cat_points_embedding_dim,
             num_layers=num_layers,
             device=self.device,
+            normalize_coords=normalize_coords,
         )
         self.courier_encoder = ItemEncoder(
             feature_types=Courier.numpy_feature_types(),
@@ -171,6 +185,7 @@ class GambleEncoder(nn.Module):
             cat_points_embedding_dim=cat_points_embedding_dim,
             num_layers=num_layers,
             device=self.device,
+            normalize_coords=normalize_coords,
         )
         self.order_encoder = ItemEncoder(
             feature_types=Order.numpy_feature_types(max_num_points_in_route=max_num_points_in_route,
@@ -180,6 +195,7 @@ class GambleEncoder(nn.Module):
             cat_points_embedding_dim=cat_points_embedding_dim,
             num_layers=num_layers,
             device=self.device,
+            normalize_coords=normalize_coords,
         )
         self.gamble_feature_encoder = NumberEncoder(
             numbers_np_dim=Gamble.numpy_feature_size(),
