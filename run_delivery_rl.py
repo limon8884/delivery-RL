@@ -31,6 +31,7 @@ from src.evaluation import evaluate
 @click.option('--use_dist', required=False, type=bool, default=True)
 @click.option('--use_masks', required=False, type=bool, default=False)
 @click.option('--use_route', required=False, type=bool, default=False)
+@click.option('--disable_features', required=False, type=bool, default=False)
 @click.option('--n_envs', required=False, type=int, default=1)
 @click.option('-T', '--trajectory_length', required=False, type=int, default=12_000)
 @click.option('--batch_size', required=False, type=int, default=64)
