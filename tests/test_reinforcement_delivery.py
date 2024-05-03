@@ -18,6 +18,7 @@ from src.networks.encoders import GambleEncoder
 from src.networks.claim_attention import ClaimAttention
 from src.dispatchs.hungarian_dispatch import HungarianDispatch
 from src.dispatchs.scorers import DistanceScorer
+from src.utils import compulte_claims_to_couriers_distances
 
 
 BASE_DTTM = datetime.min
@@ -105,18 +106,34 @@ def test_simulator(tmp_path):
     assert len(g0.claims) == 2 and len(g0.couriers) == 3 and len(g0.orders) == 0
     assert g0.claims[0].id == 0 and g0.claims[1].id == 1, (g0.claims[0].id, g0.claims[1].id)
     assert g0.claims[0].source_point == Point(0.0, 0.2), g0.claims[0].source_point
+    dists = compulte_claims_to_couriers_distances(g0)
+    target_dists = [
+        [(1 + 0.2**2)**0.5, (0.8**2 + 0.5**2)**0.5, 0.2, -1],
+        [0.2, (0.8**2 + 0.5**2)**0.5, (1 + 0.2**2)**0.5, -1],
+    ]
+    assert np.isclose(dists, target_dists).all(), dists
     sim.next(Assignment([(0, 1), (2, 0)]))
     g1 = sim.get_state()
     assert len(g1.claims) == 0 and len(g1.couriers) == 1 and len(g1.orders) == 2
     sim.next(Assignment([]))
     g2 = sim.get_state()
     assert len(g2.claims) == 1 and len(g2.couriers) == 3 and len(g2.orders) == 0
+    dists = compulte_claims_to_couriers_distances(g2)
+    target_dists = [
+        [1, (1 + 0.5**2)**0.5, (1 + 0.5**2)**0.5, -1],
+    ]
+    assert np.isclose(dists, target_dists).all(), dists
     sim.next(Assignment([(1, 2)]))
     g3 = sim.get_state()
     assert len(g3.claims) == 0 and len(g3.couriers) == 2 and len(g3.orders) == 1
     sim.next(Assignment([]))
     g4 = sim.get_state()
     assert len(g4.claims) == 1 and len(g4.couriers) == 2 and len(g4.orders) == 1
+    dists = compulte_claims_to_couriers_distances(g4)
+    target_dists = [
+        [(1 + 0.2**2)**0.5, 0.2, (0.6**2 + 0.5**2)**0.5, -1]
+    ]
+    assert np.isclose(dists, target_dists).all(), dists
     sim.next(Assignment([(2, 3)]))
     g5 = sim.get_state()
     assert len(g5.claims) == 0 and len(g5.couriers) == 1 and len(g5.orders) == 2
