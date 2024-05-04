@@ -18,6 +18,7 @@ from src.simulator.simulator import Simulator
 from src.simulator.data_reader import DataReader
 from src.dispatchs.base_dispatch import BaseDispatch
 from src.dispatchs.hungarian_dispatch import HungarianDispatch
+from src.dispatchs.greedy_dispatch import GreedyDispatch
 from src.dispatchs.scorers import DistanceScorer
 from src.router_makers import AppendRouteMaker
 from src.networks.encoders import GambleEncoder
@@ -468,10 +469,15 @@ class DeliveryMaker(BaseMaker):
             )
         runner = Runner(environment=self._env, actor_critic=self._ac, n_envs=kwargs['n_envs'],
                         trajectory_length=kwargs['trajectory_length'])
-        if kwargs['use_cloning']:
+        if kwargs['use_cloning'] == 'hungarian':
             self._ppo = CloningPPO(actor_critic=self._ac, opt=opt, scheduler=scheduler,
                                    metric_logger=self._train_metric_logger, **kwargs)
             runner = CloningDeliveryRunner(dispatch=HungarianDispatch(DistanceScorer()),
+                                           simulator=sim, rewarder=rewarder, **kwargs)
+        elif kwargs['use_cloning'] == 'greedy':
+            self._ppo = CloningPPO(actor_critic=self._ac, opt=opt, scheduler=scheduler,
+                                   metric_logger=self._train_metric_logger, **kwargs)
+            runner = CloningDeliveryRunner(dispatch=GreedyDispatch(DistanceScorer()),
                                            simulator=sim, rewarder=rewarder, **kwargs)
         gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
         normalizer = RewardNormalizer(gamma=kwargs['reward_norm_gamma'], cliprange=kwargs['reward_norm_cliprange'])

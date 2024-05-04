@@ -25,7 +25,7 @@ from src.evaluation import evaluate
 @click.option('-z', '--fix_zero_seed', required=False, default=False, is_flag=True, type=bool)
 @click.option('-t', '--use_train_logs', required=False, default=False, is_flag=True, type=bool)
 @click.option('-a', '--use_attn', required=False, default=False, is_flag=True, type=bool)
-@click.option('--use_cloning', required=False, default=False, type=bool)
+@click.option('--use_cloning', required=False, default='no', type=str)
 @click.option('--mode', required=False, default='v1', type=str)
 @click.option('--use_pretrained_encoders', required=False, type=bool, default=True)
 @click.option('--normalize_coords', required=False, type=bool, default=False)
