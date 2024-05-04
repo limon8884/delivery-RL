@@ -608,7 +608,8 @@ class CloningDeliveryRunner:
             'gmb': self._gamble.to_numpy(**self.kwargs),
             'ord_masks': [ord.has_full_route(max_num_points_in_route=self.kwargs['max_num_points_in_route'])
                           for ord in self._gamble.orders],
-            'dists': compulte_claims_to_couriers_distances(self._gamble),
+            'dists': compulte_claims_to_couriers_distances(self._gamble,
+                                                           distance_norm_constant=self.kwargs['distance_norm_constant'])
         }
         # self._assignments = Assignment([])
         self._claim_idx = 0
