@@ -22,8 +22,8 @@ from src.simulator.data_reader import DataReader
 from src.router_makers import BaseRouteMaker
 from src.database.logger import DatabaseLogger
 
-logging.basicConfig(filename='running_logs.log', encoding='utf-8', level=logging.WARNING)
-LOGGER = logging.getLogger(__name__)
+# logging.basicConfig(filename='running_logs.log', encoding='utf-8', level=logging.WARNING)
+# LOGGER = logging.getLogger(__name__)
 
 
 class Simulator(object):
