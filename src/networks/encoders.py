@@ -230,7 +230,7 @@ class GambleEncoder(nn.Module):
         clm_emb = torch.zeros((len(gamble_np_dict['clm']), self.claim_encoder.item_embedding_dim)).to(self.device)
         crr_emb = torch.zeros((len(gamble_np_dict['crr']), self.courier_encoder.item_embedding_dim)).to(self.device) \
             if gamble_np_dict['crr'] is not None else None
-        ord_emb = torch.zeros((len(gamble_np_dict['ord']), self.order_encoder.item_embedding_dim)).to(self.device) \
+        ord_emb = torch.ones((len(gamble_np_dict['ord']), self.order_encoder.item_embedding_dim)).to(self.device) \
             if gamble_np_dict['ord'] is not None else None
         gmb_emb = torch.zeros((len(gamble_np_dict['gmb']), self.gamble_feature_encoder.number_embedding_dim)
                               ).to(self.device)

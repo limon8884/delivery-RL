@@ -194,7 +194,8 @@ class DeliveryEnvironment(BaseEnvironment):
             'gmb': self._gamble.to_numpy(**self.kwargs),
             'ord_masks': [ord.has_full_route(max_num_points_in_route=self.kwargs['max_num_points_in_route'])
                           for ord in self._gamble.orders],
-            'dists': compulte_claims_to_couriers_distances(self._gamble),
+            'dists': compulte_claims_to_couriers_distances(self._gamble,
+                                                           distance_norm_constant=self.kwargs['distance_norm_constant'])
         }
         self._assignments = Assignment([])
         self._claim_idx = 0
@@ -328,12 +329,14 @@ class DeliveryActorCritic(BaseActorCritic):
     def _make_additional_features_from_state(self, state: DeliveryState) -> torch.Tensor:
         num_crr_ord_fake = (len(state.couriers_embs) if state.couriers_embs is not None else 0) + \
             (len(state.orders_embs) if state.orders_embs is not None else 0) + 1
+        num_clm = len(state.claim_embs)
 
         prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
         prev_assigs = torch.zeros(size=(num_crr_ord_fake, 1), dtype=torch.float, device=self.device)
         prev_assigs[prev_idxs] = 1.0
 
-        claim_idx = torch.ones(size=(num_crr_ord_fake, 1), dtype=torch.float, device=self.device) * state.claim_idx
+        claim_idx = torch.ones(size=(num_crr_ord_fake, 1), dtype=torch.float,
+                               device=self.device) * state.claim_idx / num_clm
 
         if self.use_dist:
             dists = torch.tensor(state.claim_to_couries_dists, dtype=torch.float,

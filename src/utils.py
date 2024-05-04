@@ -24,15 +24,15 @@ def write_in_txt_file(path: str, content: str) -> None:
         f.write('\n')
 
 
-def compulte_claims_to_couriers_distances(gamble: Gamble) -> np.ndarray:
+def compulte_claims_to_couriers_distances(gamble: Gamble, distance_norm_constant: float) -> np.ndarray:
     result = []
     for claim in gamble.claims:
         result.append([])
         for courier in gamble.couriers:
-            dist = Point.distance(claim.source_point, courier.position)
+            dist = Point.distance(claim.source_point, courier.position) / distance_norm_constant
             result[-1].append(dist)
         for order in gamble.orders:
-            dist = Point.distance(claim.source_point, order.courier.position)
+            dist = Point.distance(claim.source_point, order.courier.position) / distance_norm_constant
             result[-1].append(dist)
         result[-1].append(-1)
     return np.array(result)

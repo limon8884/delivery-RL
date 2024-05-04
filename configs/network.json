@@ -26,6 +26,15 @@
             "courier_order_embedding_dim": 128,
             "num_layers": 6,
             "gamble_features_embedding_dim": 16
+        },
+        "disabled": {
+            "point_embedding_dim": 4,
+            "cat_points_embedding_dim": 1,
+            "route_embedding_dim": 1,
+            "claim_embedding_dim": 1,
+            "courier_order_embedding_dim": 1,
+            "num_layers": 0,
+            "gamble_features_embedding_dim": 1
         }
     },
     "attention": {
@@ -34,7 +43,8 @@
             "nhead": 4,
             "dim_feedforward": 256,
             "num_attention_layers": 2 
-        }
+        },
+        "disabled": {}
     },
     "backbone": {
         "small": {

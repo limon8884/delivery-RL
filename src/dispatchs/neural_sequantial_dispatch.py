@@ -33,7 +33,8 @@ class NeuralSequantialDispatch(BaseDispatch):
         available_couriers = gamble.couriers
         available_orders = gamble.orders
         prev_idxs: list[int] = []
-        claims_to_couriers_distances = compulte_claims_to_couriers_distances(gamble)
+        claims_to_couriers_distances = compulte_claims_to_couriers_distances(gamble,
+                                                         distance_norm_constant=self.kwargs['distance_norm_constant'])
         claim_embs = np.stack([c.to_numpy(**self.kwargs) for c in gamble.claims], axis=0)
         for claim_idx in range(num_claims):
             couriers_embs_list = [c.to_numpy(**self.kwargs) for c in available_couriers]
