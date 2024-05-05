@@ -530,7 +530,7 @@ class DeliveryMaker(BaseMaker):
 
         gamble_encoder = GambleEncoder(**kwargs, **encoder_cfg)
         # claim_attention = ClaimAttention(**kwargs, **attn_cfg) if kwargs['use_attn'] else None
-        attention = nn.Transformer(**attn_cfg)
+        attention = nn.Transformer(**attn_cfg).to(device)
         reader = DataReader.from_config(config_path=simulator_config_path,
                                         sampler_mode=kwargs['sampler_mode'], db_logger=None)
         route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
