@@ -275,7 +275,7 @@ class DeliveryActorCritic(BaseActorCritic):
             nn.LeakyReLU(),
             nn.Linear(self.attention.d_model, self.attention.d_model),
             nn.LeakyReLU(),
-            nn.Linear(self.attention.d_model, 1),
+            nn.Linear(self.attention.d_model, self.attention.d_model),
         ).to(self.device)
         self.value_head = nn.Sequential(
             nn.Linear(self.attention.d_model, self.attention.d_model),
@@ -352,6 +352,8 @@ class DeliveryActorCritic(BaseActorCritic):
     #     return torch.cat([prev_assigs, claim_idx], dim=-1)
 
     def _make_policy_value_tensors(self, states: list[DeliveryState]) -> tuple[torch.Tensor, torch.Tensor]:
+        bs = len(states)
+        d_model = self.attention.d_model if self.attention is not None else 0
         clm_embs_list, co_embs_list = [], []
         for state in states:
             clm_embs, co_embs = self._make_clm_co_tensors(state)
@@ -368,7 +370,17 @@ class DeliveryActorCritic(BaseActorCritic):
             tgt_key_padding_mask=co_masks,
             memory_key_padding_mask=clm_masks
         )
-        policy_tens = self.policy_head(attn).squeeze(-1)  # (bs, max_seq_len)
+
+        clm_tens = clm_embs[
+            torch.arange(len(states)).to(self.device),
+            torch.tensor([state.claim_idx for state in states]).to(self.device)
+        ]  # (bs, d_model)
+        assert clm_tens.shape == (bs, d_model), clm_tens.shape
+        policy_tens = self.policy_head(attn)  # (bs, max_seq_len, d_model)
+        assert policy_tens.shape == (bs, co_masks.shape[1], d_model), policy_tens.shape
+        policy_tens = torch.einsum('bie,be->bi', policy_tens, clm_tens)
+        assert policy_tens.shape == (bs, co_masks.shape[1]), policy_tens.shape
+
         value_tens = self.value_head(attn).squeeze(-1)  # (bs, max_seq_len)
         policy = torch.where(co_masks, PAD_MASK_VALUE, policy_tens)
         value = torch.where(co_masks, 0.0, value_tens).mean(-1)
@@ -377,8 +389,8 @@ class DeliveryActorCritic(BaseActorCritic):
     def _make_clm_co_tensors(self, state: DeliveryState) -> tuple[torch.Tensor, torch.Tensor]:
         '''
         Returns 2 tensors:
-        * clm_embs: (bs, max_num_clm, clm_add_emb_size)
-        * co_embs: (bs, max_num_crr_ord_fake, co_add_emb_size)
+        * clm_embs: (max_num_clm, clm_add_emb_size)
+        * co_embs: (max_num_crr_ord_fake, co_add_emb_size)
         '''
         embs_dict = {
             'clm': state.claim_embs,

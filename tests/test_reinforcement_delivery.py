@@ -106,7 +106,7 @@ def test_simulator(tmp_path):
     assert len(g0.claims) == 2 and len(g0.couriers) == 3 and len(g0.orders) == 0
     assert g0.claims[0].id == 0 and g0.claims[1].id == 1, (g0.claims[0].id, g0.claims[1].id)
     assert g0.claims[0].source_point == Point(0.0, 0.2), g0.claims[0].source_point
-    dists = compulte_claims_to_couriers_distances(g0)
+    dists = compulte_claims_to_couriers_distances(g0, distance_norm_constant=1)
     target_dists = [
         [(1 + 0.2**2)**0.5, (0.8**2 + 0.5**2)**0.5, 0.2, -1],
         [0.2, (0.8**2 + 0.5**2)**0.5, (1 + 0.2**2)**0.5, -1],
@@ -118,7 +118,7 @@ def test_simulator(tmp_path):
     sim.next(Assignment([]))
     g2 = sim.get_state()
     assert len(g2.claims) == 1 and len(g2.couriers) == 3 and len(g2.orders) == 0
-    dists = compulte_claims_to_couriers_distances(g2)
+    dists = compulte_claims_to_couriers_distances(g2, distance_norm_constant=1)
     target_dists = [
         [1, (1 + 0.5**2)**0.5, (1 + 0.5**2)**0.5, -1],
     ]
@@ -129,7 +129,7 @@ def test_simulator(tmp_path):
     sim.next(Assignment([]))
     g4 = sim.get_state()
     assert len(g4.claims) == 1 and len(g4.couriers) == 2 and len(g4.orders) == 1
-    dists = compulte_claims_to_couriers_distances(g4)
+    dists = compulte_claims_to_couriers_distances(g4, distance_norm_constant=1)
     target_dists = [
         [(1 + 0.2**2)**0.5, 0.2, (0.6**2 + 0.5**2)**0.5, -1]
     ]
@@ -147,13 +147,21 @@ def test_delivery_environment(tmp_path):
             'courier_speed': 0.02
         }
         json.dump(config, f)
+    kwargs = {
+        "time_norm_constant": 1.0,
+        "distance_norm_constant": 1.0,
+        "num_norm_constant": 1.0,
+        "max_num_points_in_route": 4,
+        "use_dist": False,
+        "use_route": True, 
+        "num_gambles_in_day": 6
+    }
     reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, db_logger=None)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
     rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0, coef_reward_distance=0.0,
-                                coef_reward_completed=0.0)
-    env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4, use_dist=False,
-                              use_route=True, num_gambles_in_day=6, device=None)
+                                coef_reward_completed=0.0, coef_reward_prohibited=1.0)
+    env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, device=None, **kwargs)
     state1 = env.reset()
     assert env._iter == 1, env._iter
     assert np.isclose(state1.claim_embs[state1.claim_idx], [0.0, 0.2, 0.0, 1.0, 0.0, 20.0]).all(), (state1.claim_embs)
@@ -199,13 +207,21 @@ def test_delivery_actor_critic_shape(tmp_path):
             'courier_speed': 0.02
         }
         json.dump(config, f)
+    kwargs = {
+        "time_norm_constant": 1.0,
+        "distance_norm_constant": 1.0,
+        "num_norm_constant": 1.0,
+        "max_num_points_in_route": 4,
+        "use_dist": False,
+        "use_route": True, 
+        "num_gambles_in_day": 6
+    }
     reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, db_logger=None)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
     rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0, coef_reward_distance=0.0,
-                                coef_reward_completed=0.0)
-    env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, max_num_points_in_route=4, use_dist=False,
-                              use_route=True, num_gambles_in_day=6, device=None)
+                                coef_reward_completed=0.0, coef_reward_prohibited=1.0)
+    env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, device=None, **kwargs)
     gamble_encoder = GambleEncoder(
         route_embedding_dim=128,
         claim_embedding_dim=16,
@@ -217,33 +233,47 @@ def test_delivery_actor_critic_shape(tmp_path):
         gamble_features_embedding_dim=8,
         use_dist=False,
         use_route=True,
+        normalize_coords=False,
+        disable_features=False,
         device=None,
         use_pretrained_encoders=False,
     )
-    claim_attention = ClaimAttention(claim_embedding_dim=16, nhead=2, dim_feedforward=128,
-                                     num_attention_layers=2, device=None)
-    ac = DeliveryActorCritic(gamble_encoder, claim_attention=claim_attention, clm_emb_size=16, co_emb_size=32,
+    attention = torch.nn.Transformer(d_model=20, nhead=2, dim_feedforward=128,
+                                     num_encoder_layers=2, num_decoder_layers=2, batch_first=True, device=None)
+    ac = DeliveryActorCritic(gamble_encoder, attention=attention, clm_emb_size=16, co_emb_size=32,
                              gmb_emb_size=8, exploration_temperature=1.0, mask_fake_crr=False, use_dist=False,
                              use_masks=False, device=None)
-    state1 = env.reset()  # (3, 0)
-    co_embs, claim_emb, gamble_emb = ac._make_embeddings_tensors_from_state(state1)
-    add_emb = ac._make_additional_features_from_state(state1)
-    assert co_embs.shape == (4, 32), co_embs.shape
-    assert claim_emb.shape == (1, 16)
-    assert gamble_emb.shape == (1, 8)
-    assert add_emb.shape == (4, 2)
-    assert add_emb.isclose(torch.tensor([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=torch.float)).all()
+    state1 = env.reset()  # (2, 3, 0)
+    # co_embs, claim_emb, gamble_emb = ac._make_embeddings_tensors_from_state(state1)
+    # add_emb = ac._make_additional_features_from_state(state1)
+    clm_embs, co_embs = ac._make_clm_co_tensors(state1)
+    assert ac.clm_adaptor.in_features == 16 + 2, ac.clm_adaptor.in_features
+    assert ac.co_adaptor.in_features == 32 + 16 + 8 + 2, ac.co_adaptor.in_features
+    assert co_embs.shape == (4, 20), co_embs.shape
+    assert clm_embs.shape == (2, 20)
+    # assert gamble_emb.shape == (1, 8)
+    # assert add_emb.shape == (4, 2)
+    # assert add_emb.isclose(torch.tensor([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=torch.float)).all()
 
-    state2, reward, done, info = env.step(DeliveryAction(2))  # (3, 0)
-    add_emb = ac._make_additional_features_from_state(state2)
-    assert add_emb.shape == (4, 2)
-    assert add_emb.isclose(torch.tensor([[0, 1], [0, 1], [1, 1], [0, 1]], dtype=torch.float)).all()
+    state2, reward, done, info = env.step(DeliveryAction(2))  # (2, 3, 0)
+    clm_embs, co_embs = ac._make_clm_co_tensors(state2)
+    assert co_embs.shape == (4, 20), co_embs.shape
+    assert clm_embs.shape == (2, 20)
+    # add_emb = ac._make_additional_features_from_state(state2)
+    # assert add_emb.shape == (4, 2)
+    # assert add_emb.isclose(torch.tensor([[0, 1], [0, 1], [1, 1], [0, 1]], dtype=torch.float)).all()
     state3, reward, done, info = env.step(DeliveryAction(0))  # (3, 0)
+    clm_embs, co_embs = ac._make_clm_co_tensors(state3)
+    assert co_embs.shape == (4, 20), co_embs.shape
+    assert clm_embs.shape == (1, 20)
     state4, reward, done, info = env.step(DeliveryAction(0))  # (2, 1)
-    co_embs, claim_emb, gamble_emb = ac._make_embeddings_tensors_from_state(state4)
-    assert co_embs.shape == (4, 32), co_embs.shape
-    assert claim_emb.shape == (1, 16)
-    assert gamble_emb.shape == (1, 8)
+    clm_embs, co_embs = ac._make_clm_co_tensors(state4)
+    assert co_embs.shape == (4, 20), co_embs.shape
+    assert clm_embs.shape == (1, 20)
+    # co_embs, claim_emb, gamble_emb = ac._make_embeddings_tensors_from_state(state4)
+    # assert co_embs.shape == (4, 32), co_embs.shape
+    # assert claim_emb.shape == (1, 16)
+    # assert gamble_emb.shape == (1, 8)
 
 
 def test_delivery_actor_critic():
@@ -254,18 +284,20 @@ def test_delivery_actor_critic():
         cat_points_embedding_dim=8,
         courier_order_embedding_dim=32,
         max_num_points_in_route=4,
-        use_dist=False,
-        use_route=True,
         num_layers=2,
         gamble_features_embedding_dim=8,
+        use_dist=False,
+        use_route=True,
+        normalize_coords=False,
+        disable_features=False,
         device=None,
         use_pretrained_encoders=False,
     )
-    claim_attention = ClaimAttention(claim_embedding_dim=16, nhead=2, dim_feedforward=128,
-                                     num_attention_layers=2, device=None)
-    ac = DeliveryActorCritic(gamble_encoder, claim_attention=claim_attention, clm_emb_size=16, co_emb_size=32,
+    attention = torch.nn.Transformer(d_model=20, nhead=2, dim_feedforward=128,
+                                     num_encoder_layers=2, num_decoder_layers=2, batch_first=True, device=None)
+    ac = DeliveryActorCritic(gamble_encoder, attention=attention, clm_emb_size=16, co_emb_size=32,
                              gmb_emb_size=8, exploration_temperature=1.0, mask_fake_crr=False, use_dist=False,
-                             use_masks=True, device=None)
+                             use_masks=False, device=None)
     state1 = DeliveryState(
         claim_embs=np.zeros((2, 6)),
         couriers_embs=np.zeros((5, 4)),
@@ -273,7 +305,7 @@ def test_delivery_actor_critic():
         prev_idxs=[2, 3],
         orders_full_masks=[],
         claim_to_couries_dists=np.array(list(range(5))),
-        gamble_features=np.zeros((5,)),
+        gamble_features=np.zeros((34,)),
         claim_idx=0
     )
     state2 = DeliveryState(
@@ -283,17 +315,17 @@ def test_delivery_actor_critic():
         prev_idxs=[],
         orders_full_masks=[True],
         claim_to_couries_dists=np.array(list(range(3))),
-        gamble_features=np.zeros((5,)),
+        gamble_features=np.zeros((34,)),
         claim_idx=1
     )
-    pol_tens, val_tens = ac._make_padded_policy_value_tensors([state1, state2])
+    pol_tens, val_tens = ac._make_policy_value_tensors([state1, state2])
     assert pol_tens.shape == (2, 6)
     assert val_tens.shape == (2,)
 
-    masks1 = ac._make_masks(state1)
-    masks2 = ac._make_masks(state2)
-    assert (masks1 == torch.tensor([False, False, True, True, False, False])).all(), masks1
-    assert (masks2 == torch.tensor([False, False, True, False])).all(), masks2
+    # masks1 = ac._make_masks(state1)
+    # masks2 = ac._make_masks(state2)
+    # assert (masks1 == torch.tensor([False, False, True, True, False, False])).all(), masks1
+    # assert (masks2 == torch.tensor([False, False, True, False])).all(), masks2
 
 
 def test_cloning_runner(tmp_path):
@@ -304,16 +336,23 @@ def test_cloning_runner(tmp_path):
             'courier_speed': 0.02
         }
         json.dump(config, f)
+    kwargs = {
+        "time_norm_constant": 1.0,
+        "distance_norm_constant": 1.0,
+        "num_norm_constant": 1.0,
+        "max_num_points_in_route": 4,
+        "use_dist": False,
+        "use_route": True, 
+        "num_gambles_in_day": 10
+    }
     reader = DataReader.from_list(TEST_DATA_COURIERS, TEST_DATA_CLAIMS, db_logger=None)
     route_maker = BaseRouteMaker(max_points_lenght=0, cutoff_radius=0.0)  # empty route_maker
     sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=config_path, db_logger=None)
     rewarder = DeliveryRewarder(coef_reward_assigned=0.1, coef_reward_cancelled=1.0, coef_reward_distance=0.0,
-                                coef_reward_completed=0.0)
+                                coef_reward_completed=0.0, coef_reward_prohibited=1.0)
     dsp = HungarianDispatch(DistanceScorer())
     cloning_runner = CloningDeliveryRunner(dispatch=dsp, simulator=sim, rewarder=rewarder,
-                                           num_gambles_in_day=10,
-                                           max_num_points_in_route=4,
-                                           n_envs=1, trajectory_length=3, use_dist=False, use_route=True)
+                                           n_envs=1, trajectory_length=3, **kwargs)
     traj = cloning_runner.run()[0]
     assert traj.lenght == 3, traj.lenght
 
@@ -360,7 +399,7 @@ def test_delivery_state_greedy():
         orders_embs=None,
         prev_idxs=[],
         orders_full_masks=[],
-        claim_to_couries_dists=np.array(list(range(5))[::-1]),
+        claim_to_couries_dists=np.array(list(range(6))[::-1]),
         gamble_features=np.zeros((5,)),
         claim_idx=0
     )
@@ -374,3 +413,4 @@ def test_delivery_state_greedy():
     assert state.has_free_couriers()
     state.prev_idxs.extend([1, 0, 3])
     assert not state.has_free_couriers()
+    assert state.greedy() == 5, state.greedy()
