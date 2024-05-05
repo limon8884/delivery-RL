@@ -60,7 +60,7 @@ def run_model(checkpoint_id: str, **kwargs) -> None:
         encoder_cfg = net_cfg['encoder'][model_size]
         attn_cfg = net_cfg['attention'][model_size]
     encoder = GambleEncoder(**encoder_cfg, **kwargs)
-    attention = nn.Transformer(**kwargs, **attn_cfg).to(device) if kwargs['use_attn'] else None
+    attention = nn.Transformer(batch_first=True, **kwargs, **attn_cfg).to(device) if kwargs['use_attn'] else None
     ac = DeliveryActorCritic(gamble_encoder=encoder, attention=attention,
                              clm_emb_size=encoder_cfg['claim_embedding_dim'],
                              co_emb_size=encoder_cfg['courier_order_embedding_dim'],

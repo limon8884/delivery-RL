@@ -43,10 +43,15 @@
             "nhead": 4,
             "dim_feedforward": 256,
             "num_encoder_layers": 2,
-            "num_decoder_layers": 2,
-            "batch_first": true
+            "num_decoder_layers": 2
         },
-        "disabled": {}
+        "disabled": {
+            "d_model": 16,
+            "nhead": 2,
+            "dim_feedforward": 32,
+            "num_encoder_layers": 1,
+            "num_decoder_layers": 1
+        }
     },
     "backbone": {
         "small": {
