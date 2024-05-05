@@ -39,10 +39,12 @@
     },
     "attention": {
         "medium": {
-            "claim_embedding_dim": 32,
+            "d_model": 64,
             "nhead": 4,
             "dim_feedforward": 256,
-            "num_attention_layers": 2 
+            "num_encoder_layers": 2,
+            "num_decoder_layers": 2,
+            "batch_first": true
         },
         "disabled": {}
     },
