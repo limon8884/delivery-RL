@@ -9,7 +9,7 @@ from scipy import stats
 
 from src.database.database import Database, Metric, DatabaseLogger
 from src.dispatchs.hungarian_dispatch import HungarianDispatch, BaseDispatch
-from src.dispatchs.greedy_dispatch import GreedyDispatch
+from src.dispatchs.greedy_dispatch import GreedyDispatch, GreedyDispatch2
 from src.dispatchs.random_dispatch import RandomDispatch
 from src.dispatchs.scorers import DistanceScorer
 from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
@@ -22,6 +22,7 @@ from src.evaluation import evaluate, evaluate_by_history
 BASELINES = {
     'Hungarian': HungarianDispatch(DistanceScorer()),
     'Greedy': GreedyDispatch(DistanceScorer()),
+    'Greedy2': GreedyDispatch2(DistanceScorer()),
     'Random': RandomDispatch(),
 }
 DEFAULT_RUN_ID = 0

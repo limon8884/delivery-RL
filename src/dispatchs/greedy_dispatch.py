@@ -30,3 +30,29 @@ class GreedyDispatch(BaseDispatch):
                 assigned_claim_idxs.add(clm_idx)
 
         return Assignment(assignments)
+
+
+class GreedyDispatch2(BaseDispatch):
+    """
+    Iterate through the couriers and assign the best options in greedy manner
+    """
+    def __init__(self, scorer: BaseScorer) -> None:
+        self.scorer = scorer
+
+    def __call__(self, gamble: Gamble) -> Assignment:
+        if len(gamble.claims) == 0:
+            return Assignment([])
+        scores = self.scorer.score(gamble)
+        assert scores.shape == (len(gamble.couriers), len(gamble.claims) + 1)
+        couriers_assigned = np.zeros(len(gamble.couriers), dtype=np.int32)
+        assignments: list[tuple[int, int]] = []
+
+        for clm_idx in range(len(gamble.claims)):
+            if (couriers_assigned == 1).all():
+                break
+            dists = scores[:, clm_idx] - couriers_assigned
+            crr_idx = np.argmax(dists)
+            assignments.append((gamble.couriers[crr_idx].id, gamble.claims[clm_idx].id))
+            couriers_assigned[crr_idx] = 1
+
+        return Assignment(assignments)

@@ -18,7 +18,7 @@ from src.simulator.simulator import Simulator
 from src.simulator.data_reader import DataReader
 from src.dispatchs.base_dispatch import BaseDispatch
 from src.dispatchs.hungarian_dispatch import HungarianDispatch
-from src.dispatchs.greedy_dispatch import GreedyDispatch
+from src.dispatchs.greedy_dispatch import GreedyDispatch, GreedyDispatch2
 from src.dispatchs.scorers import DistanceScorer
 from src.router_makers import AppendRouteMaker
 from src.networks.encoders import GambleEncoder
@@ -43,7 +43,6 @@ from src.reinforcement.base import (
     make_optimizer,
     BaseMaker,
 )
-
 
 # logging.basicConfig(filename='logs.log', encoding='utf-8', level=logging.DEBUG)
 # LOGGER = logging.getLogger(__name__)
@@ -81,8 +80,8 @@ class DeliveryState(State):
         return len_crr + len_ord
 
     def greedy(self) -> int:
-        mask = np.zeros(self.last() + 1)
-        mask[-1] = 1e9
+        mask = np.array([False] * len(self.couriers_embs) + self.orders_full_masks + [True]) * 1e9
+        assert mask.shape == (self.last() + 1,), mask
         mask[np.array(self.prev_idxs, dtype=np.int32)] = 1e9
         idx = np.argmin(self.claim_to_couries_dists + mask)
         return idx
@@ -578,7 +577,7 @@ class DeliveryMaker(BaseMaker):
         elif kwargs['use_cloning'] == 'greedy':
             self._ppo = CloningPPO(actor_critic=self._ac, opt=opt, scheduler=scheduler,
                                    metric_logger=self._train_metric_logger, **kwargs)
-            runner = CloningDeliveryRunner(dispatch=GreedyDispatch(DistanceScorer()),
+            runner = CloningDeliveryRunner(dispatch=GreedyDispatch2(DistanceScorer()),
                                            simulator=sim, rewarder=rewarder, **kwargs)
         gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
         normalizer = RewardNormalizer(gamma=kwargs['reward_norm_gamma'], cliprange=kwargs['reward_norm_cliprange'])
@@ -652,9 +651,23 @@ class CloningDeliveryRunner:
         if self.__getattribute__('_iter') is None:
             raise RuntimeError('Call reset before doing steps')
         # self._update_assignments(action)
-        action = self._make_action()
         old_state = self._make_state_from_gamble_dict()
+        action = self._make_action()
         self._claim_idx += 1
+
+        # LOGGER.debug(f"Has available: {old_state.has_free_couriers()}, greedy and has available: {old_state.greedy() == action.to_index()}, fake and has available: {old_state.last() == action.to_index()}")
+        # LOGGER.debug(f"Actions# greedy: {old_state.greedy()}, chosen: {action.to_index()}, last: {old_state.last()}")
+        # LOGGER.debug(f"All assignments: {self._assignments.ids}")
+        # LOGGER.debug(f"Assignment dict: {self._assignment_dict}")
+        # LOGGER.debug(f"Courier to index: {self._crr_id_to_index}")
+        # LOGGER.debug(f"Claim idx: {self._claim_idx - 1}")
+        # LOGGER.debug(f"Claim ids: {[clm.id for clm in self._gamble.claims]}")
+        # LOGGER.debug(f"Courier ids: {[crr.id for crr in self._gamble.couriers]}")
+        # LOGGER.debug(f"Order ids: {[ord.id for ord in self._gamble.orders]}")
+        # LOGGER.debug(f"Dists: " + ', '.join([f"{d:.2f}" for d in self.embs_dict['dists'][self._claim_idx - 1].tolist()]))
+        # LOGGER.debug(f"Prev assigns (including current): {self._prev_idxs}")
+        # LOGGER.debug("#" * 50 + "\n")
+
         reward = 0.0
         done = False
         info = {}
