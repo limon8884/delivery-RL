@@ -80,7 +80,8 @@ class DeliveryState(State):
         return len_crr + len_ord
 
     def greedy(self) -> int:
-        mask = np.array([False] * len(self.couriers_embs) + self.orders_full_masks + [True]) * 1e9
+        len_crr = len(self.couriers_embs) if self.couriers_embs is not None else 0
+        mask = np.array([False] * len_crr + self.orders_full_masks + [True]) * 1e9
         assert mask.shape == (self.last() + 1,), mask
         mask[np.array(self.prev_idxs, dtype=np.int32)] = 1e9
         idx = np.argmin(self.claim_to_couries_dists + mask)
