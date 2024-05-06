@@ -15,7 +15,7 @@ from src.reinforcement.delivery import (
 from src.simulator.simulator import Simulator, DataReader
 from src.router_makers import BaseRouteMaker
 from src.networks.encoders import GambleEncoder
-from src.networks.claim_attention import ClaimAttention
+from networks.claim_courier_attention import ClaimAttention
 from src.dispatchs.hungarian_dispatch import HungarianDispatch
 from src.dispatchs.scorers import DistanceScorer
 from src.utils import compulte_claims_to_couriers_distances

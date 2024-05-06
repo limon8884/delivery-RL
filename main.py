@@ -15,7 +15,6 @@ from src.results import eval_model
 @click.option('--use_masks', type=bool, default=False)
 @click.option('--use_dist', type=bool, default=True)
 @click.option('--mask_fake_crr', type=bool, default=False)
-@click.option('--use_attn', type=bool, default=False)
 @click.option('--use_route', type=bool, default=False)
 @click.option('--device', type=str, default='cpu')
 @click.option('--use_pretrained_encoders', type=bool, default=True)

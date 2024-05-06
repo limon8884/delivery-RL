@@ -42,15 +42,13 @@
             "d_model": 64,
             "nhead": 4,
             "dim_feedforward": 256,
-            "num_encoder_layers": 2,
-            "num_decoder_layers": 2
+            "num_attention_layers": 4
         },
         "disabled": {
             "d_model": 16,
-            "nhead": 2,
+            "nhead": 1,
             "dim_feedforward": 32,
-            "num_encoder_layers": 1,
-            "num_decoder_layers": 1
+            "num_attention_layers": 1
         }
     },
     "backbone": {

@@ -22,7 +22,7 @@ from src.dispatchs.greedy_dispatch import GreedyDispatch, GreedyDispatch2
 from src.dispatchs.scorers import DistanceScorer
 from src.router_makers import AppendRouteMaker
 from src.networks.encoders import GambleEncoder
-from src.networks.claim_attention import ClaimAttention
+from src.networks.claim_courier_attention import ClaimCourierAttention
 from src.utils import compulte_claims_to_couriers_distances
 
 from src.reinforcement.base import (
@@ -249,32 +249,28 @@ class DeliveryEnvironment(BaseEnvironment):
 class DeliveryActorCritic(BaseActorCritic):
     def __init__(self,
                  gamble_encoder: GambleEncoder,
-                 attention: typing.Optional[nn.Transformer],
                  clm_emb_size: int,
                  co_emb_size: int,
                  gmb_emb_size: int,
                  **kwargs) -> None:
         super().__init__()
         self.gamble_encoder = gamble_encoder
-        assert attention is not None, 'Not implemented yet'
-        self.attention = attention
-        # self.claim_attention = claim_attention
-        self.clm_add_emb_size = clm_emb_size + 2
-        self.co_add_emb_size = co_emb_size + gmb_emb_size + clm_emb_size + 2
+
         self.temperature = kwargs['exploration_temperature']
         self.device = kwargs['device']
         # self.mask_fake_crr = kwargs['mask_fake_crr']
         self.use_dist = kwargs['use_dist']
         # self.use_masks = kwargs['use_masks']
 
-        self.clm_adaptor = nn.Linear(self.clm_add_emb_size, self.attention.d_model).to(self.device)
-        self.co_adaptor = nn.Linear(self.co_add_emb_size, self.attention.d_model).to(self.device)
+        self.clm_add_emb_size = clm_emb_size + 2
+        self.co_add_emb_size = co_emb_size + 2
+        self.attention = ClaimCourierAttention(self.clm_add_emb_size, self.co_add_emb_size, gmb_emb_size, **kwargs)
         self.policy_head = nn.Sequential(
             nn.Linear(self.attention.d_model, self.attention.d_model),
             nn.LeakyReLU(),
             nn.Linear(self.attention.d_model, self.attention.d_model),
             nn.LeakyReLU(),
-            nn.Linear(self.attention.d_model, self.attention.d_model),
+            nn.Linear(self.attention.d_model, 1),
         ).to(self.device)
         self.value_head = nn.Sequential(
             nn.Linear(self.attention.d_model, self.attention.d_model),
@@ -291,101 +287,38 @@ class DeliveryActorCritic(BaseActorCritic):
         self.values = val_tens
         self._actions: typing.Optional[torch.Tensor] = None
 
-    # def _make_padded_policy_value_tensors(self, states: list[DeliveryState]
-    #                                       ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
-    #     policy_tens_list, value_tens_list = [], []
-    #     for state in states:
-    #         co_embs, claim_emb, gamble_features_emb = self._make_embeddings_tensors_from_state(state)
-    #         additional_features = self._make_additional_features_from_state(state)
-    #         coc_embs = torch.cat([co_embs, claim_emb.repeat(len(co_embs), 1),
-    #                               gamble_features_emb.repeat(len(co_embs), 1),
-    #                               additional_features], dim=-1)
-    #         masks = self._make_masks(state)
-
-    #         policy_tens = self.policy_head(coc_embs).squeeze(-1)
-    #         if self.use_masks:
-    #             policy_tens[masks] = FULL_ORDER_MASK_VALUE
-    #         if self.mask_fake_crr:
-    #             policy_tens[-1] = FAKE_MASK_VALUE
-    #         policy_tens_list.append(policy_tens)
-
-    #         value_tens = self.value_head(coc_embs).squeeze(-1)
-    #         if self.use_masks:
-    #             value_tens[masks] = 0.0
-    #         if self.mask_fake_crr:
-    #             value_tens[-1] = 0.0
-    #         value_tens_list.append(value_tens.mean())
-
-    #     policy_tens_result = pad_sequence(policy_tens_list, batch_first=True, padding_value=PAD_MASK_VALUE)
-    #     value_tens_result = torch.tensor(value_tens_list, device=self.device, dtype=torch.float)
-    #     return policy_tens_result, value_tens_result
-
-    # def _make_masks(self, state: DeliveryState) -> torch.Tensor:
-    #     # order full mask
-    #     couriers_part = [False] * len(state.couriers_embs) if state.couriers_embs is not None else []
-    #     orders_part = state.orders_full_masks
-    #     order_full_mask = torch.tensor(couriers_part + orders_part + [False], device=self.device, dtype=torch.bool)
-    #     # prev assigned
-    #     prev_assigned_mask = torch.zeros(len(order_full_mask), dtype=torch.bool, device=self.device)
-    #     prev_assigned_mask[state.prev_idxs] = True
-
-    #     mask = prev_assigned_mask | order_full_mask
-    #     return mask
-
-    # def _make_additional_features_from_state(self, state: DeliveryState) -> torch.Tensor:
-    #     num_crr_ord_fake = (len(state.couriers_embs) if state.couriers_embs is not None else 0) + \
-    #         (len(state.orders_embs) if state.orders_embs is not None else 0) + 1
-    #     num_clm = len(state.claim_embs)
-
-    #     prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
-    #     prev_assigs = torch.zeros(size=(num_crr_ord_fake, 1), dtype=torch.float, device=self.device)
-    #     prev_assigs[prev_idxs] = 1.0
-
-    #     claim_idx = torch.ones(size=(num_crr_ord_fake, 1), dtype=torch.float,
-    #                            device=self.device) * state.claim_idx / num_clm
-
-    #     if self.use_dist:
-    #         dists = torch.tensor(state.claim_to_couries_dists, dtype=torch.float,
-    #                              device=self.device).unsqueeze(-1)
-    #         return torch.cat([prev_assigs, claim_idx, dists], dim=-1)
-    #     return torch.cat([prev_assigs, claim_idx], dim=-1)
-
     def _make_policy_value_tensors(self, states: list[DeliveryState]) -> tuple[torch.Tensor, torch.Tensor]:
         bs = len(states)
-        d_model = self.attention.d_model if self.attention is not None else 0
-        clm_embs_list, co_embs_list = [], []
+        clm_embs_list, co_embs_list, gmb_embs_list = [], [], []
         for state in states:
-            clm_embs, co_embs = self._make_clm_co_tensors(state)
+            clm_embs, co_embs, gmb_emb = self._make_clm_co_gmb_tensors(state)
             clm_embs_list.append(clm_embs)
             co_embs_list.append(co_embs)
+            gmb_embs_list.append(gmb_emb)
         clm_embs = pad_sequence(clm_embs_list, batch_first=True, padding_value=0.0)
         co_embs = pad_sequence(co_embs_list, batch_first=True, padding_value=0.0)
+        gmb_emb = torch.stack(gmb_embs_list, dim=0)
         clm_masks = self._make_mask_from_lengths([len(e) for e in clm_embs_list], self.device)
         co_masks = self._make_mask_from_lengths([len(e) for e in co_embs_list], self.device)
         attn = self.attention(
-            src=clm_embs,
-            tgt=co_embs,
-            src_key_padding_mask=clm_masks,
-            tgt_key_padding_mask=co_masks,
-            memory_key_padding_mask=clm_masks
+            clm_embs=clm_embs,
+            co_embs=co_embs,
+            gmb_emb=gmb_emb,
+            clm_masks=clm_masks,
+            co_masks=co_masks
         )
 
-        clm_tens = clm_embs[
-            torch.arange(len(states)).to(self.device),
-            torch.tensor([state.claim_idx for state in states]).to(self.device)
-        ]  # (bs, d_model)
-        assert clm_tens.shape == (bs, d_model), clm_tens.shape
-        policy_tens = self.policy_head(attn)  # (bs, max_seq_len, d_model)
-        assert policy_tens.shape == (bs, co_masks.shape[1], d_model), policy_tens.shape
-        policy_tens = torch.einsum('bie,be->bi', policy_tens, clm_tens)
-        assert policy_tens.shape == (bs, co_masks.shape[1]), policy_tens.shape
+        policy_tens = self.policy_head(attn).squeeze(-1)  # (bs, max_seq_len)
+        policy = torch.where(co_masks, PAD_MASK_VALUE, policy_tens)
+        assert policy.shape == (bs, co_masks.shape[1]), policy.shape
 
         value_tens = self.value_head(attn).squeeze(-1)  # (bs, max_seq_len)
-        policy = torch.where(co_masks, PAD_MASK_VALUE, policy_tens)
         value = torch.where(co_masks, 0.0, value_tens).mean(-1)
+        assert value.shape == (bs,)
+
         return policy, value
 
-    def _make_clm_co_tensors(self, state: DeliveryState) -> tuple[torch.Tensor, torch.Tensor]:
+    def _make_clm_co_gmb_tensors(self, state: DeliveryState) -> tuple[torch.Tensor, torch.Tensor]:
         '''
         Returns 2 tensors:
         * clm_embs: (max_num_clm, clm_add_emb_size)
@@ -406,11 +339,12 @@ class DeliveryActorCritic(BaseActorCritic):
             [fake_crr], dim=0)
 
         assert encoded_dict['gmb'] is not None
-        gmb_emb = encoded_dict['gmb'].repeat(len(co_embs), 1)
+        gmb_emb = encoded_dict['gmb'].squeeze(0)
 
         prev_idxs = torch.tensor(state.prev_idxs, dtype=torch.int64, device=self.device)
         prev_assigs = torch.zeros(size=(len(co_embs),), dtype=torch.float, device=self.device)
         prev_assigs[prev_idxs] = 1.0
+        prev_assigs = prev_assigs.unsqueeze(-1)
 
         assert encoded_dict['clm'] is not None
         clm_emb = encoded_dict['clm'][state.claim_idx].unsqueeze(0).repeat(len(co_embs), 1)
@@ -420,21 +354,19 @@ class DeliveryActorCritic(BaseActorCritic):
         else:
             dists = torch.zeros((len(co_embs), 1)).to(self.device)
         assert co_embs.ndim == 2
-        assert gmb_emb.ndim == 2
-        assert prev_assigs.ndim == 1
+        assert gmb_emb.ndim == 1
+        assert prev_assigs.ndim == 2
         assert clm_emb.ndim == 2
         assert dists.ndim == 2
-        co_add_emb = torch.cat([co_embs, gmb_emb, prev_assigs.unsqueeze(-1), clm_emb, dists], dim=-1)
-        co_final_embs = self.co_adaptor(co_add_emb)
+        co_final_embs = torch.cat([co_embs, prev_assigs, dists], dim=-1)
 
         clm_embs = encoded_dict['clm']
         clm_prev_assigs = torch.where(torch.arange(len(clm_embs)).to(self.device) < state.claim_idx, 1.0, 0.0)
         clm_idx = torch.zeros(len(clm_embs)).to(self.device)
         clm_idx[state.claim_idx] = 1.0
-        clm_add_emb = torch.cat([clm_embs, clm_prev_assigs.unsqueeze(-1), clm_idx.unsqueeze(-1)], dim=-1)
-        clm_final_embs = self.clm_adaptor(clm_add_emb)
+        clm_final_embs = torch.cat([clm_embs, clm_prev_assigs.unsqueeze(-1), clm_idx.unsqueeze(-1)], dim=-1)
 
-        return clm_final_embs, co_final_embs
+        return clm_final_embs, co_final_embs, gmb_emb
 
     @staticmethod
     def _make_mask_from_lengths(lengths: list[int], device: str) -> torch.Tensor:
@@ -442,35 +374,6 @@ class DeliveryActorCritic(BaseActorCritic):
         lengths_tens = torch.tensor(lengths).unsqueeze(-1).to(device)
         arange_tens = torch.arange(max_len).expand(len(lengths), max_len).to(device)
         return arange_tens >= lengths_tens
-
-    # def _make_embeddings_tensors_from_state(self, state: DeliveryState
-    #                                         ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    #     '''
-    #     Returns 3 tensors:
-    #     * co_embs: (n_crr + n_ord + 1, co_emb_size)
-    #     * clm_emb: (n_clm, clm_emb_size)
-    #     * gmb_emb: (1, gmb_emb_size)
-    #     '''
-    #     # claim_embs = state.claim_embs if self.claim_attention else state.claim_embs[state.claim_idx][None, :]
-    #     embs_dict = {
-    #         'clm': state.claim_embs,
-    #         'crr': state.couriers_embs,
-    #         'ord': state.orders_embs,
-    #         'gmb': state.gamble_features.reshape(1, -1),
-    #     }
-    #     encoded_dict = self.gamble_encoder(embs_dict)
-    #     fake_crr = torch.ones(size=(1, self.gamble_encoder.courier_encoder.item_embedding_dim), device=self.device)
-    #     co_embs = torch.cat(
-    #         ([encoded_dict['crr']] if encoded_dict['crr'] is not None else []) +
-    #         ([encoded_dict['ord']] if encoded_dict['ord'] is not None else []) +
-    #         [fake_crr], dim=0)
-    #     assert encoded_dict['clm'] is not None and encoded_dict['gmb'] is not None
-    #     gmb_emb = encoded_dict['gmb']
-    #     if self.claim_attention is not None:
-    #         clm_emb = self.claim_attention(encoded_dict['clm'], state.claim_idx)
-    #     else:
-    #         clm_emb = encoded_dict['clm']
-    #     return co_embs, clm_emb, gmb_emb
 
     def get_actions_list(self, best_actions=False) -> list[Action]:
         if best_actions:
@@ -540,8 +443,6 @@ class DeliveryMaker(BaseMaker):
             attn_cfg = net_cfg['attention'][model_size]
 
         gamble_encoder = GambleEncoder(**kwargs, **encoder_cfg)
-        # claim_attention = ClaimAttention(**kwargs, **attn_cfg) if kwargs['use_attn'] else None
-        attention = nn.Transformer(batch_first=True, **attn_cfg).to(device)
         reader = DataReader.from_config(config_path=simulator_config_path,
                                         sampler_mode=kwargs['sampler_mode'], db_logger=None)
         route_maker = AppendRouteMaker(max_points_lenght=max_num_points_in_route, cutoff_radius=0.0)
@@ -549,11 +450,11 @@ class DeliveryMaker(BaseMaker):
         rewarder = DeliveryRewarder(**kwargs)
         self._train_metric_logger = MetricLogger(use_wandb=kwargs['use_wandb'])
         self._env = DeliveryEnvironment(simulator=sim, rewarder=rewarder, **kwargs)
-        self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder, attention=attention,
+        self._ac = DeliveryActorCritic(gamble_encoder=gamble_encoder,
                                        clm_emb_size=encoder_cfg['claim_embedding_dim'],
                                        co_emb_size=encoder_cfg['courier_order_embedding_dim'],
                                        gmb_emb_size=encoder_cfg['gamble_features_embedding_dim'],
-                                       **kwargs)
+                                       **kwargs, **attn_cfg)
         if kwargs['load_checkpoint']:
             self._ac.load_state_dict(torch.load(kwargs['load_checkpoint'], map_location=device))
         opt = make_optimizer(self._ac.parameters(), **kwargs)
