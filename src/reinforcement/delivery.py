@@ -658,14 +658,14 @@ class CloningDeliveryRunner:
         reward = 0.0
         done = False
         info = {}
-        info['greedy and has available'] += int(old_state.greedy() == action.to_index() and old_state.has_free_couriers())
-        info['fake and has available'] += int(old_state.last() == action.to_index() and old_state.has_free_couriers())
-        info['has available'] += int(old_state.has_free_couriers())
         if self._claim_idx == len(self.embs_dict['clm']):
             self._update_next_gamble()
             reward = self.rewarder(self._assignment_statistics)
             info = self._assignment_statistics
         new_state = self._make_state_from_gamble_dict()
+        info['greedy and has available'] = int(old_state.greedy() == action.to_index() and old_state.has_free_couriers())
+        info['fake and has available'] = int(old_state.last() == action.to_index() and old_state.has_free_couriers())
+        info['has available'] = int(old_state.has_free_couriers())
         if self._iter == self.num_gambles:
             done = True
             self._iter = 0
