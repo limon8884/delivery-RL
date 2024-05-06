@@ -108,6 +108,10 @@ def run_ppo(**kwargs):
             metrics = evaluate(dispatch=dsp, run_id=iteration, **kwargs)
             for k, v in metrics.items():
                 maker.metric_logger.log(k, v)
+
+            if kwargs['use_cloning'] != 'no':
+                maker.metric_logger.log('Cloning: greedy | has available', sum(d['greedy and has available'] for d in maker.sampler.runner._statistics) / sum(d['has available'] for d in maker.sampler.runner._statistics))
+                maker.metric_logger.log('Cloning: fake | has available', sum(d['fake and has available'] for d in maker.sampler.runner._statistics) / sum(d['has available'] for d in maker.sampler.runner._statistics))
             inference_logger()
             if not kwargs['use_wandb']:
                 maker.metric_logger.plot(window_size=10)
