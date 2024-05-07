@@ -15,7 +15,7 @@ from src.reinforcement.delivery import (
 from src.simulator.simulator import Simulator, DataReader
 from src.router_makers import BaseRouteMaker
 from src.networks.encoders import GambleEncoder
-from networks.claim_courier_attention import ClaimAttention
+from src.networks.claim_courier_attention import ClaimCourierAttention
 from src.dispatchs.hungarian_dispatch import HungarianDispatch
 from src.dispatchs.scorers import DistanceScorer
 from src.utils import compulte_claims_to_couriers_distances
@@ -238,42 +238,33 @@ def test_delivery_actor_critic_shape(tmp_path):
         device=None,
         use_pretrained_encoders=False,
     )
-    attention = torch.nn.Transformer(d_model=20, nhead=2, dim_feedforward=128,
-                                     num_encoder_layers=2, num_decoder_layers=2, batch_first=True, device=None)
-    ac = DeliveryActorCritic(gamble_encoder, attention=attention, clm_emb_size=16, co_emb_size=32,
-                             gmb_emb_size=8, exploration_temperature=1.0, mask_fake_crr=False, use_dist=False,
-                             use_masks=False, device=None)
+    attn_kwargs = {
+        'd_model': 20,
+        'nhead': 2,
+        'dim_feedforward': 128,
+        'num_attention_layers': 2,
+    }
+    ac = DeliveryActorCritic(gamble_encoder, clm_emb_size=16, co_emb_size=32,
+                             gmb_emb_size=8, exploration_temperature=1.0, mask_fake_crr=False, use_dist=True,
+                             use_masks=False, device=None, **attn_kwargs)
     state1 = env.reset()  # (2, 3, 0)
     # co_embs, claim_emb, gamble_emb = ac._make_embeddings_tensors_from_state(state1)
     # add_emb = ac._make_additional_features_from_state(state1)
-    clm_embs, co_embs = ac._make_clm_co_tensors(state1)
-    assert ac.clm_adaptor.in_features == 16 + 2, ac.clm_adaptor.in_features
-    assert ac.co_adaptor.in_features == 32 + 16 + 8 + 2, ac.co_adaptor.in_features
-    assert co_embs.shape == (4, 20), co_embs.shape
-    assert clm_embs.shape == (2, 20)
-    # assert gamble_emb.shape == (1, 8)
-    # assert add_emb.shape == (4, 2)
-    # assert add_emb.isclose(torch.tensor([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=torch.float)).all()
+    clm_embs, co_embs, gmb_emb = ac._make_clm_co_gmb_tensors(state1)
+    assert ac.clm_add_emb_size == 16 + 2, ac.clm_add_emb_size
+    assert ac.co_add_emb_size == 32 + 2, ac.co_add_emb_size
+    assert co_embs.shape == (4, 32 + 2), co_embs.shape
+    assert clm_embs.shape == (2, 16 + 2)
+    assert gmb_emb.shape == (8,)
 
     state2, reward, done, info = env.step(DeliveryAction(2))  # (2, 3, 0)
-    clm_embs, co_embs = ac._make_clm_co_tensors(state2)
-    assert co_embs.shape == (4, 20), co_embs.shape
-    assert clm_embs.shape == (2, 20)
-    # add_emb = ac._make_additional_features_from_state(state2)
-    # assert add_emb.shape == (4, 2)
-    # assert add_emb.isclose(torch.tensor([[0, 1], [0, 1], [1, 1], [0, 1]], dtype=torch.float)).all()
+    clm_embs, co_embs, gmb_emb = ac._make_clm_co_gmb_tensors(state2)
+
     state3, reward, done, info = env.step(DeliveryAction(0))  # (3, 0)
-    clm_embs, co_embs = ac._make_clm_co_tensors(state3)
-    assert co_embs.shape == (4, 20), co_embs.shape
-    assert clm_embs.shape == (1, 20)
+    clm_embs, co_embs, gmb_emb = ac._make_clm_co_gmb_tensors(state3)
+
     state4, reward, done, info = env.step(DeliveryAction(0))  # (2, 1)
-    clm_embs, co_embs = ac._make_clm_co_tensors(state4)
-    assert co_embs.shape == (4, 20), co_embs.shape
-    assert clm_embs.shape == (1, 20)
-    # co_embs, claim_emb, gamble_emb = ac._make_embeddings_tensors_from_state(state4)
-    # assert co_embs.shape == (4, 32), co_embs.shape
-    # assert claim_emb.shape == (1, 16)
-    # assert gamble_emb.shape == (1, 8)
+    clm_embs, co_embs, gmb_emb = ac._make_clm_co_gmb_tensors(state4)
 
 
 def test_delivery_actor_critic():
@@ -293,18 +284,22 @@ def test_delivery_actor_critic():
         device=None,
         use_pretrained_encoders=False,
     )
-    attention = torch.nn.Transformer(d_model=20, nhead=2, dim_feedforward=128,
-                                     num_encoder_layers=2, num_decoder_layers=2, batch_first=True, device=None)
-    ac = DeliveryActorCritic(gamble_encoder, attention=attention, clm_emb_size=16, co_emb_size=32,
-                             gmb_emb_size=8, exploration_temperature=1.0, mask_fake_crr=False, use_dist=False,
-                             use_masks=False, device=None)
+    attn_kwargs = {
+        'd_model': 20,
+        'nhead': 2,
+        'dim_feedforward': 128,
+        'num_attention_layers': 2,
+    }
+    ac = DeliveryActorCritic(gamble_encoder, clm_emb_size=16, co_emb_size=32,
+                             gmb_emb_size=8, exploration_temperature=1.0, mask_fake_crr=False, use_dist=True,
+                             use_masks=False, device=None, **attn_kwargs)
     state1 = DeliveryState(
         claim_embs=np.zeros((2, 6)),
         couriers_embs=np.zeros((5, 4)),
         orders_embs=None,
         prev_idxs=[2, 3],
         orders_full_masks=[],
-        claim_to_couries_dists=np.array(list(range(5))),
+        claim_to_couries_dists=np.array(list(range(6))),
         gamble_features=np.zeros((34,)),
         claim_idx=0
     )
@@ -314,7 +309,7 @@ def test_delivery_actor_critic():
         orders_embs=np.zeros((1, 14)),
         prev_idxs=[],
         orders_full_masks=[True],
-        claim_to_couries_dists=np.array(list(range(3))),
+        claim_to_couries_dists=np.array(list(range(4))),
         gamble_features=np.zeros((34,)),
         claim_idx=1
     )

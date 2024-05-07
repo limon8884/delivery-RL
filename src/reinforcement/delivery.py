@@ -173,6 +173,7 @@ class DeliveryEnvironment(BaseEnvironment):
         if self._iter == self.num_gambles:
             done = True
             self._iter = 0
+        # LOGGER.debug(f"Reward: {reward}, done {done}")
         return new_state, reward, done, info
 
     def _update_next_gamble(self):
@@ -348,7 +349,6 @@ class DeliveryActorCritic(BaseActorCritic):
         prev_assigs = prev_assigs.unsqueeze(-1)
 
         assert encoded_dict['clm'] is not None
-        clm_emb = encoded_dict['clm'][state.claim_idx].unsqueeze(0).repeat(len(co_embs), 1)
         if self.use_dist:
             dists = torch.tensor(state.claim_to_couries_dists, dtype=torch.float,
                                  device=self.device).unsqueeze(-1)
@@ -357,7 +357,6 @@ class DeliveryActorCritic(BaseActorCritic):
         assert co_embs.ndim == 2
         assert gmb_emb.ndim == 1
         assert prev_assigs.ndim == 2
-        assert clm_emb.ndim == 2
         assert dists.ndim == 2
         co_final_embs = torch.cat([co_embs, prev_assigs, dists], dim=-1)
 
