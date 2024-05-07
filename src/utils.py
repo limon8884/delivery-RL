@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import torch
 
 from .objects import (
     Point,
@@ -36,3 +37,16 @@ def compulte_claims_to_couriers_distances(gamble: Gamble, distance_norm_constant
             result[-1].append(dist)
         result[-1].append(-1)
     return np.array(result)
+
+
+def repr_tensor(tensor: torch.Tensor | None) -> str:
+    if tensor is None:
+        return "None"
+    if tensor.ndim == 1:
+        return ', '.join([f'{e:.2f}' for e in tensor.tolist()])
+    assert tensor.ndim == 2, tensor.ndim
+    result = ''
+    for tens in tensor:
+        result += '\n'
+        result += ', '.join([f'{e:.2f}' for e in tens.tolist()])
+    return result

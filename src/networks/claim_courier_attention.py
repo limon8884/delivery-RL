@@ -29,7 +29,7 @@ class ClaimCourierAttention(nn.Module):
                                                num_layers=num_attention_layers).to(self.device)
 
     def forward(self, clm_embs: torch.Tensor, co_embs: torch.Tensor, gmb_emb: torch.Tensor, clm_masks: torch.Tensor,
-                co_masks: torch.Tensor) -> torch.Tensor:
+                co_masks: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         bs = clm_embs.shape[0]
         clm_max_num = clm_embs.shape[1]
         co_max_num = co_embs.shape[1]
@@ -48,4 +48,7 @@ class ClaimCourierAttention(nn.Module):
         co_out = out[:, :co_max_num, :]
         assert co_out.shape == (bs, co_max_num, self.d_model)
 
-        return co_out
+        gmb_out = out[:, -1, :]
+        assert gmb_out.shape == (bs, self.d_model)
+
+        return co_out, gmb_out

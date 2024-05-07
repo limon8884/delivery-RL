@@ -23,7 +23,7 @@ from src.dispatchs.scorers import DistanceScorer
 from src.router_makers import AppendRouteMaker
 from src.networks.encoders import GambleEncoder
 from src.networks.claim_courier_attention import ClaimCourierAttention
-from src.utils import compulte_claims_to_couriers_distances
+from src.utils import compulte_claims_to_couriers_distances, repr_tensor
 
 from src.reinforcement.base import (
     Action,
@@ -294,6 +294,11 @@ class DeliveryActorCritic(BaseActorCritic):
         clm_embs_list, co_embs_list, gmb_embs_list = [], [], []
         for state in states:
             clm_embs, co_embs, gmb_emb = self._make_clm_co_gmb_tensors(state)
+            # LOGGER.debug("CLM: " + repr_tensor(clm_embs))
+            # LOGGER.debug("CRR_ORD: " + repr_tensor(co_embs))
+            # LOGGER.debug("GMB: " + repr_tensor(gmb_emb))
+            # LOGGER.debug(f"INFO: clm {len(state.claim_embs)}, crr {len(state.couriers_embs)}, ord {len(state.orders_embs)}")
+            # LOGGER.debug("#" * 50)
             clm_embs_list.append(clm_embs)
             co_embs_list.append(co_embs)
             gmb_embs_list.append(gmb_emb)
@@ -302,7 +307,7 @@ class DeliveryActorCritic(BaseActorCritic):
         gmb_emb = torch.stack(gmb_embs_list, dim=0)
         clm_masks = self._make_mask_from_lengths([len(e) for e in clm_embs_list], self.device)
         co_masks = self._make_mask_from_lengths([len(e) for e in co_embs_list], self.device)
-        attn = self.attention(
+        attn, value_tens = self.attention(
             clm_embs=clm_embs,
             co_embs=co_embs,
             gmb_emb=gmb_emb,
@@ -314,8 +319,8 @@ class DeliveryActorCritic(BaseActorCritic):
         policy = torch.where(co_masks, PAD_MASK_VALUE, policy_tens)
         assert policy.shape == (bs, co_masks.shape[1]), policy.shape
 
-        value_tens = self.value_head(attn).squeeze(-1)  # (bs, max_seq_len)
-        value = torch.where(co_masks, 0.0, value_tens).mean(-1)
+        value = self.value_head(value_tens).squeeze(-1)  # (bs,)
+        # value = torch.where(co_masks, 0.0, value_tens).mean(-1)
         assert value.shape == (bs,)
 
         return policy, value
