@@ -424,7 +424,7 @@ class InferenceMetricsRunner:
     def __call__(self) -> None:
         self.runner.actor_critic.eval()
         self.runner.reset()
-        trajs = self.runner.run()
+        trajs = self.runner.run(best_actions=True)
         for k, v in self.get_metrics_from_trajectory(trajs).items():
             self.metric_logger.log(k, v)
 
