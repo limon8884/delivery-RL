@@ -14,7 +14,6 @@ from src.dispatchs.random_dispatch import RandomDispatch
 from src.dispatchs.scorers import DistanceScorer
 from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src.networks.encoders import GambleEncoder
-from networks.claim_courier_attention import ClaimAttention
 from src.reinforcement.delivery import DeliveryActorCritic
 from src.evaluation import evaluate, evaluate_by_history
 
