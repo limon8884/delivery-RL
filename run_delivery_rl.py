@@ -60,6 +60,7 @@ from src.evaluation import evaluate
 @click.option('--coef_reward_cancelled', required=False, type=float, default=0.0)
 @click.option('--coef_reward_distance', required=False, type=float, default=0.0)
 @click.option('--coef_reward_prohibited', required=False, type=float, default=1.0)
+@click.option('--coef_reward_num_claims', required=False, type=float, default=1.0)
 @click.option('--eval_num_simulator_steps', required=False, type=int, default=500)
 @click.option('--eval_n_envs', required=False, type=int, default=2)
 @click.option('--eval_trajectory_length', required=False, type=int, default=2000)

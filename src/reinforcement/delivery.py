@@ -113,6 +113,7 @@ class DeliveryRewarder:
         self.coef_reward_cancelled = kwargs['coef_reward_cancelled']
         self.coef_reward_distance = kwargs['coef_reward_distance']
         self.coef_reward_prohibited = kwargs['coef_reward_prohibited']
+        self.coef_reward_num_claims = kwargs['coef_reward_num_claims']
 
     def __call__(self, assignment_statistics: dict[str, float]) -> float:
         completed = assignment_statistics['completed_claims']
@@ -121,11 +122,13 @@ class DeliveryRewarder:
         cancelled = assignment_statistics['cancelled_claims']
         distance = assignment_statistics['assigned_not_batched_orders_arrival_distance']
         prohibited = assignment_statistics['prohibited_assignments']
+        num_claims = assignment_statistics['num_claims']
         return self.coef_reward_completed * completed \
             + self.coef_reward_assigned * assigned \
             - self.coef_reward_cancelled * cancelled \
             - self.coef_reward_distance * distance \
-            - self.coef_reward_prohibited * prohibited
+            - self.coef_reward_prohibited * prohibited \
+            - self.coef_reward_num_claims * num_claims
 
 
 class DeliveryEnvironment(BaseEnvironment):

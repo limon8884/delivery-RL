@@ -42,6 +42,7 @@ class Simulator(object):
         self.assignment_statistics = {
             'new_couriers': 0.0,
             'new_claims': 0.0,
+            'num_claims': 0.0,
             'assigned_couriers': 0.0,
             'assigned_not_batched_claims': 0.0,
             'assigned_batched_claims': 0.0,
@@ -94,6 +95,7 @@ class Simulator(object):
         self._next_free_couriers()
         self._next_unassigned_claims()
         self._next_active_orders()
+        self.assignment_statistics['num_claims'] = len(self.unassigned_claims)
 
     def get_state(self) -> Gamble:
         """Returns current simulator state in Gamble format

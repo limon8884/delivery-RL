@@ -21,7 +21,7 @@ from src.evaluation import evaluate, evaluate_by_history
 BASELINES = {
     'Hungarian': HungarianDispatch(DistanceScorer()),
     'Greedy': GreedyDispatch(DistanceScorer()),
-    'Greedy2': GreedyDispatch2(DistanceScorer()),
+    # 'Greedy2': GreedyDispatch2(DistanceScorer()),
     'Random': RandomDispatch(),
 }
 DEFAULT_RUN_ID = 0
