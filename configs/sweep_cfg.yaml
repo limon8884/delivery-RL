@@ -1,17 +1,17 @@
-name: distr
+name: distr_adopted
 method: random
 metric:
   goal: maximize
-  name: CR
+  name: "PPO: step reward"
 parameters:
   group_run:
-    value: "distr"
+    value: "distr_adopted"
   load_checkpoint:
-    value: "checkpoints\2966072b611b45d4bac1497bfbb2602b.pt"
+    value: "checkpoints/afd5e834be0844ba967edc3a21834811.pt"
   n_envs: 
     value: 1
   trajectory_length:
-    value: 12000
+    value: [2000, 6000, 12000]
   batch_size: 
     value: 64
   num_epochs_per_traj:
@@ -20,11 +20,11 @@ parameters:
   max_num_points_in_route:
     value: 2
   sampler_mode:
-    value: "distr_sampler"
+    value: "distr_adopted"
   optimizer: 
     value: "adam"
   scheduler_max_lr:
-    value: 0.0003
+    value: 0.0001
     # distribution: "log_uniform"
     # min: -10.0
     # max: -7.0
@@ -62,7 +62,7 @@ parameters:
   coef_reward_distance:
     value: 0.0
   total_iters:
-    value: 100_000
+    value: 5000
   device: 
     value: "cuda"
   use_wandb: 
