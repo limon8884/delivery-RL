@@ -6,8 +6,8 @@ metric:
 parameters:
   group_run:
     value: "distr_adopted"
-  load_checkpoint:
-    value: "checkpoints/afd5e834be0844ba967edc3a21834811.pt"
+  # load_checkpoint:
+  #   value: "checkpoints/afd5e834be0844ba967edc3a21834811.pt"
   n_envs: 
     value: 1
   trajectory_length:
