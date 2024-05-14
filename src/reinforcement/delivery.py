@@ -114,6 +114,7 @@ class DeliveryRewarder:
         self.coef_reward_distance = kwargs['coef_reward_distance']
         self.coef_reward_prohibited = kwargs['coef_reward_prohibited']
         self.coef_reward_num_claims = kwargs['coef_reward_num_claims']
+        self.coef_reward_new_claims = kwargs['coef_reward_new_claims']
 
     def __call__(self, assignment_statistics: dict[str, float]) -> float:
         completed = assignment_statistics['completed_claims']
@@ -123,12 +124,14 @@ class DeliveryRewarder:
         distance = assignment_statistics['assigned_not_batched_orders_arrival_distance']
         prohibited = assignment_statistics['prohibited_assignments']
         num_claims = assignment_statistics['num_claims']
+        new_claims = assignment_statistics['new_claims']
         return self.coef_reward_completed * completed \
             + self.coef_reward_assigned * assigned \
             - self.coef_reward_cancelled * cancelled \
             - self.coef_reward_distance * distance \
             - self.coef_reward_prohibited * prohibited \
-            - self.coef_reward_num_claims * num_claims
+            - self.coef_reward_num_claims * num_claims \
+            - self.coef_reward_new_claims * new_claims
 
 
 class DeliveryEnvironment(BaseEnvironment):
@@ -172,10 +175,10 @@ class DeliveryEnvironment(BaseEnvironment):
             self._update_next_gamble()
             reward = self.rewarder(self._assignment_statistics)
             info = self._assignment_statistics
+            if self._iter >= self.num_gambles:
+                done = True
+                self._iter = 0
         new_state = self._make_state_from_gamble_dict()
-        if self._iter == self.num_gambles:
-            done = True
-            self._iter = 0
         # LOGGER.debug(f"Reward: {reward}, done {done}")
         return new_state, reward, done, info
 

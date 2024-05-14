@@ -22,7 +22,7 @@ def eval_baselines(**kwargs):
     for baseline in BASELINES:
         baseline_hist_path = make_hist_path(baseline, history_db_path=kwargs['history_db_path'],
                                             sampler_mode=kwargs['sampler_mode'], eval_num_runs=BASELINE_NUM_RUNS,
-                                            eval_num_simulator_steps=kwargs['eval_num_simulator_steps'])
+                                            num_simulator_steps=kwargs['num_simulator_steps'])
         baseline_results = evaluate_by_history(run_id=DEFAULT_RUN_ID,
                                                history_db_path=baseline_hist_path,
                                                eval_num_runs=BASELINE_NUM_RUNS)
@@ -39,7 +39,7 @@ def eval_baselines(**kwargs):
 @click.command()
 @click.option('-s', 'sampler_mode', type=str, default="dummy_sampler")
 @click.option('--n_pts', 'max_num_points_in_route', type=int, default=2)
-@click.option('--steps', 'eval_num_simulator_steps', type=int, default=500)
+@click.option('--steps', 'num_simulator_steps', type=int, default=500)
 # @click.option('--n_runs', 'eval_num_runs', type=int, default=5)
 @click.option('--vis_freq', 'visualization_frequency', type=int, default=10)
 @click.option('-v', '--visualize', type=bool, is_flag=True, default=False)

@@ -38,7 +38,7 @@ def evaluate(
         route_maker = AppendRouteMaker(max_points_lenght=kwargs['max_num_points_in_route'], cutoff_radius=0.0)
         sim = Simulator(data_reader=reader, route_maker=route_maker, config_path=Path(kwargs['simulator_cfg_path']),
                         db_logger=db_logger)
-        sim.run(dispatch, num_iters=kwargs['eval_num_simulator_steps'], visualization=visualizer)
+        sim.run(dispatch, num_iters=kwargs['num_simulator_steps'], visualization=visualizer)
 
         db = Database(Path(kwargs['history_db_path']))
         db.export_from_logger(db_logger)

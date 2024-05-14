@@ -34,7 +34,7 @@ from src.reinforcement.lunar_lander import GymMaker, GymEnv, GymActorCritic
 @click.option('--max_grad_norm', required=False, type=float)
 @click.option('--gae_gamma', required=False, type=float)
 @click.option('--gae_lambda', required=False, type=float)
-@click.option('--eval_num_simulator_steps', required=False, type=int)
+@click.option('--num_simulator_steps', required=False, type=int)
 @click.option('--eval_n_envs', required=False, type=int)
 @click.option('--eval_trajectory_length', required=False, type=int)
 @click.option('--eval_epochs_frequency', required=False, type=int)
@@ -69,7 +69,7 @@ def evaluate(
     state = env.reset()
     total_reward = 0
     step = 0
-    while step < kwargs['eval_num_simulator_steps']:
+    while step < kwargs['num_simulator_steps']:
         actor_critic([state])
         action = actor_critic.get_actions_list(best_actions=True)[0]
         state, reward, reset, _ = env.step(action)

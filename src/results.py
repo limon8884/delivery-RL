@@ -82,7 +82,7 @@ def eval_model(model_id: str, **kwargs) -> dict[str, dict[str, typing.Any]]:
     for baseline in BASELINES:
         baseline_hist_path = make_hist_path(baseline, history_db_path=kwargs['history_db_path'],
                                             sampler_mode=kwargs['sampler_mode'], eval_num_runs=BASELINE_NUM_RUNS,
-                                            eval_num_simulator_steps=kwargs['eval_num_simulator_steps'])
+                                            num_simulator_steps=kwargs['num_simulator_steps'])
         baseline_results = evaluate_by_history(run_id=DEFAULT_RUN_ID,
                                                history_db_path=baseline_hist_path,
                                                eval_num_runs=BASELINE_NUM_RUNS)
@@ -118,8 +118,8 @@ def represent_significancy(value: float, pvalue: float) -> str:
 
 
 def make_hist_path(model_id: str, history_db_path: str, sampler_mode: str, eval_num_runs: int,
-                   eval_num_simulator_steps: int, **kwargs) -> Path:
-    file_name = '_'.join([model_id, str(eval_num_simulator_steps), str(eval_num_runs)]) + '.db'
+                   num_simulator_steps: int, **kwargs) -> Path:
+    file_name = '_'.join([model_id, str(num_simulator_steps), str(eval_num_runs)]) + '.db'
     return Path(history_db_path + sampler_mode + '/' + file_name)
 
 
