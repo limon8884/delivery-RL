@@ -106,12 +106,38 @@ def test_simulator_step_by_step(tmp_path):
 
     last_gamble = sim.get_state()
     assert (len(last_gamble.couriers), len(last_gamble.claims), len(last_gamble.orders)) == (3, 1, 0)
+    assert sim.gamble_statistics == {
+        'new_couriers': 3.0,
+        'new_claims': 1.0,
+        'num_claims': 1.0,
+        'finished_couriers': 0.0,
+        'cancelled_claims': 0.0,
+        'completed_claims': 0.0,
+        'completed_orders': 0.0,
+    }, sim.gamble_statistics
     assignments = dsp(last_gamble)
     assert sorted(assignments.ids) == [(2, 0)]
     sim.next(assignments)
+    assert sim.assignment_statistics == {
+        'assigned_couriers': 1.0,
+        'assigned_not_batched_claims': 1.0,
+        'assigned_batched_claims': 0.0,
+        'assigned_not_batched_orders_arrival_distance': 0.0,
+        'assigned_batched_orders_distance_increase': 0.0,
+        'prohibited_assignments': 0.0,
+    }, sim.assignment_statistics
 
     last_gamble = sim.get_state()
     assert (len(last_gamble.couriers), len(last_gamble.claims), len(last_gamble.orders)) == (2, 1, 1)
+    assert sim.gamble_statistics == {
+        'new_couriers': 1.0,
+        'new_claims': 1.0,
+        'num_claims': 1.0,
+        'finished_couriers': 1.0,
+        'cancelled_claims': 0.0,
+        'completed_claims': 0.0,
+        'completed_orders': 0.0,
+    }, sim.gamble_statistics
     assignments = dsp(last_gamble)
     assert sorted(assignments.ids) == [(1, 1)]
     sim.next(assignments)

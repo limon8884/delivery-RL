@@ -116,15 +116,15 @@ class DeliveryRewarder:
         self.coef_reward_num_claims = kwargs['coef_reward_num_claims']
         self.coef_reward_new_claims = kwargs['coef_reward_new_claims']
 
-    def __call__(self, assignment_statistics: dict[str, float]) -> float:
-        completed = assignment_statistics['completed_claims']
+    def __call__(self, assignment_statistics: dict[str, float], gamble_statistics: dict[str, float]) -> float:
+        completed = gamble_statistics['completed_claims']
         assigned = assignment_statistics['assigned_not_batched_claims'] \
             + assignment_statistics['assigned_batched_claims']
-        cancelled = assignment_statistics['cancelled_claims']
+        cancelled = gamble_statistics['cancelled_claims']
         distance = assignment_statistics['assigned_not_batched_orders_arrival_distance']
         prohibited = assignment_statistics['prohibited_assignments']
-        num_claims = assignment_statistics['num_claims']
-        new_claims = assignment_statistics['new_claims']
+        num_claims = gamble_statistics['num_claims']
+        new_claims = gamble_statistics['new_claims']
         return self.coef_reward_completed * completed \
             + self.coef_reward_assigned * assigned \
             - self.coef_reward_cancelled * cancelled \
@@ -157,6 +157,7 @@ class DeliveryEnvironment(BaseEnvironment):
         self._claim_idx: int = 0
         self._prev_idxs: list[int] = []
         self._assignments: Assignment = Assignment([])
+        self._gamble_statistics: dict[str, float] = {}
         self._assignment_statistics: dict[str, float] = {}
         self.simulator.reset()
         self._update_next_gamble()
@@ -172,9 +173,11 @@ class DeliveryEnvironment(BaseEnvironment):
         done = False
         info = {}
         if self._claim_idx == len(self.embs_dict['clm']):
+            gamble_statistics = self._gamble_statistics
             self._update_next_gamble()
-            reward = self.rewarder(self._assignment_statistics)
-            info = self._assignment_statistics
+            reward = self.rewarder(self._assignment_statistics, gamble_statistics)
+            info.update(self._assignment_statistics)
+            info.update(gamble_statistics)
             if self._iter >= self.num_gambles:
                 done = True
                 self._iter = 0
@@ -184,11 +187,11 @@ class DeliveryEnvironment(BaseEnvironment):
 
     def _update_next_gamble(self):
         self.simulator.next(self._assignments)
-        self._statistics_update(self.simulator.assignment_statistics)
+        self._statistics_update(self.simulator.assignment_statistics, self.simulator.gamble_statistics)
         self._gamble = self.simulator.get_state()
         while len(self._gamble.claims) == 0:
             self.simulator.next(Assignment([]))
-            self._statistics_add(self.simulator.assignment_statistics)
+            self._statistics_add(self.simulator.assignment_statistics, self.simulator.gamble_statistics)
             self._gamble = self.simulator.get_state()
             self._iter += 1
         self.embs_dict = {
@@ -240,8 +243,8 @@ class DeliveryEnvironment(BaseEnvironment):
             claim_idx=self._claim_idx,
         )
 
-    def _statistics_add(self, new_stats: dict[str, float]) -> None:
-        for k, v in new_stats.items():
+    def _statistics_add(self, assignment_stats: dict[str, float], gamble_stats: dict[str, float]) -> None:
+        for k, v in assignment_stats.items():
             if k not in self._assignment_statistics:
                 self._assignment_statistics[k] = 0.0
             self._assignment_statistics[k] += v
@@ -249,9 +252,15 @@ class DeliveryEnvironment(BaseEnvironment):
             self._assignment_statistics['num steps'] = 0
         self._assignment_statistics['num steps'] += 1
 
-    def _statistics_update(self, new_stats: dict[str, float]) -> None:
+        for k, v in gamble_stats.items():
+            if k not in self._gamble_statistics:
+                self._gamble_statistics[k] = 0.0
+            self._gamble_statistics[k] += v
+
+    def _statistics_update(self, assignment_stats: dict[str, float], gamble_stats: dict[str, float]) -> None:
         self._assignment_statistics = {}
-        self._statistics_add(new_stats)
+        self._gamble_statistics = {}
+        self._statistics_add(assignment_stats, gamble_stats)
 
 
 class DeliveryActorCritic(BaseActorCritic):
@@ -552,6 +561,7 @@ class CloningDeliveryRunner:
         self._prev_idxs: list[int] = []
         self._assignments: Assignment = Assignment([])
         self._assignment_dict: dict[int, int] = {}
+        self._gamble_statistics: dict[str, float] = {}
         self._assignment_statistics: dict[str, float] = {}
         self.simulator.reset()
         self._gamble = self.simulator.get_state()
@@ -584,16 +594,19 @@ class CloningDeliveryRunner:
         done = False
         info = {}
         if self._claim_idx == len(self.embs_dict['clm']):
+            gamble_statistics = self._gamble_statistics
             self._update_next_gamble()
-            reward = self.rewarder(self._assignment_statistics)
-            info = self._assignment_statistics
+            reward = self.rewarder(self._assignment_statistics, gamble_statistics)
+            info.update(self._assignment_statistics)
+            info.update(gamble_statistics)
+            if self._iter >= self.num_gambles:
+                done = True
+                self._iter = 0
         new_state = self._make_state_from_gamble_dict()
         info['greedy and has available'] = int(old_state.greedy() == action.to_index() and old_state.has_free_couriers())
         info['fake and has available'] = int(old_state.last() == action.to_index() and old_state.has_free_couriers())
         info['has available'] = int(old_state.has_free_couriers())
-        if self._iter == self.num_gambles:
-            done = True
-            self._iter = 0
+        
         return new_state, reward, done, info, action
 
     def _make_action(self) -> DeliveryAction:
@@ -665,8 +678,8 @@ class CloningDeliveryRunner:
             claim_idx=self._claim_idx,
         )
 
-    def _statistics_add(self, new_stats: dict[str, float]) -> None:
-        for k, v in new_stats.items():
+    def _statistics_add(self, assignment_stats: dict[str, float], gamble_stats: dict[str, float]) -> None:
+        for k, v in assignment_stats.items():
             if k not in self._assignment_statistics:
                 self._assignment_statistics[k] = 0.0
             self._assignment_statistics[k] += v
@@ -674,6 +687,12 @@ class CloningDeliveryRunner:
             self._assignment_statistics['num steps'] = 0
         self._assignment_statistics['num steps'] += 1
 
-    def _statistics_update(self, new_stats: dict[str, float]) -> None:
+        for k, v in gamble_stats.items():
+            if k not in self._gamble_statistics:
+                self._gamble_statistics[k] = 0.0
+            self._gamble_statistics[k] += v
+
+    def _statistics_update(self, assignment_stats: dict[str, float], gamble_stats: dict[str, float]) -> None:
         self._assignment_statistics = {}
-        self._statistics_add(new_stats)
+        self._gamble_statistics = {}
+        self._statistics_add(assignment_stats, gamble_stats)

@@ -37,18 +37,20 @@ class Simulator(object):
         self._logger = db_logger
         self.reset()
 
-    def _update_assignment_statistics(self) -> None:
+    def _update_statistics(self) -> None:
         # Additive statistics
         self.assignment_statistics = {
-            'new_couriers': 0.0,
-            'new_claims': 0.0,
-            'num_claims': 0.0,
             'assigned_couriers': 0.0,
             'assigned_not_batched_claims': 0.0,
             'assigned_batched_claims': 0.0,
             'assigned_not_batched_orders_arrival_distance': 0.0,
             'assigned_batched_orders_distance_increase': 0.0,
             'prohibited_assignments': 0.0,
+        }
+        self.gamble_statistics = {
+            'new_couriers': 0.0,
+            'new_claims': 0.0,
+            'num_claims': 0.0,
             'finished_couriers': 0.0,
             'cancelled_claims': 0.0,
             'completed_claims': 0.0,
@@ -64,7 +66,7 @@ class Simulator(object):
         with open(self._config_path, 'r') as f:
             config = json.load(f)
 
-        self._update_assignment_statistics()
+        self._update_statistics()
         self.active_orders: dict[int, Order] = {}
         self.unassigned_claims: dict[int, Claim] = {}
         self.free_couriers: dict[int, Courier] = {}
@@ -86,7 +88,7 @@ class Simulator(object):
         city_stamp = self.data_reader.get_next_city_stamp(self.gamble_interval)
         self._current_gamble_begin_dttm = city_stamp.from_dttm
         self._current_gamble_end_dttm = city_stamp.to_dttm
-        self._update_assignment_statistics()
+        self._update_statistics()
 
         self._assign_active_orders(assignments)
         self._set_new_couriers(city_stamp.couriers)
@@ -95,7 +97,7 @@ class Simulator(object):
         self._next_free_couriers()
         self._next_unassigned_claims()
         self._next_active_orders()
-        self.assignment_statistics['num_claims'] = len(self.unassigned_claims)
+        self.gamble_statistics['num_claims'] = len(self.unassigned_claims)
 
     def get_state(self) -> Gamble:
         """Returns current simulator state in Gamble format
@@ -140,10 +142,10 @@ class Simulator(object):
                 if not order.courier.done():
                     self.free_couriers[order.courier.id] = order.courier
                 else:
-                    self.assignment_statistics['finished_couriers'] += 1
+                    self.gamble_statistics['finished_couriers'] += 1
                 del self.active_orders[order_id]
-                self.assignment_statistics['completed_claims'] += len(order.claims)
-                self.assignment_statistics['completed_orders'] += 1
+                self.gamble_statistics['completed_claims'] += len(order.claims)
+                self.gamble_statistics['completed_orders'] += 1
 
     def _assign_active_orders(self, assignments: Assignment) -> None:
         for courier_id, claim_id in assignments.ids:
@@ -189,12 +191,12 @@ class Simulator(object):
             courier.next(self._current_gamble_end_dttm)
             if courier.done():
                 del self.free_couriers[courier_id]
-                self.assignment_statistics['finished_couriers'] += 1
+                self.gamble_statistics['finished_couriers'] += 1
 
     def _set_new_couriers(self, new_couriers: list[Courier]) -> None:
         for courier in new_couriers:
             self.free_couriers[courier.id] = courier
-        self.assignment_statistics['new_couriers'] += len(new_couriers)
+        self.gamble_statistics['new_couriers'] += len(new_couriers)
 
     def _next_unassigned_claims(self) -> None:
         for claim_id in list(self.unassigned_claims.keys()):
@@ -203,87 +205,87 @@ class Simulator(object):
             claim.next(self._current_gamble_end_dttm)
             if claim.done():
                 del self.unassigned_claims[claim_id]
-                self.assignment_statistics['cancelled_claims'] += 1
+                self.gamble_statistics['cancelled_claims'] += 1
 
     def _set_new_claims(self, new_claims: list[Claim]) -> None:
         for claim in new_claims:
             self.unassigned_claims[claim.id] = claim
-        self.assignment_statistics['new_claims'] += len(new_claims)
+        self.gamble_statistics['new_claims'] += len(new_claims)
 
 
-class ConstantSimulator(Simulator):
-    def __init__(self, config_path: Path) -> None:
-        self.assignment_statistics: dict[str, float] = defaultdict(float)
-        with open(config_path, 'r') as f:
-            self.config = json.load(f)
-        self._dttm = datetime.min
-        self._create_gamble()
-        self.reset()
+# class ConstantSimulator(Simulator):
+#     def __init__(self, config_path: Path) -> None:
+#         self.assignment_statistics: dict[str, float] = defaultdict(float)
+#         with open(config_path, 'r') as f:
+#             self.config = json.load(f)
+#         self._dttm = datetime.min
+#         self._create_gamble()
+#         self.reset()
 
-    def _create_gamble(self) -> Gamble:
-        self._gamble = Gamble(
-            couriers=[self._make_courier(data) for data in self.config['couriers']],
-            claims=[self._make_claim(data) for data in self.config['claims']],
-            orders=[self._make_order(data) for data in self.config['orders']],
-            dttm_start=self._dttm,
-            dttm_end=self._dttm + timedelta(seconds=30),
-        )
+#     def _create_gamble(self) -> Gamble:
+#         self._gamble = Gamble(
+#             couriers=[self._make_courier(data) for data in self.config['couriers']],
+#             claims=[self._make_claim(data) for data in self.config['claims']],
+#             orders=[self._make_order(data) for data in self.config['orders']],
+#             dttm_start=self._dttm,
+#             dttm_end=self._dttm + timedelta(seconds=30),
+#         )
 
-    def _make_courier(self, cfg: dict[str, tp.Any]) -> Courier:
-        return Courier(
-            id=cfg['id'],
-            position=Point(cfg['position']['x'], cfg['position']['y']),
-            start_dttm=self._dttm,
-            end_dttm=self._dttm,
-            courier_type='auto',
-        )
+#     def _make_courier(self, cfg: dict[str, tp.Any]) -> Courier:
+#         return Courier(
+#             id=cfg['id'],
+#             position=Point(cfg['position']['x'], cfg['position']['y']),
+#             start_dttm=self._dttm,
+#             end_dttm=self._dttm,
+#             courier_type='auto',
+#         )
 
-    def _make_claim(self, cfg: dict[str, tp.Any]) -> Claim:
-        return Claim(
-            id=cfg['id'],
-            source_point=Point(cfg['source']['x'], cfg['source']['y']),
-            destination_point=Point(cfg['destination']['x'], cfg['destination']['y']),
-            creation_dttm=self._dttm,
-            cancell_if_not_assigned_dttm=self._dttm + timedelta(seconds=100),
-            waiting_on_point_source=timedelta(seconds=10),
-            waiting_on_point_destination=timedelta(seconds=10),
-        )
+#     def _make_claim(self, cfg: dict[str, tp.Any]) -> Claim:
+#         return Claim(
+#             id=cfg['id'],
+#             source_point=Point(cfg['source']['x'], cfg['source']['y']),
+#             destination_point=Point(cfg['destination']['x'], cfg['destination']['y']),
+#             creation_dttm=self._dttm,
+#             cancell_if_not_assigned_dttm=self._dttm + timedelta(seconds=100),
+#             waiting_on_point_source=timedelta(seconds=10),
+#             waiting_on_point_destination=timedelta(seconds=10),
+#         )
 
-    def _make_order(self, cfg: dict[str, tp.Any]) -> Order:
-        claim = self._make_claim(cfg['claim'])
-        return Order(
-            id=cfg['id'],
-            creation_dttm=datetime.min,
-            courier=self._make_courier(cfg['courier']),
-            route=Route.from_claim(claim),
-            claims=[claim],
-        )
+#     def _make_order(self, cfg: dict[str, tp.Any]) -> Order:
+#         claim = self._make_claim(cfg['claim'])
+#         return Order(
+#             id=cfg['id'],
+#             creation_dttm=datetime.min,
+#             courier=self._make_courier(cfg['courier']),
+#             route=Route.from_claim(claim),
+#             claims=[claim],
+#         )
 
-    def reset(self) -> None:
-        pass
+#     def reset(self) -> None:
+#         pass
 
-    def get_state(self) -> Gamble:
-        return self._gamble
+#     def get_state(self) -> Gamble:
+#         return self._gamble
 
-    def next(self, assignments: Assignment) -> None:
-        self.assignment_statistics = defaultdict(float)
-        crr_ids = {crr.id for crr in self._gamble.couriers}
-        crr_ord_ids = {ord.courier.id for ord in self._gamble.orders}
-        clm_ids = {clm.id for clm in self._gamble.claims}
-        for crr_id, clm_id in assignments.ids:
-            assert clm_id in clm_ids, (clm_id, clm_ids)
-            if crr_id in crr_ids:
-                crr_ids.remove(crr_id)
-                clm_ids.remove(clm_id)
-                self.assignment_statistics['assigned_not_batched_claims'] += 1
-            elif crr_id in crr_ord_ids:
-                crr_ord_ids.remove(crr_id)
-                clm_ids.remove(clm_id)
-                self.assignment_statistics['assigned_batched_claims'] + 1
-            else:
-                print(crr_id, crr_ids, crr_ord_ids)
-                raise RuntimeError
-        self.assignment_statistics['unassigned_couriers'] = len(crr_ids)
-        self.assignment_statistics['unassigned_claims'] = len(clm_ids)
-        self.assignment_statistics['completed_claims'] = 0
-        self.assignment_statistics['cancelled_claims'] = 0
+#     def next(self, assignments: Assignment) -> None:
+#         self.assignment_statistics = defaultdict(float)
+#         crr_ids = {crr.id for crr in self._gamble.couriers}
+#         crr_ord_ids = {ord.courier.id for ord in self._gamble.orders}
+#         clm_ids = {clm.id for clm in self._gamble.claims}
+#         for crr_id, clm_id in assignments.ids:
+#             assert clm_id in clm_ids, (clm_id, clm_ids)
+#             if crr_id in crr_ids:
+#                 crr_ids.remove(crr_id)
+#                 clm_ids.remove(clm_id)
+#                 self.assignment_statistics['assigned_not_batched_claims'] += 1
+#             elif crr_id in crr_ord_ids:
+#                 crr_ord_ids.remove(crr_id)
+#                 clm_ids.remove(clm_id)
+#                 self.assignment_statistics['assigned_batched_claims'] + 1
+#             else:
+#                 print(crr_id, crr_ids, crr_ord_ids)
+#                 raise RuntimeError
+#         self.assignment_statistics['unassigned_couriers'] = len(crr_ids)
+#         self.assignment_statistics['unassigned_claims'] = len(clm_ids)
+#         self.assignment_statistics['completed_claims'] = 0
+#         self.assignment_statistics['cancelled_claims'] = 0
