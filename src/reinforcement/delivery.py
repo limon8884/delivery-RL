@@ -108,6 +108,7 @@ class DeliveryState(State):
 
 class DeliveryRewarder:
     def __init__(self, **kwargs) -> None:
+        self.sparse_reward = kwargs['sparse_reward']
         self.coef_reward_completed = kwargs['coef_reward_completed']
         self.coef_reward_assigned = kwargs['coef_reward_assigned']
         self.coef_reward_cancelled = kwargs['coef_reward_cancelled']
@@ -116,7 +117,8 @@ class DeliveryRewarder:
         self.coef_reward_num_claims = kwargs['coef_reward_num_claims']
         self.coef_reward_new_claims = kwargs['coef_reward_new_claims']
 
-    def __call__(self, assignment_statistics: dict[str, float], gamble_statistics: dict[str, float]) -> float:
+    def __call__(self, assignment_statistics: dict[str, float], gamble_statistics: dict[str, float], done: bool
+                 ) -> float:
         completed = gamble_statistics['completed_claims']
         assigned = assignment_statistics['assigned_not_batched_claims'] \
             + assignment_statistics['assigned_batched_claims']
@@ -125,13 +127,23 @@ class DeliveryRewarder:
         prohibited = assignment_statistics['prohibited_assignments']
         num_claims = gamble_statistics['num_claims']
         new_claims = gamble_statistics['new_claims']
-        return self.coef_reward_completed * completed \
-            + self.coef_reward_assigned * assigned \
-            - self.coef_reward_cancelled * cancelled \
-            - self.coef_reward_distance * distance \
-            - self.coef_reward_prohibited * prohibited \
-            - self.coef_reward_num_claims * num_claims \
-            - self.coef_reward_new_claims * new_claims
+        if self.sparse_reward == 'cr':
+            if not done:
+                return 0
+            return completed / new_claims if new_claims != 0 else 0
+        elif self.sparse_reward == 'ar':
+            if not done:
+                return 0
+            return assigned / new_claims if new_claims != 0 else 0
+        elif self.sparse_reward == 'no':
+            return self.coef_reward_completed * completed \
+                + self.coef_reward_assigned * assigned \
+                - self.coef_reward_cancelled * cancelled \
+                - self.coef_reward_distance * distance \
+                - self.coef_reward_prohibited * prohibited \
+                - self.coef_reward_num_claims * num_claims \
+                - self.coef_reward_new_claims * new_claims
+        raise RuntimeError('No such reward option')
 
 
 class DeliveryEnvironment(BaseEnvironment):
@@ -164,7 +176,7 @@ class DeliveryEnvironment(BaseEnvironment):
         state = self._make_state_from_gamble_dict()
         return state
 
-    def step(self, action: DeliveryAction) -> tuple[DeliveryState, float, bool, dict[str, float]]:
+    def step(self, action: DeliveryAction, reset: bool = False) -> tuple[DeliveryState, float, bool, dict[str, float]]:
         if self.__getattribute__('_iter') is None:
             raise RuntimeError('Call reset before doing steps')
         # LOGGER.debug(f'fake assignment: {action.to_index() == len(self._gamble.orders) + len(self._gamble.couriers)}')
@@ -172,15 +184,15 @@ class DeliveryEnvironment(BaseEnvironment):
         reward = 0.0
         done = False
         info = {}
-        if self._claim_idx == len(self.embs_dict['clm']):
+        if self._claim_idx == len(self.embs_dict['clm']) or reset:
             gamble_statistics = self._gamble_statistics
             self._update_next_gamble()
-            reward = self.rewarder(self._assignment_statistics, gamble_statistics)
-            info.update(self._assignment_statistics)
-            info.update(gamble_statistics)
-            if self._iter >= self.num_gambles:
+            if self._iter >= self.num_gambles or reset:
                 done = True
                 self._iter = 0
+            reward = self.rewarder(self._assignment_statistics, gamble_statistics, done)
+            info.update(self._assignment_statistics)
+            info.update(gamble_statistics)
         new_state = self._make_state_from_gamble_dict()
         # LOGGER.debug(f"Reward: {reward}, done {done}")
         return new_state, reward, done, info
@@ -421,26 +433,35 @@ class DeliveryInferenceMetricsRunner(InferenceMetricsRunner):
     @staticmethod
     def get_metrics_from_trajectory(trajs: list[Trajectory]) -> dict[str, float]:
         cumulative_metrics: dict[str, float] = defaultdict(float)
+        resets_cumulative_metrics: dict[str, list[float | int]] = {
+            'reward': [0.0],
+            'length': [0],
+        }
         total_iters = 0
         for traj in trajs:
-            for reward, log_prob_chosen, entropy, action, state in zip(
-                    traj.rewards, traj.log_probs_chosen, traj.entropies, traj.actions, traj.states):
+            for reward, log_prob_chosen, entropy, action, state, done in zip(
+                    traj.rewards, traj.log_probs_chosen, traj.entropies, traj.actions, traj.states, traj.resets):
                 assert isinstance(state, DeliveryState)
                 total_iters += 1
                 cumulative_metrics['step reward'] += reward
                 cumulative_metrics['chosen prob'] += np.exp(log_prob_chosen)
                 cumulative_metrics['entropy'] += entropy
+                cumulative_metrics['resets'] += int(done)
                 cumulative_metrics['has available couriers'] += int(state.has_free_couriers())
 
+                # resets metrics
+                if done:
+                    resets_cumulative_metrics['reward'].append(cumulative_metrics['step reward'])
+                    resets_cumulative_metrics['length'].append(total_iters)
                 # has available couriers and not assigned
                 cumulative_metrics['not assigned'] += int(
                     action.to_index() == state.last() and state.has_free_couriers())
-                # cumulative_metrics['invalid actions'] += int(action.to_index() > state.last())
-
                 # has available couriers and greedy assigned
                 cumulative_metrics['greedy'] += int(
                     action.to_index() == state.greedy() and state.has_free_couriers())
         results = {('PPO: ' + metric): (value / total_iters) for metric, value in cumulative_metrics.items()}
+        avg_done_rewards = np.diff(resets_cumulative_metrics['reward']) / np.diff(resets_cumulative_metrics['length'])
+        results.update({'avg time-episode reward': np.mean(avg_done_rewards)})
         results.update({
             'not assigned | has available': cumulative_metrics['not assigned'] / cumulative_metrics['has available couriers'],
             'greedy | has available': cumulative_metrics['greedy'] / cumulative_metrics['has available couriers'],
@@ -596,12 +617,12 @@ class CloningDeliveryRunner:
         if self._claim_idx == len(self.embs_dict['clm']):
             gamble_statistics = self._gamble_statistics
             self._update_next_gamble()
-            reward = self.rewarder(self._assignment_statistics, gamble_statistics)
-            info.update(self._assignment_statistics)
-            info.update(gamble_statistics)
             if self._iter >= self.num_gambles:
                 done = True
                 self._iter = 0
+            reward = self.rewarder(self._assignment_statistics, gamble_statistics, done)
+            info.update(self._assignment_statistics)
+            info.update(gamble_statistics)
         new_state = self._make_state_from_gamble_dict()
         info['greedy and has available'] = int(old_state.greedy() == action.to_index() and old_state.has_free_couriers())
         info['fake and has available'] = int(old_state.last() == action.to_index() and old_state.has_free_couriers())

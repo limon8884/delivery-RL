@@ -39,10 +39,12 @@ class BaseEnvironment:
     '''
     A base class of environment in RL
     '''
-    def step(self, action: Action) -> tuple[State, float, bool, dict[str, float]]:
+    def step(self, action: Action, reset: bool = False) -> tuple[State, float, bool, dict[str, float]]:
         '''
         Performs step in the environment
-        Input: an action to perform
+        Input: 
+        * action - an action to perform
+        * reset - wheather it is the last action in the trajectory (done should be True)
         Returns: a tuple of
         * new_state
         * reward
@@ -176,7 +178,8 @@ class Runner:
 
     def run(self, best_actions=False) -> list[Trajectory]:
         states = [traj.last_state for traj in self._trajectories]
-        for _ in range(self.trajectory_length):
+        for trajectory_step in range(self.trajectory_length):
+            is_last_step = trajectory_step == self.trajectory_length - 1
             with torch.no_grad():
                 self.actor_critic(states)
             actions = self.actor_critic.get_actions_list(best_actions=best_actions)
@@ -187,7 +190,7 @@ class Runner:
             new_states: list[State] = []
             total_info: dict[str, float] = defaultdict(float)
             for idx in range(self.n_envs):
-                new_state, reward, done, info = self._environments[idx].step(actions[idx])
+                new_state, reward, done, info = self._environments[idx].step(actions[idx], reset=is_last_step)
                 self._trajectories[idx].append(states[idx], actions[idx], reward, done,
                                                log_probs_list[idx], values_list[idx], entropies[idx])
                 new_states.append(new_state)

@@ -18,6 +18,7 @@ from src.evaluation import evaluate
 @click.option('--group_run', '-g', 'group_run', type=str)
 @click.option('--description', '-d', 'description', type=str)
 @click.option('--load_checkpoint', '-l', 'load_checkpoint', type=str, default="")
+@click.option('--train_id', 'train_id', type=str, default="")
 @click.option('-i', '--total_iters', required=False, type=int, default=10_000)
 @click.option('-s', '--sampler_mode', required=False, type=str, default='distr_adopted')
 @click.option('-d', '--device', required=False, type=str, default='cuda')
@@ -63,6 +64,7 @@ from src.evaluation import evaluate
 @click.option('--coef_reward_prohibited', required=False, type=float, default=0.0)
 @click.option('--coef_reward_num_claims', required=False, type=float, default=0.0)
 @click.option('--coef_reward_new_claims', required=False, type=float, default=1.0)
+@click.option('--sparse_reward', required=False, type=str, default='no')
 @click.option('--eval_n_envs', required=False, type=int, default=1)
 @click.option('--eval_trajectory_length', required=False, type=int, default=2000)
 @click.option('-e', '--eval_epochs_frequency', required=False, type=int, default=1000)
@@ -77,9 +79,11 @@ def make_kwargs(**cfg):
     with open('configs/paths.json') as f:
         paths = dict(json.load(f))
         cfg.update(paths)
-
-    train_id = str(uuid.uuid4().hex)
-    cfg['train_id'] = train_id
+    if cfg['train_id'] == "":
+        train_id = str(uuid.uuid4().hex)
+        cfg['train_id'] = train_id
+    else:
+        train_id = cfg['train_id']
     cfg['checkpoint_path'] += train_id + '.pt'
     cfg['history_db_path'] += train_id + '.db'
     cfg['debug_info_path'] += train_id + '.txt'
