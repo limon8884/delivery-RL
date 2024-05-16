@@ -294,6 +294,7 @@ class Buffer:
         values = []
         actions = []
         rewards = []
+        resets = []
         self._states = []
         for traj in trajectories:
             advantages.extend(self.gae(traj))
@@ -302,11 +303,13 @@ class Buffer:
             actions.extend([a.to_index() for a in traj.actions])
             self._states.extend(traj.states)
             rewards.extend(traj.rewards)
-        self._actions_chosen = torch.tensor(actions, dtype=torch.int64).to(device=self.device)
-        self._advantages = torch.tensor(advantages, dtype=torch.float).to(device=self.device)
-        self._log_probs_chosen = torch.tensor(log_probs_chosen, dtype=torch.float).to(device=self.device)
-        self._values = torch.tensor(values, dtype=torch.float).to(device=self.device)
+            resets.extend(traj.resets)
+        self._actions_chosen = torch.tensor(actions, dtype=torch.int64).to('cpu')
+        self._advantages = torch.tensor(advantages, dtype=torch.float).to('cpu')
+        self._log_probs_chosen = torch.tensor(log_probs_chosen, dtype=torch.float).to('cpu')
+        self._values = torch.tensor(values, dtype=torch.float).to('cpu')
         self._rewards = np.array(rewards)
+        self._resets = torch.tensor(resets, dtype=torch.bool).to('cpu')
 
         self.lenght = len(self._advantages)
         self.shuffle()
@@ -314,13 +317,14 @@ class Buffer:
         assert len(self._values) == self.lenght
         assert len(self._states) == self.lenght
         assert len(self._actions_chosen) == self.lenght
+        assert len(self._resets) == self.lenght
 
     def shuffle(self) -> None:
         '''
         Shuffles trajectories in buffer
         '''
         self._iter = 0
-        self._perm = torch.randperm(self.lenght, device=self.device)
+        self._perm = torch.randperm(self.lenght, device='cpu')
 
     def sample(self, size: int) -> dict[str, torch.FloatTensor | list[State]]:
         '''
@@ -332,11 +336,12 @@ class Buffer:
         choices = self._perm[self._iter: self._iter + size]
         self._iter += size
         return {
-            'advantages': self.normalize_advantages(self._advantages[choices]),
-            'log_probs_chosen': self._log_probs_chosen[choices],
-            'values': self._values[choices],
+            'advantages': self.normalize_advantages(self._advantages[choices]).to(self.device),
+            'log_probs_chosen': self._log_probs_chosen[choices].to(self.device),
+            'values': self._values[choices].to(self.device),
             'states': [self._states[i.item()] for i in choices],
-            'actions_chosen': self._actions_chosen[choices],
+            'actions_chosen': self._actions_chosen[choices].to(self.device),
+            'resets': self._resets[choices].to(self.device),
         }
 
     @staticmethod
@@ -530,6 +535,9 @@ class PPO:
         if self.metric_logger:
             self.metric_logger.log('grad norm', grad_norm.item())
             self.metric_logger.log('total loss', loss.item())
+            self.metric_logger.log('has reset', int(sample['resets'].any().item()))
+            if self.scheduler is not None:
+                self.metric_logger.log('lr', self.scheduler.get_last_lr())
             self.metric_logger.commit(step=self._step)
             self._step += 1
         self.opt.step()
