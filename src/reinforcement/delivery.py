@@ -117,6 +117,12 @@ class DeliveryRewarder:
         self.coef_reward_num_claims = kwargs['coef_reward_num_claims']
         self.coef_reward_new_claims = kwargs['coef_reward_new_claims']
 
+        self.cumulative_metrics = {
+            'assigned': 0.0,
+            'completed': 0.0,
+            'new_claims': 0.0
+        }
+
     def __call__(self, assignment_statistics: dict[str, float], gamble_statistics: dict[str, float], done: bool
                  ) -> float:
         completed = gamble_statistics['completed_claims']
@@ -127,14 +133,22 @@ class DeliveryRewarder:
         prohibited = assignment_statistics['prohibited_assignments']
         num_claims = gamble_statistics['num_claims']
         new_claims = gamble_statistics['new_claims']
-        if self.sparse_reward == 'cr':
+
+        self.cumulative_metrics['assigned'] += assigned
+        self.cumulative_metrics['completed'] += completed
+        self.cumulative_metrics['new_claims'] += new_claims
+
+        if self.sparse_reward in ['cr', 'ar']:
             if not done:
                 return 0
-            return completed / new_claims if new_claims != 0 else 0
-        elif self.sparse_reward == 'ar':
-            if not done:
+            numerator = self.cumulative_metrics['assigned'] if self.sparse_reward == 'ar' else self.cumulative_metrics['completed']
+            denominator = self.cumulative_metrics['new_claims']
+            self.cumulative_metrics['assigned'] = 0
+            self.cumulative_metrics['completed'] = 0
+            self.cumulative_metrics['new_claims'] = 0
+            if denominator == 0:
                 return 0
-            return assigned / new_claims if new_claims != 0 else 0
+            return numerator / denominator
         elif self.sparse_reward == 'no':
             return self.coef_reward_completed * completed \
                 + self.coef_reward_assigned * assigned \
@@ -160,7 +174,7 @@ class DeliveryEnvironment(BaseEnvironment):
     def copy(self) -> 'DeliveryEnvironment':
         return DeliveryEnvironment(
             simulator=deepcopy(self.simulator),
-            rewarder=self.rewarder,
+            rewarder=deepcopy(self.rewarder),
             **self.kwargs
         )
 
@@ -515,12 +529,12 @@ class DeliveryMaker(BaseMaker):
             self._ppo = CloningPPO(actor_critic=self._ac, opt=opt, scheduler=scheduler,
                                    metric_logger=self._train_metric_logger, **kwargs)
             runner = CloningDeliveryRunner(dispatch=HungarianDispatch(DistanceScorer()),
-                                           simulator=sim, rewarder=rewarder, **kwargs)
+                                           simulator=sim, rewarder=deepcopy(rewarder), **kwargs)
         elif kwargs['use_cloning'] == 'greedy':
             self._ppo = CloningPPO(actor_critic=self._ac, opt=opt, scheduler=scheduler,
                                    metric_logger=self._train_metric_logger, **kwargs)
             runner = CloningDeliveryRunner(dispatch=GreedyDispatch2(DistanceScorer()),
-                                           simulator=sim, rewarder=rewarder, **kwargs)
+                                           simulator=sim, rewarder=deepcopy(rewarder), **kwargs)
         gae = GAE(gamma=kwargs['gae_gamma'], lambda_=kwargs['gae_lambda'])
         normalizer = RewardNormalizer(gamma=kwargs['reward_norm_gamma'], cliprange=kwargs['reward_norm_cliprange'])
         buffer = Buffer(gae, reward_normalizer=normalizer, device=device)
