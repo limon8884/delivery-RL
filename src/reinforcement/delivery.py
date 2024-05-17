@@ -109,6 +109,7 @@ class DeliveryState(State):
 class DeliveryRewarder:
     def __init__(self, **kwargs) -> None:
         self.sparse_reward = kwargs['sparse_reward']
+        self.sparse_reward_freq = kwargs['sparse_reward_freq']
         self.coef_reward_completed = kwargs['coef_reward_completed']
         self.coef_reward_assigned = kwargs['coef_reward_assigned']
         self.coef_reward_cancelled = kwargs['coef_reward_cancelled']
@@ -123,8 +124,8 @@ class DeliveryRewarder:
             'new_claims': 0.0
         }
 
-    def __call__(self, assignment_statistics: dict[str, float], gamble_statistics: dict[str, float], done: bool
-                 ) -> float:
+    def __call__(self, assignment_statistics: dict[str, float], gamble_statistics: dict[str, float], done: bool,
+                 gamble_iter: int) -> float:
         completed = gamble_statistics['completed_claims']
         assigned = assignment_statistics['assigned_not_batched_claims'] \
             + assignment_statistics['assigned_batched_claims']
@@ -139,7 +140,7 @@ class DeliveryRewarder:
         self.cumulative_metrics['new_claims'] += new_claims
 
         if self.sparse_reward in ['cr', 'ar']:
-            if not done:
+            if not done and (gamble_iter + 1) % self.sparse_reward_freq != 0:
                 return 0
             numerator = self.cumulative_metrics['assigned'] if self.sparse_reward == 'ar' else self.cumulative_metrics['completed']
             denominator = self.cumulative_metrics['new_claims']
@@ -179,7 +180,7 @@ class DeliveryEnvironment(BaseEnvironment):
         )
 
     def reset(self, seed: int | None = None) -> DeliveryState:
-        self._iter = 0
+        self._gamble_iter = 0
         self._claim_idx: int = 0
         self._prev_idxs: list[int] = []
         self._assignments: Assignment = Assignment([])
@@ -191,7 +192,7 @@ class DeliveryEnvironment(BaseEnvironment):
         return state
 
     def step(self, action: DeliveryAction, reset: bool = False) -> tuple[DeliveryState, float, bool, dict[str, float]]:
-        if self.__getattribute__('_iter') is None:
+        if self.__getattribute__('_gamble_iter') is None:
             raise RuntimeError('Call reset before doing steps')
         # LOGGER.debug(f'fake assignment: {action.to_index() == len(self._gamble.orders) + len(self._gamble.couriers)}')
         self._update_assignments(action)
@@ -201,10 +202,10 @@ class DeliveryEnvironment(BaseEnvironment):
         if self._claim_idx == len(self.embs_dict['clm']) or reset:
             gamble_statistics = self._gamble_statistics
             self._update_next_gamble()
-            if self._iter >= self.num_gambles or reset:
+            if self._gamble_iter >= self.num_gambles or reset:
                 done = True
-                self._iter = 0
-            reward = self.rewarder(self._assignment_statistics, gamble_statistics, done)
+                self._gamble_iter = 0
+            reward = self.rewarder(self._assignment_statistics, gamble_statistics, done, self._gamble_iter)
             info.update(self._assignment_statistics)
             info.update(gamble_statistics)
         new_state = self._make_state_from_gamble_dict()
@@ -219,7 +220,7 @@ class DeliveryEnvironment(BaseEnvironment):
             self.simulator.next(Assignment([]))
             self._statistics_add(self.simulator.assignment_statistics, self.simulator.gamble_statistics)
             self._gamble = self.simulator.get_state()
-            self._iter += 1
+            self._gamble_iter += 1
         self.embs_dict = {
             'crr': np.stack([crr.to_numpy(**self.kwargs) for crr in self._gamble.couriers], axis=0)
             if len(self._gamble.couriers)
@@ -237,7 +238,7 @@ class DeliveryEnvironment(BaseEnvironment):
         self._assignments = Assignment([])
         self._claim_idx = 0
         self._prev_idxs = []
-        self._iter += 1
+        self._gamble_iter += 1
 
     def _update_assignments(self, action: DeliveryAction):
         if action.idx < len(self._gamble.couriers):
@@ -591,7 +592,7 @@ class CloningDeliveryRunner:
 
     def reset(self) -> DeliveryState:
         self._statistics = []
-        self._iter = 0
+        self._gamble_iter = 0
         self._claim_idx: int = 0
         self._prev_idxs: list[int] = []
         self._assignments: Assignment = Assignment([])
@@ -605,35 +606,21 @@ class CloningDeliveryRunner:
         return self._make_state_from_gamble_dict()
 
     def step(self) -> tuple[DeliveryState, float, bool, dict[str, float], DeliveryAction]:
-        if self.__getattribute__('_iter') is None:
+        if self.__getattribute__('_gamble_iter') is None:
             raise RuntimeError('Call reset before doing steps')
         # self._update_assignments(action)
         old_state = self._make_state_from_gamble_dict()
         action = self._make_action()
         self._claim_idx += 1
-
-        # LOGGER.debug(f"Has available: {old_state.has_free_couriers()}, greedy and has available: {old_state.greedy() == action.to_index()}, fake and has available: {old_state.last() == action.to_index()}")
-        # LOGGER.debug(f"Actions# greedy: {old_state.greedy()}, chosen: {action.to_index()}, last: {old_state.last()}")
-        # LOGGER.debug(f"All assignments: {self._assignments.ids}")
-        # LOGGER.debug(f"Assignment dict: {self._assignment_dict}")
-        # LOGGER.debug(f"Courier to index: {self._crr_id_to_index}")
-        # LOGGER.debug(f"Claim idx: {self._claim_idx - 1}")
-        # LOGGER.debug(f"Claim ids: {[clm.id for clm in self._gamble.claims]}")
-        # LOGGER.debug(f"Courier ids: {[crr.id for crr in self._gamble.couriers]}")
-        # LOGGER.debug(f"Order ids: {[ord.id for ord in self._gamble.orders]}")
-        # LOGGER.debug(f"Dists: " + ', '.join([f"{d:.2f}" for d in self.embs_dict['dists'][self._claim_idx - 1].tolist()]))
-        # LOGGER.debug(f"Prev assigns (including current): {self._prev_idxs}")
-        # LOGGER.debug("#" * 50 + "\n")
-
         reward = 0.0
         done = False
         info = {}
         if self._claim_idx == len(self.embs_dict['clm']):
             gamble_statistics = self._gamble_statistics
             self._update_next_gamble()
-            if self._iter >= self.num_gambles:
+            if self._gamble_iter >= self.num_gambles:
                 done = True
-                self._iter = 0
+                self._gamble_iter = 0
             reward = self.rewarder(self._assignment_statistics, gamble_statistics, done)
             info.update(self._assignment_statistics)
             info.update(gamble_statistics)
@@ -680,7 +667,7 @@ class CloningDeliveryRunner:
             self._crr_id_to_index = self._make_crr_id_dict(self._gamble)
             self._assignments = self.dispatch(self._gamble)
             self._assignment_dict = {clm_id: crr_id for crr_id, clm_id in self._assignments.ids}
-            self._iter += 1
+            self._gamble_iter += 1
         self.embs_dict = {
             'crr': np.stack([crr.to_numpy(**self.kwargs) for crr in self._gamble.couriers], axis=0)
             if len(self._gamble.couriers)
@@ -698,7 +685,7 @@ class CloningDeliveryRunner:
         # self._assignments = Assignment([])
         self._claim_idx = 0
         self._prev_idxs = []
-        self._iter += 1
+        self._gamble_iter += 1
 
     def _make_state_from_gamble_dict(self) -> DeliveryState:
         claim_to_couries_dists = self.embs_dict['dists'][self._claim_idx]

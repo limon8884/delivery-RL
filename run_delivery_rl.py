@@ -65,6 +65,7 @@ from src.evaluation import evaluate
 @click.option('--coef_reward_num_claims', required=False, type=float, default=0.0)
 @click.option('--coef_reward_new_claims', required=False, type=float, default=1.0)
 @click.option('--sparse_reward', required=False, type=str, default='no')
+@click.option('--sparse_reward_freq', required=False, type=int, default=20)
 @click.option('--eval_n_envs', required=False, type=int, default=1)
 @click.option('--eval_trajectory_length', required=False, type=int, default=2000)
 @click.option('-e', '--eval_epochs_frequency', required=False, type=int, default=1000)

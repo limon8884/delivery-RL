@@ -1,26 +1,26 @@
-name: distr_adopted
+name: dummy
 method: random
 metric:
-  goal: maximize
-  name: "PPO: step reward"
+  goal: minimize
+  name: "CTD"
 parameters:
   group_run:
-    value: "distr_adopted"
+    value: "finally_dummy"
   # load_checkpoint:
   #   value: "checkpoints/afd5e834be0844ba967edc3a21834811.pt"
   n_envs: 
     value: 1
   trajectory_length:
-    value: [2000, 6000, 12000]
+    values: [1600, 6400, 12800]
   batch_size: 
-    value: 64
+    values: [64, 512]
   num_epochs_per_traj:
     min: 6
     max: 14
   max_num_points_in_route:
     value: 2
   sampler_mode:
-    value: "distr_adopted"
+    value: "dummy_sampler"
   optimizer: 
     value: "adam"
   scheduler_max_lr:
@@ -62,7 +62,7 @@ parameters:
   coef_reward_distance:
     value: 0.0
   total_iters:
-    value: 5000
+    value: 10_000
   device: 
     value: "cuda"
   use_wandb: 
@@ -73,4 +73,7 @@ parameters:
     value: 1000
   model_size:
     value: "medium"
-    # values: ["medium", "big"]
+  num_simulator_steps:
+    value: 500
+  num_gambles_in_day:
+    value: 500
