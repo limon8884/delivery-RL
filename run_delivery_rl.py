@@ -25,7 +25,7 @@ from src.evaluation import evaluate
 @click.option('-w', '--use_wandb', required=False, default=True, is_flag=True, type=bool)
 @click.option('-z', '--fix_zero_seed', required=False, default=False, is_flag=True, type=bool)
 @click.option('-t', '--use_train_logs', required=False, default=False, is_flag=True, type=bool)
-@click.option('-T', '--trajectory_length', required=False, type=int, default=12_000)
+@click.option('-T', '--trajectory_length', required=False, type=int, default=12_800)
 @click.option('-L', '--num_simulator_steps', required=False, type=int, default=500)
 @click.option('--use_cloning', required=False, default='no', type=str)
 @click.option('--mode', required=False, default='v1', type=str)
@@ -48,20 +48,20 @@ from src.evaluation import evaluate
 @click.option('--sgd_momentum', required=False, type=float, default=0.9)
 @click.option('--scheduler_max_lr', required=False, type=float, default=1e-4)
 @click.option('--scheduler_pct_start', required=False, type=float, default=0.3)
-@click.option('--exploration_temperature', required=False, type=float, default=1.0)
+@click.option('--exploration_temperature', required=False, type=float, default=2.0)
 @click.option('--ppo_cliprange', required=False, type=float, default=0.2)
-@click.option('--ppo_value_loss_coef', required=False, type=float, default=0.25)
+@click.option('--ppo_value_loss_coef', required=False, type=float, default=1.0)
 @click.option('--ppo_entropy_loss_coef', required=False, type=float, default=0.0)
 @click.option('--max_grad_norm', required=False, type=float, default=1.0)
-@click.option('--gae_gamma', required=False, type=float, default=0.99)
-@click.option('--gae_lambda', required=False, type=float, default=0.95)
-@click.option('--reward_norm_gamma', required=False, type=float, default=0.99)
+@click.option('--gae_gamma', required=False, type=float, default=0.9)
+@click.option('--gae_lambda', required=False, type=float, default=0.995)
+@click.option('--reward_norm_gamma', required=False, type=float, default=0.95)
 @click.option('--reward_norm_cliprange', required=False, type=float, default=10.0)
 @click.option('--coef_reward_completed', required=False, type=float, default=0.0)
 @click.option('--coef_reward_assigned', required=False, type=float, default=1.0)
 @click.option('--coef_reward_cancelled', required=False, type=float, default=0.0)
 @click.option('--coef_reward_distance', required=False, type=float, default=0.0)
-@click.option('--coef_reward_prohibited', required=False, type=float, default=0.0)
+@click.option('--coef_reward_prohibited', required=False, type=float, default=1.0)
 @click.option('--coef_reward_num_claims', required=False, type=float, default=0.0)
 @click.option('--coef_reward_new_claims', required=False, type=float, default=1.0)
 @click.option('--sparse_reward', required=False, type=str, default='no')
@@ -116,8 +116,18 @@ def run_ppo(**kwargs):
                 maker.metric_logger.log(k, v)
 
             if kwargs['use_cloning'] != 'no':
-                maker.metric_logger.log('Cloning: greedy | has available', sum(d['greedy and has available'] for d in maker.sampler.runner._statistics) / sum(d['has available'] for d in maker.sampler.runner._statistics))
-                maker.metric_logger.log('Cloning: fake | has available', sum(d['fake and has available'] for d in maker.sampler.runner._statistics) / sum(d['has available'] for d in maker.sampler.runner._statistics))
+                maker.metric_logger.log('Cloning: greedy | has available', sum(
+                        d['greedy and has available'] for d in maker.sampler.runner._statistics
+                    ) / (sum(
+                        d['has available'] for d in maker.sampler.runner._statistics
+                    ) + 1e-6)
+                )
+                maker.metric_logger.log('Cloning: fake | has available', sum(
+                        d['fake and has available'] for d in maker.sampler.runner._statistics
+                    ) / (sum(
+                        d['has available'] for d in maker.sampler.runner._statistics
+                    ) + 1e-6)
+                )
             inference_logger()
             if not kwargs['use_wandb']:
                 maker.metric_logger.plot(window_size=10)

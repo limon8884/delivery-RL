@@ -1,5 +1,14 @@
 {
     "encoder": {
+        "tiny" : {
+            "point_embedding_dim": 16,
+            "cat_points_embedding_dim": 4,
+            "route_embedding_dim": 16,
+            "claim_embedding_dim": 16,
+            "courier_order_embedding_dim": 16,
+            "num_layers": 2,
+            "gamble_features_embedding_dim": 4
+        },
         "small" : {
             "point_embedding_dim": 64,
             "cat_points_embedding_dim": 8,
@@ -38,11 +47,29 @@
         }
     },
     "attention": {
+        "tiny": {
+            "d_model": 16,
+            "nhead": 2,
+            "dim_feedforward": 64,
+            "num_attention_layers": 2
+        },
+        "small": {
+            "d_model": 32,
+            "nhead": 2,
+            "dim_feedforward": 128,
+            "num_attention_layers": 3
+        },
         "medium": {
             "d_model": 64,
             "nhead": 4,
             "dim_feedforward": 256,
             "num_attention_layers": 4
+        },
+        "big": {
+            "d_model": 128,
+            "nhead": 4,
+            "dim_feedforward": 512,
+            "num_attention_layers": 6
         },
         "disabled": {
             "d_model": 16,
