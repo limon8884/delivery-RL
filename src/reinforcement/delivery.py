@@ -621,7 +621,7 @@ class CloningDeliveryRunner:
             if self._gamble_iter >= self.num_gambles:
                 done = True
                 self._gamble_iter = 0
-            reward = self.rewarder(self._assignment_statistics, gamble_statistics, done)
+            reward = self.rewarder(self._assignment_statistics, gamble_statistics, done, self._gamble_iter)
             info.update(self._assignment_statistics)
             info.update(gamble_statistics)
         new_state = self._make_state_from_gamble_dict()
@@ -655,14 +655,14 @@ class CloningDeliveryRunner:
 
     def _update_next_gamble(self):
         self.simulator.next(self._assignments)
-        self._statistics_update(self.simulator.assignment_statistics)
+        self._statistics_update(self.simulator.assignment_statistics, self.simulator.gamble_statistics)
         self._gamble = self.simulator.get_state()
         self._crr_id_to_index = self._make_crr_id_dict(self._gamble)
         self._assignments = self.dispatch(self._gamble)
         self._assignment_dict = {clm_id: crr_id for crr_id, clm_id in self._assignments.ids}
         while len(self._gamble.claims) == 0:
             self.simulator.next(Assignment([]))
-            self._statistics_add(self.simulator.assignment_statistics)
+            self._statistics_add(self.simulator.assignment_statistics, self.simulator.gamble_statistics)
             self._gamble = self.simulator.get_state()
             self._crr_id_to_index = self._make_crr_id_dict(self._gamble)
             self._assignments = self.dispatch(self._gamble)
