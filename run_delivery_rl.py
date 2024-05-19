@@ -46,7 +46,7 @@ from src.evaluation import evaluate
 @click.option('--optimizer', required=False, type=str, default='adam')
 @click.option('--rmsprop_alpha', required=False, type=float, default=0.9)
 @click.option('--sgd_momentum', required=False, type=float, default=0.9)
-@click.option('--scheduler_max_lr', required=False, type=float, default=1e-4)
+@click.option('--scheduler_max_lr', required=False, type=float, default=3e-5)
 @click.option('--scheduler_pct_start', required=False, type=float, default=0.3)
 @click.option('--exploration_temperature', required=False, type=float, default=2.0)
 @click.option('--ppo_cliprange', required=False, type=float, default=0.2)
