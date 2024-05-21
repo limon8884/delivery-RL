@@ -158,9 +158,24 @@ class DeliveryRewarder:
                 - self.coef_reward_prohibited * prohibited \
                 - self.coef_reward_num_claims * num_claims \
                 - self.coef_reward_new_claims * new_claims
-        elif self.reward_type == 'complex_ar':
-            numerator = assigned * self.cumulative_metrics['new_claims'] - new_claims * self.cumulative_metrics['assigned']
-            denominator = self.cumulative_metrics['new_claims'] ** 2
+        elif self.reward_type in ['dense_ar', 'dense_cr']:
+            if self.cumulative_metrics['new_claims'] == new_claims:
+                if new_claims == 0:
+                    res = 0.0
+                else:
+                    res = assigned / new_claims if self.reward_type == 'dense_ar' else completed / new_claims
+                if done:
+                    self.cumulative_metrics['assigned'] = 0
+                    self.cumulative_metrics['completed'] = 0
+                    self.cumulative_metrics['new_claims'] = 0
+                return res
+            if self.reward_type == 'dense_ar':
+                numerator = assigned * (self.cumulative_metrics['new_claims'] - new_claims) \
+                    - new_claims * (self.cumulative_metrics['assigned'] - assigned)
+            else:
+                numerator = completed * (self.cumulative_metrics['new_claims'] - new_claims) \
+                    - new_claims * (self.cumulative_metrics['completed'] - completed)
+            denominator = self.cumulative_metrics['new_claims'] * (self.cumulative_metrics['new_claims'] - new_claims)
             if done:
                 self.cumulative_metrics['assigned'] = 0
                 self.cumulative_metrics['completed'] = 0
@@ -174,9 +189,6 @@ class DeliveryRewarder:
 class DeliveryEnvironment(BaseEnvironment):
     def __init__(self, simulator: Simulator, rewarder: DeliveryRewarder, **kwargs) -> None:
         self.kwargs = kwargs
-        # self.max_num_points_in_route = kwargs['max_num_points_in_route']
-        # self.use_dist = kwargs['use_dist']
-        # self.use_route = kwargs['use_route']
         self.num_gambles = kwargs['num_gambles_in_day']
         self.simulator = simulator
         self.device = kwargs['device']
