@@ -108,7 +108,7 @@ class DeliveryState(State):
 
 class DeliveryRewarder:
     def __init__(self, **kwargs) -> None:
-        self.sparse_reward = kwargs['sparse_reward']
+        self.reward_type = kwargs['reward_type']
         self.sparse_reward_freq = kwargs['sparse_reward_freq']
         self.coef_reward_completed = kwargs['coef_reward_completed']
         self.coef_reward_assigned = kwargs['coef_reward_assigned']
@@ -139,10 +139,10 @@ class DeliveryRewarder:
         self.cumulative_metrics['completed'] += completed
         self.cumulative_metrics['new_claims'] += new_claims
 
-        if self.sparse_reward in ['cr', 'ar']:
+        if self.reward_type in ['sparse_cr', 'sparse_ar']:
             if not done and (gamble_iter + 1) % self.sparse_reward_freq != 0:
                 return 0
-            numerator = self.cumulative_metrics['assigned'] if self.sparse_reward == 'ar' else self.cumulative_metrics['completed']
+            numerator = self.cumulative_metrics['assigned'] if self.reward_type == 'sparse_ar' else self.cumulative_metrics['completed']
             denominator = self.cumulative_metrics['new_claims']
             self.cumulative_metrics['assigned'] = 0
             self.cumulative_metrics['completed'] = 0
@@ -150,7 +150,7 @@ class DeliveryRewarder:
             if denominator == 0:
                 return 0
             return numerator / denominator
-        elif self.sparse_reward == 'no':
+        elif self.reward_type == 'additive':
             return self.coef_reward_completed * completed \
                 + self.coef_reward_assigned * assigned \
                 - self.coef_reward_cancelled * cancelled \
@@ -158,6 +158,16 @@ class DeliveryRewarder:
                 - self.coef_reward_prohibited * prohibited \
                 - self.coef_reward_num_claims * num_claims \
                 - self.coef_reward_new_claims * new_claims
+        elif self.reward_type == 'complex_ar':
+            numerator = assigned * self.cumulative_metrics['new_claims'] - new_claims * self.cumulative_metrics['assigned']
+            denominator = self.cumulative_metrics['new_claims'] ** 2
+            if done:
+                self.cumulative_metrics['assigned'] = 0
+                self.cumulative_metrics['completed'] = 0
+                self.cumulative_metrics['new_claims'] = 0
+            if denominator == 0:
+                return 0
+            return numerator / denominator
         raise RuntimeError('No such reward option')
 
 
