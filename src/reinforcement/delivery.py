@@ -514,9 +514,11 @@ class DeliveryMaker(BaseMaker):
         if kwargs['load_checkpoint']:
             self._ac.load_state_dict(torch.load(kwargs['load_checkpoint'], map_location=device))
         opt = make_optimizer(self._ac.parameters(), **kwargs)
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=kwargs['scheduler_max_lr'],
-                                                        total_steps=kwargs['total_iters'],
-                                                        pct_start=kwargs['scheduler_pct_start'])
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            opt, max_lr=kwargs['scheduler_max_lr'],
+            total_steps=kwargs['total_iters'],
+            pct_start=kwargs['scheduler_pct_start']
+            ) if kwargs['scheduler_use'] else None
         self._ppo = PPO(
             actor_critic=self._ac,
             opt=opt,
