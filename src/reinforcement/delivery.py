@@ -539,7 +539,8 @@ class DeliveryMaker(BaseMaker):
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             opt, max_lr=kwargs['scheduler_max_lr'],
             total_steps=kwargs['total_iters'],
-            pct_start=kwargs['scheduler_pct_start']
+            pct_start=kwargs['scheduler_pct_start'],
+            final_div_factor=kwargs['scheduler_final_div_factor'],
             ) if kwargs['scheduler_use'] else None
         self._ppo = PPO(
             actor_critic=self._ac,

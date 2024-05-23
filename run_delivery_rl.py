@@ -49,6 +49,7 @@ from src.evaluation import evaluate
 @click.option('--scheduler_use', required=False, type=bool, default=True)
 @click.option('--scheduler_max_lr', required=False, type=float, default=3e-5)
 @click.option('--scheduler_pct_start', required=False, type=float, default=0.3)
+@click.option('--scheduler_final_div_factor', required=False, type=float, default=10000.)
 @click.option('--exploration_temperature', required=False, type=float, default=1.0)
 @click.option('--ppo_cliprange', required=False, type=float, default=0.2)
 @click.option('--ppo_value_loss_coef', required=False, type=float, default=1.0)
