@@ -18,6 +18,7 @@ from src.results import eval_model
 @click.option('--use_route', type=bool, default=False)
 @click.option('--device', type=str, default='cpu')
 @click.option('--use_pretrained_encoders', type=bool, default=False)
+@click.option('--point_encoder_type', type=str, default='linear')
 @click.option('--normalize_coords', required=False, type=bool, default=True)
 @click.option('--disable_features', type=bool, default=False)
 @click.option('--vis_freq', 'visualization_frequency', type=int, default=10)
