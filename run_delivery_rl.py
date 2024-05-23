@@ -9,7 +9,6 @@ from tqdm import tqdm
 
 from src.reinforcement.base import Runner
 from src.reinforcement.delivery import DeliveryMaker, DeliveryInferenceMetricsRunner
-from src.reinforcement.delivery2 import DeliveryMaker2
 from src.dispatchs.neural_sequantial_dispatch import NeuralSequantialDispatch
 from src.evaluation import evaluate
 
@@ -30,6 +29,7 @@ from src.evaluation import evaluate
 @click.option('--use_cloning', required=False, default='no', type=str)
 @click.option('--mode', required=False, default='v1', type=str)
 @click.option('--use_pretrained_encoders', required=False, type=bool, default=False)
+@click.option('--point_encoder_type', required=False, type=str, default='freq')
 @click.option('--normalize_coords', required=False, type=bool, default=True)
 @click.option('--mask_fake_crr', required=False, type=bool, default=False)
 @click.option('--use_dist', required=False, type=bool, default=True)
@@ -95,8 +95,8 @@ def make_kwargs(**cfg):
 def run_ppo(**kwargs):
     if kwargs['mode'] == 'v1':
         maker = DeliveryMaker(**kwargs)
-    elif kwargs['mode'] == 'v2':
-        maker = DeliveryMaker2(**kwargs)
+    # elif kwargs['mode'] == 'v2':
+    #     maker = DeliveryMaker2(**kwargs)
     else:
         raise RuntimeError(f"No such mode {kwargs['mode']}")
     if not kwargs['use_train_logs']:

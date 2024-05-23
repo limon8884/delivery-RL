@@ -3,41 +3,7 @@ import torch.nn as nn
 import numpy as np
 
 from src.objects import Point, Courier, Order, Route, Claim, Gamble
-
-
-X_COORD_MEAN = 37.60
-Y_COORD_MEAN = 55.75
-X_COORD_STD = 0.25
-Y_COORD_STD = 0.17
-
-
-class PointEncoder(nn.Module):
-    def __init__(self, point_emb_dim: int, device, normalize_coords=False):
-        super().__init__()
-        assert point_emb_dim % 4 == 0
-        self.sin_layer_x = nn.Linear(1, point_emb_dim // 4, device=device)
-        self.cos_layer_x = nn.Linear(1, point_emb_dim // 4, device=device)
-        self.sin_layer_y = nn.Linear(1, point_emb_dim // 4, device=device)
-        self.cos_layer_y = nn.Linear(1, point_emb_dim // 4, device=device)
-        self.device = device
-        self.normalize_coords = normalize_coords
-
-        for param in self.parameters():
-            param.requires_grad = False
-
-    def forward(self, points: torch.Tensor):
-        assert points.shape[-1] == 2, points.shape
-        if self.normalize_coords:
-            mean = torch.tensor([X_COORD_MEAN, Y_COORD_MEAN]).unsqueeze(0).to(self.device)
-            std = torch.tensor([X_COORD_STD, Y_COORD_STD]).unsqueeze(0).to(self.device)
-            points = (points - mean) / std
-        with torch.no_grad():
-            return torch.cat([
-                torch.sin(self.sin_layer_x(points[..., 0].unsqueeze(-1))),
-                torch.cos(self.cos_layer_x(points[..., 0].unsqueeze(-1))),
-                torch.sin(self.sin_layer_y(points[..., 1].unsqueeze(-1))),
-                torch.cos(self.cos_layer_y(points[..., 1].unsqueeze(-1))),
-            ], dim=-1)
+from src.networks.point_encoder import LinearPointEncoder, FreqPointEncoder, FreqPointEncoderUnited
 
 
 class NumberEncoder(nn.Module):
@@ -60,10 +26,18 @@ class NumberEncoder(nn.Module):
 
 
 class CoordMLPEncoder(nn.Module):
-    def __init__(self, coords_np_dim, point_embedding_dim, coords_embedding_dim, device, normalize_coords):
+    def __init__(self, coords_np_dim, point_embedding_dim, coords_embedding_dim, device,
+                 normalize_coords, point_encoder_type):
         super().__init__()
         assert point_embedding_dim % 4 == 0
-        self.pe = PointEncoder(point_embedding_dim, device=device, normalize_coords=normalize_coords)
+        if point_encoder_type == 'linear':
+            self.pe = LinearPointEncoder(point_embedding_dim, device=device, normalize_coords=normalize_coords)
+        elif point_encoder_type == 'freq':
+            self.pe = FreqPointEncoder(point_embedding_dim, device=device, normalize_coords=normalize_coords)
+        elif point_encoder_type == 'freqU':
+            self.pe = FreqPointEncoderUnited(point_embedding_dim, device=device, normalize_coords=normalize_coords)
+        else:
+            raise RuntimeError('No such encoder!')
         self.coords_np_dim = coords_np_dim
         input_dim = coords_np_dim // 2 * point_embedding_dim
         self.mlp = nn.Sequential(
@@ -104,6 +78,7 @@ class ItemEncoder(nn.Module):
         # dropout = kwargs['dropout']
         device = kwargs['device']
         normalize_coords = kwargs['normalize_coords']
+        point_encoder_type = kwargs['point_encoder_type']
         self.item_embedding_dim = item_embedding_dim
         coords_idxs = []
         numbers_idxs = []
@@ -123,20 +98,13 @@ class ItemEncoder(nn.Module):
         self.coord_encoder = CoordMLPEncoder(coords_np_dim=len(self.coords_idxs),
                                              point_embedding_dim=point_embedding_dim,
                                              coords_embedding_dim=coords_embedding_dim,
-                                             device=device, normalize_coords=normalize_coords)
+                                             device=device,
+                                             normalize_coords=normalize_coords,
+                                             point_encoder_type=point_encoder_type)
         self.number_encoder = NumberEncoder(numbers_np_dim=len(self.numbers_idxs),
                                             number_embedding_dim=number_embedding_dim,
                                             device=device)
         num_layers = kwargs['num_layers']
-        # if num_layers == 0:
-        #     self.mlp = nn.Sequential(
-        #         nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
-        #         nn.LeakyReLU(),
-        #         nn.Linear(item_embedding_dim, item_embedding_dim),
-        #         nn.LeakyReLU(),
-        #         nn.Linear(item_embedding_dim, item_embedding_dim),
-        #     ).to(device)
-        # else:
         self.mlp = nn.Sequential(
             nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
             *[nn.Sequential(nn.LeakyReLU(), nn.Linear(item_embedding_dim, item_embedding_dim))
@@ -169,6 +137,7 @@ class GambleEncoder(nn.Module):
         normalize_coords = kwargs['normalize_coords']
         self.device = kwargs['device']
         self.disable_features = kwargs['disable_features']
+        point_encoder_type = kwargs['point_encoder_type']
         self.claim_encoder = ItemEncoder(
             feature_types=Claim.numpy_feature_types(use_dist=use_dist),
             item_embedding_dim=claim_embedding_dim,
@@ -177,6 +146,7 @@ class GambleEncoder(nn.Module):
             num_layers=num_layers,
             device=self.device,
             normalize_coords=normalize_coords,
+            point_encoder_type=point_encoder_type,
         )
         self.courier_encoder = ItemEncoder(
             feature_types=Courier.numpy_feature_types(),
@@ -186,6 +156,7 @@ class GambleEncoder(nn.Module):
             num_layers=num_layers,
             device=self.device,
             normalize_coords=normalize_coords,
+            point_encoder_type=point_encoder_type,
         )
         self.order_encoder = ItemEncoder(
             feature_types=Order.numpy_feature_types(max_num_points_in_route=max_num_points_in_route,
@@ -196,6 +167,7 @@ class GambleEncoder(nn.Module):
             num_layers=num_layers,
             device=self.device,
             normalize_coords=normalize_coords,
+            point_encoder_type=point_encoder_type,
         )
         self.gamble_feature_encoder = NumberEncoder(
             numbers_np_dim=Gamble.numpy_feature_size(),
