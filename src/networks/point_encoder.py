@@ -11,9 +11,9 @@ X_COORD_STD = 0.25
 Y_COORD_STD = 0.17
 
 
-def normalize_coords(points: torch.Tensor) -> torch.Tensor:
-    mean = torch.tensor([X_COORD_MEAN, Y_COORD_MEAN]).unsqueeze(0)
-    std = torch.tensor([X_COORD_STD, Y_COORD_STD]).unsqueeze(0)
+def normalize_coords(points: torch.Tensor, device) -> torch.Tensor:
+    mean = torch.tensor([X_COORD_MEAN, Y_COORD_MEAN]).unsqueeze(0).to(device)
+    std = torch.tensor([X_COORD_STD, Y_COORD_STD]).unsqueeze(0).to(device)
     points = (points - mean) / std
     return points
 
@@ -41,7 +41,7 @@ class LinearPointEncoder(BasePointEncoder):
     def forward(self, points: torch.Tensor):
         assert points.shape[-1] == 2, points.shape
         if self.normalize_coords:
-            points = normalize_coords(points).to(self.device)
+            points = normalize_coords(points, self.device)
         x = self.layer(points)
         return x
 
@@ -57,7 +57,7 @@ class FreqPointEncoderUnited(BasePointEncoder):
     def forward(self, points: torch.Tensor):
         assert points.shape[-1] == 2, points.shape
         if self.normalize_coords:
-            points = normalize_coords(points).to(self.device)
+            points = normalize_coords(points, self.device)
         
         x = self.layer(points)
         x = torch.cat([
@@ -81,7 +81,7 @@ class FreqPointEncoder(BasePointEncoder):
     def forward(self, points: torch.Tensor):
         assert points.shape[-1] == 2, points.shape
         if self.normalize_coords:
-            points = normalize_coords(points).to(self.device)
+            points = normalize_coords(points, self.device)
         x = torch.cat([
             torch.sin(self.sin_layer_x(points[..., 0].unsqueeze(-1))),
             torch.cos(self.cos_layer_x(points[..., 0].unsqueeze(-1))),
@@ -93,7 +93,7 @@ class FreqPointEncoder(BasePointEncoder):
 
 class SupportPointEncoder(BasePointEncoder):
     def __init__(self, point_emb_dim: int, support_points_interval: float, device, trainable=True, **kwargs):
-        super().__init__(point_emb_dim, device, normalize_coords)
+        super().__init__(point_emb_dim, device, False)
         # n_support_points = int((2 * X_COORD_STD) * (2 * Y_COORD_STD) / support_points_interval**2)
         x_num = int(2 * X_COORD_STD / support_points_interval) + 1
         y_num = int(2 * Y_COORD_STD / support_points_interval) + 1
