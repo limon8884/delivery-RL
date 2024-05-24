@@ -119,7 +119,7 @@ CFG_DISTR = {
 }
 
 
-def test_dummy_sampler():
+def test_easy():
     smp = CityStampSampler(db_logger=None, cfg=CFG_DUMMY)
     smp.sample_citystamp(BASE_DTTM, BASE_DTTM + timedelta(seconds=30))
 
@@ -135,7 +135,7 @@ def test_distribution_sampler():
     smp.sample_citystamp(BASE_DTTM, BASE_DTTM + timedelta(seconds=30))
 
 
-def test_dummy_sampler_full():
+def test_easy_full():
     smp = CityStampSampler(db_logger=None, cfg=CFG_DUMMY)
     n_stamps = 10
     city_stamps = [

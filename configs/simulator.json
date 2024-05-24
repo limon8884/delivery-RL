@@ -1,5 +1,5 @@
 {
-    "dummy_sampler": {
+    "easy": {
         "sampler_mode": "dummy",
         "num_sampler": {
             "num_couriers": 5,
@@ -196,7 +196,7 @@
             }
         }
     },
-    "distr_adopted": {
+    "hard": {
         "sampler_mode": "adopted",
         "num_sampler": {
             "couriers": {

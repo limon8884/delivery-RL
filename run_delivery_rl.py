@@ -19,7 +19,7 @@ from src.evaluation import evaluate
 @click.option('--load_checkpoint', '-l', 'load_checkpoint', type=str, default="")
 @click.option('--train_id', 'train_id', type=str, default="")
 @click.option('-i', '--total_iters', required=False, type=int, default=5_000)
-@click.option('-s', '--sampler_mode', required=False, type=str, default='dummy_sampler')
+@click.option('-s', '--sampler_mode', required=False, type=str, default='easy')
 @click.option('-d', '--device', required=False, type=str, default='cuda')
 @click.option('-w', '--use_wandb', required=False, default=True, is_flag=True, type=bool)
 @click.option('-z', '--fix_zero_seed', required=False, default=False, is_flag=True, type=bool)

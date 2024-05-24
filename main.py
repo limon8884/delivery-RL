@@ -7,7 +7,7 @@ from src.results import eval_model
 
 
 @click.command()
-@click.option('-s', 'sampler_mode', type=str, default="dummy_sampler")
+@click.option('-s', 'sampler_mode', type=str, default="easy")
 @click.option('--n_pts', 'max_num_points_in_route', type=int, default=2)
 @click.option('--steps', 'num_simulator_steps', type=int, default=500)
 @click.option('--n_runs', 'eval_num_runs', type=int, default=5)
