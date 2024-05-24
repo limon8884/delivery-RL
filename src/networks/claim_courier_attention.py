@@ -15,6 +15,7 @@ class ClaimCourierAttention(nn.Module):
                  ):
         super().__init__()
         self.device = kwargs['device']
+        dropout = kwargs['dropout']
         self.d_model = d_model
         self.clm_adaptor = nn.Linear(clm_emb_size, d_model).to(self.device)
         self.co_adaptor = nn.Linear(co_emb_size, d_model).to(self.device)
@@ -23,6 +24,7 @@ class ClaimCourierAttention(nn.Module):
             d_model=d_model,
             nhead=nhead,
             dim_feedforward=dim_feedforward,
+            dropout=dropout,
             batch_first=True,
         )
         self.attention = nn.TransformerEncoder(attention_layer,

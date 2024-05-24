@@ -589,12 +589,22 @@ class BaseMaker:
         raise NotImplementedError
 
 
-def make_optimizer(parameters: typing.Iterable, **kwargs):
+def make_optimizer_and_scheduler(parameters: typing.Iterable, **kwargs):
     optimizer = kwargs['optimizer']
-    assert optimizer in ['adam', 'rmsprop', 'sgd'], f'Optimizer {optimizer} is not available'
     if optimizer == 'adam':
-        return torch.optim.AdamW(parameters, lr=kwargs['learning_rate'])
-    if optimizer == 'rmsprop':
-        return torch.optim.RMSprop(parameters, lr=kwargs['learning_rate'], alpha=kwargs['rmsprop_alpha'])
-    if optimizer == 'sgd':
-        return torch.optim.SGD(parameters, lr=kwargs['learning_rate'], momentum=kwargs['sgd_momentum'])
+        opt = torch.optim.AdamW(parameters, lr=kwargs['learning_rate'], weight_decay=kwargs['weight_decay'])
+    elif optimizer == 'rmsprop':
+        opt = torch.optim.RMSprop(parameters, lr=kwargs['learning_rate'], alpha=kwargs['rmsprop_alpha'])
+    elif optimizer == 'sgd':
+        opt = torch.optim.SGD(parameters, lr=kwargs['learning_rate'], momentum=kwargs['sgd_momentum'])
+    else:
+        raise RuntimeError(f'No such optimizer {optimizer}')
+
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        opt, max_lr=kwargs['scheduler_max_lr'],
+        total_steps=kwargs['total_iters'],
+        pct_start=kwargs['scheduler_pct_start'],
+        final_div_factor=kwargs['scheduler_final_div_factor'],
+    ) if kwargs['scheduler_use'] else None
+
+    return opt, scheduler

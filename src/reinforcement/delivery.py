@@ -40,7 +40,7 @@ from src.reinforcement.base import (
     TrajectorySampler,
     RewardNormalizer,
     InferenceMetricsRunner,
-    make_optimizer,
+    make_optimizer_and_scheduler,
     BaseMaker,
 )
 
@@ -535,13 +535,7 @@ class DeliveryMaker(BaseMaker):
                                        **kwargs, **attn_cfg)
         if kwargs['load_checkpoint']:
             self._ac.load_state_dict(torch.load(kwargs['load_checkpoint'], map_location=device))
-        opt = make_optimizer(self._ac.parameters(), **kwargs)
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            opt, max_lr=kwargs['scheduler_max_lr'],
-            total_steps=kwargs['total_iters'],
-            pct_start=kwargs['scheduler_pct_start'],
-            final_div_factor=kwargs['scheduler_final_div_factor'],
-            ) if kwargs['scheduler_use'] else None
+        opt, scheduler = make_optimizer_and_scheduler(self._ac.parameters(), **kwargs)
         self._ppo = PPO(
             actor_critic=self._ac,
             opt=opt,

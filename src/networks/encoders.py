@@ -75,7 +75,7 @@ class ResidualBlock(nn.Module):
 class ItemEncoder(nn.Module):
     def __init__(self, feature_types: dict[tuple[int, int], str], item_embedding_dim: int, **kwargs) -> None:
         super().__init__()
-        # dropout = kwargs['dropout']
+        dropout = kwargs['dropout']
         device = kwargs['device']
         normalize_coords = kwargs['normalize_coords']
         point_encoder_type = kwargs['point_encoder_type']
@@ -107,7 +107,7 @@ class ItemEncoder(nn.Module):
         num_layers = kwargs['num_layers']
         self.mlp = nn.Sequential(
             nn.Linear(coords_embedding_dim + number_embedding_dim, item_embedding_dim),
-            *[nn.Sequential(nn.LeakyReLU(), nn.Linear(item_embedding_dim, item_embedding_dim))
+            *[nn.Sequential(nn.LeakyReLU(), nn.Dropout(p=dropout), nn.Linear(item_embedding_dim, item_embedding_dim))
                 for _ in range(num_layers)]
         ).to(device)
 
@@ -138,6 +138,7 @@ class GambleEncoder(nn.Module):
         self.device = kwargs['device']
         self.disable_features = kwargs['disable_features']
         point_encoder_type = kwargs['point_encoder_type']
+        dropout = kwargs['dropout']
         self.claim_encoder = ItemEncoder(
             feature_types=Claim.numpy_feature_types(use_dist=use_dist),
             item_embedding_dim=claim_embedding_dim,
@@ -147,6 +148,7 @@ class GambleEncoder(nn.Module):
             device=self.device,
             normalize_coords=normalize_coords,
             point_encoder_type=point_encoder_type,
+            dropout=dropout,
         )
         self.courier_encoder = ItemEncoder(
             feature_types=Courier.numpy_feature_types(),
@@ -157,6 +159,7 @@ class GambleEncoder(nn.Module):
             device=self.device,
             normalize_coords=normalize_coords,
             point_encoder_type=point_encoder_type,
+            dropout=dropout,
         )
         self.order_encoder = ItemEncoder(
             feature_types=Order.numpy_feature_types(max_num_points_in_route=max_num_points_in_route,
@@ -168,6 +171,7 @@ class GambleEncoder(nn.Module):
             device=self.device,
             normalize_coords=normalize_coords,
             point_encoder_type=point_encoder_type,
+            dropout=dropout,
         )
         self.gamble_feature_encoder = NumberEncoder(
             numbers_np_dim=Gamble.numpy_feature_size(),
