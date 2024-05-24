@@ -41,7 +41,7 @@ from src.evaluation import evaluate
 @click.option('--num_epochs_per_traj', required=False, type=int, default=10)
 @click.option('-m', '--max_num_points_in_route', required=False, type=int, default=2)
 @click.option('--model_size', required=False, type=str, default='medium')
-@click.option('--dropout', required=False, type=float, default=0.0)
+@click.option('--dropout', required=False, type=float, default=0.15)
 @click.option('--weight_decay', required=False, type=float, default=0.01)
 @click.option('--learning_rate', required=False, type=float, default=3e-5)
 @click.option('--optimizer', required=False, type=str, default='adam')
