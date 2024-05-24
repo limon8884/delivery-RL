@@ -537,7 +537,7 @@ class PPO:
             self.metric_logger.log('total loss', loss.item())
             self.metric_logger.log('has reset', int(sample['resets'].any().item()))
             if self.scheduler is not None:
-                self.metric_logger.log('lr', self.scheduler.get_last_lr())
+                self.metric_logger.log('lr', self.scheduler.get_last_lr()[0])
             self.metric_logger.commit(step=self._step)
             self._step += 1
         self.opt.step()
