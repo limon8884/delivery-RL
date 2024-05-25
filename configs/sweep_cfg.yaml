@@ -1,79 +1,17 @@
-name: dummy
 method: random
 metric:
-  goal: minimize
-  name: "CTD"
+  goal: maximize
+  name: CR
+name: regularization
 parameters:
-  group_run:
-    value: "finally_dummy"
-  # load_checkpoint:
-  #   value: "checkpoints/afd5e834be0844ba967edc3a21834811.pt"
-  n_envs: 
-    value: 1
-  trajectory_length:
-    values: [1600, 6400, 12800]
-  batch_size: 
-    values: [64, 512]
-  num_epochs_per_traj:
-    min: 6
-    max: 14
-  max_num_points_in_route:
-    value: 2
-  sampler_mode:
-    value: "dummy_sampler"
-  optimizer: 
-    value: "adam"
-  scheduler_max_lr:
-    value: 0.0001
-    # distribution: "log_uniform"
-    # min: -10.0
-    # max: -7.0
-  scheduler_pct_start: 
-    value: 0.3
-  exploration_temperature:
-    min: 0.5
-    max: 2.0
-  ppo_cliprange:
-      min: 0.1
-      max: 0.3
-  ppo_value_loss_coef:
-    distribution: "log_uniform"
-    min: -2.0
-    max: 2.0
-    # value: 10
-  ppo_entropy_loss_coef:
-    value: 0.0
-  max_grad_norm:
-    value: 1.0
-  gae_gamma: 
-    values: [0.9, 0.95, 0.99, 0.995, 0.999]
-  gae_lambda:
-    values: [0.9, 0.95, 0.99, 0.995, 0.999]
-  reward_norm_gamma:
-    values: [0.9, 0.95, 0.99, 0.995, 0.999]
-  reward_norm_cliprange:
-    value: 10.0
-  coef_reward_assigned:
-    value: 0.0
-  coef_reward_cancelled:
-    value: 0.0
-  coef_reward_completed:
-    value: 1.0
-  coef_reward_distance:
-    value: 0.0
+  device:
+    value: cuda
+  weight_decay:
+    distribution: log_uniform
+    min: -7
+    max: 0
+  dropout:
+    min: 0
+    max: 0.3
   total_iters:
-    value: 10_000
-  device: 
-    value: "cuda"
-  use_wandb: 
-    value: true
-  use_train_logs:
-    value: false
-  eval_epochs_frequency: 
-    value: 1000
-  model_size:
-    value: "medium"
-  num_simulator_steps:
-    value: 500
-  num_gambles_in_day:
-    value: 500
+    1000

@@ -31,8 +31,11 @@ def eval_baselines(**kwargs):
 
     for baseline in BASELINES:
         for vs_baseline in BASELINES:
-            results[baseline][vs_baseline] = compute_significancy(run_values[vs_baseline],
-                                                                  run_values[baseline])['CR'][-3:]
+            significanties = compute_significancy(run_values[vs_baseline], run_values[baseline])
+            results[baseline][vs_baseline] = tuple(
+                metric + significanties[metric][-3:]
+                for metric in significanties
+            )
     return results
 
 
