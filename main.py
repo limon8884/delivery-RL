@@ -20,6 +20,7 @@ from src.results import eval_model
 @click.option('--use_pretrained_encoders', type=bool, default=False)
 @click.option('--point_encoder_type', type=str, default='linear')
 @click.option('--normalize_coords', required=False, type=bool, default=True)
+@click.option('--dropout', required=False, type=float, default=0.0)
 @click.option('--disable_features', type=bool, default=False)
 @click.option('--vis_freq', 'visualization_frequency', type=int, default=10)
 @click.option('-v', '--visualize', type=bool, is_flag=True, default=False)
