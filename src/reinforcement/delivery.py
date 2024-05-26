@@ -121,8 +121,10 @@ class DeliveryRewarder:
         self.cumulative_metrics = {
             'assigned': 0.0,
             'completed': 0.0,
-            'new_claims': 0.0
+            'new_claims': 0.0,
+            'time': 0,
         }
+        self.start_num_claims = None
 
     def __call__(self, assignment_statistics: dict[str, float], gamble_statistics: dict[str, float], done: bool,
                  gamble_iter: int) -> float:
@@ -134,19 +136,24 @@ class DeliveryRewarder:
         prohibited = assignment_statistics['prohibited_assignments']
         num_claims = gamble_statistics['num_claims']
         new_claims = gamble_statistics['new_claims']
+        assert num_claims != 0, 'There should not be no claims in the gamble!'
 
+        if self.cumulative_metrics['time'] == 0:
+            self.start_num_claims = num_claims - new_claims
         self.cumulative_metrics['assigned'] += assigned
         self.cumulative_metrics['completed'] += completed
         self.cumulative_metrics['new_claims'] += new_claims
+        self.cumulative_metrics['time'] += 1
 
         if self.reward_type in ['sparse_cr', 'sparse_ar']:
             if not done and (gamble_iter + 1) % self.sparse_reward_freq != 0:
                 return 0
             numerator = self.cumulative_metrics['assigned'] if self.reward_type == 'sparse_ar' else self.cumulative_metrics['completed']
-            denominator = self.cumulative_metrics['new_claims']
+            denominator = self.cumulative_metrics['new_claims'] + self.start_num_claims
             self.cumulative_metrics['assigned'] = 0
             self.cumulative_metrics['completed'] = 0
-            self.cumulative_metrics['new_claims'] = num_claims - assigned
+            self.cumulative_metrics['new_claims'] = 0
+            self.cumulative_metrics['time'] = 0
             if denominator == 0:
                 return 0
             return numerator / denominator
@@ -159,16 +166,13 @@ class DeliveryRewarder:
                 - self.coef_reward_num_claims * num_claims \
                 - self.coef_reward_new_claims * new_claims
         elif self.reward_type in ['dense_ar', 'dense_cr']:
-            if self.cumulative_metrics['new_claims'] == new_claims:
-                if new_claims == 0:
-                    res = 0.0
-                else:
-                    res = assigned / new_claims if self.reward_type == 'dense_ar' else completed / new_claims
+            if self.cumulative_metrics['time'] == 1:
                 if done:
                     self.cumulative_metrics['assigned'] = 0
                     self.cumulative_metrics['completed'] = 0
-                    self.cumulative_metrics['new_claims'] = num_claims - assigned
-                return res
+                    self.cumulative_metrics['new_claims'] = 0
+                    self.cumulative_metrics['time'] = 0
+                return assigned / num_claims if self.reward_type == 'dense_ar' else completed / num_claims
             if self.reward_type == 'dense_ar':
                 numerator = assigned * (self.cumulative_metrics['new_claims'] - new_claims) \
                     - new_claims * (self.cumulative_metrics['assigned'] - assigned)
@@ -179,7 +183,8 @@ class DeliveryRewarder:
             if done:
                 self.cumulative_metrics['assigned'] = 0
                 self.cumulative_metrics['completed'] = 0
-                self.cumulative_metrics['new_claims'] = num_claims - assigned
+                self.cumulative_metrics['new_claims'] = 0
+                self.cumulative_metrics['time'] = 0
             if denominator == 0:
                 return 0
             return numerator / denominator
