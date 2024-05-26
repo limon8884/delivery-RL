@@ -146,7 +146,7 @@ class DeliveryRewarder:
             denominator = self.cumulative_metrics['new_claims']
             self.cumulative_metrics['assigned'] = 0
             self.cumulative_metrics['completed'] = 0
-            self.cumulative_metrics['new_claims'] = 0
+            self.cumulative_metrics['new_claims'] = num_claims - assigned
             if denominator == 0:
                 return 0
             return numerator / denominator
@@ -167,7 +167,7 @@ class DeliveryRewarder:
                 if done:
                     self.cumulative_metrics['assigned'] = 0
                     self.cumulative_metrics['completed'] = 0
-                    self.cumulative_metrics['new_claims'] = 0
+                    self.cumulative_metrics['new_claims'] = num_claims - assigned
                 return res
             if self.reward_type == 'dense_ar':
                 numerator = assigned * (self.cumulative_metrics['new_claims'] - new_claims) \
@@ -179,7 +179,7 @@ class DeliveryRewarder:
             if done:
                 self.cumulative_metrics['assigned'] = 0
                 self.cumulative_metrics['completed'] = 0
-                self.cumulative_metrics['new_claims'] = 0
+                self.cumulative_metrics['new_claims'] = num_claims - assigned
             if denominator == 0:
                 return 0
             return numerator / denominator
