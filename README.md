@@ -1,3 +1,4 @@
+### This is my master thesis work. For more information, please, look at `Thesis.pdf`
 # Overview
 Last-mile delivery is a rapidly evolving field. Every company specializing in
 this area faces the challenge of assigning couriers to customer orders. The main
